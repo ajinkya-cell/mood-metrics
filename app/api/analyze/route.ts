@@ -1,0 +1,246 @@
+// GET /api/analyze?symbol=BTC
+//
+// THE BLEND: 60% Flash (CoinGecko + News) + 40% Historical (Reddit)
+//
+// Flow:
+//   1. Pull pre-computed Reddit score from sentiment_timeseries (instant)
+//   2. Analyze any new flash posts (CoinGecko/News) that arrived since last visit
+//   3. Blend the two scores with weights
+//   4. Return score + timeseries + live price + recent signals
+//
+// Reddit is NEVER scraped on-demand here — that's the 6h cron's job.
+// Flash posts get analyzed inline only if there are unanalyzed ones waiting.
+
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db/client";
+import {
+  tickers,
+  sentimentTimeseries,
+  rawPosts,
+  sentimentRecords,
+  scrapeCache,
+} from "@/lib/db/schema";
+import { eq, and, desc, gte, isNull } from "drizzle-orm";
+import { scrapeCoinGecko, fetchCoinPrice } from "@/lib/scrapers/coingecko";
+import { scrapeNewsRSS } from "@/lib/scrapers/news";
+import { analyzePendingPosts } from "@/lib/ai/sentiment";
+
+// ── Blend weights ─────────────────────────────────────────────────────────────
+const FLASH_WEIGHT    = 0.60;  // CoinGecko + News — real-time, breaking news
+const HISTORIC_WEIGHT = 0.40;  // Reddit timeseries — macro community mood
+
+// ── How long flash data stays fresh before we re-fetch ───────────────────────
+const FLASH_CACHE_MS = 30 * 60 * 1000;  // 30 minutes
+
+export async function GET(req: NextRequest) {
+  const symbol = req.nextUrl.searchParams.get("symbol")?.toUpperCase();
+
+  if (!symbol) {
+    return NextResponse.json({ error: "symbol is required" }, { status: 400 });
+  }
+
+  // ── Find ticker ────────────────────────────────────────────────────────────
+  const ticker = await db.query.tickers.findFirst({
+    where: eq(tickers.symbol, symbol),
+  });
+
+  if (!ticker) {
+    return NextResponse.json(
+      { error: `Unknown symbol: ${symbol}. Supported: BTC, ETH, SOL` },
+      { status: 404 }
+    );
+  }
+
+  // ── Check flash layer freshness ────────────────────────────────────────────
+  // Reddit freshness is NOT checked here — that's the cron's responsibility.
+  // We only refresh CoinGecko + News on user request if they're stale.
+  const flashCacheEntries = await db.query.scrapeCache.findMany({
+    where: eq(scrapeCache.tickerId, ticker.id),
+  });
+
+  const flashCutoff = new Date(Date.now() - FLASH_CACHE_MS);
+
+  const isFlashFresh = (source: "coingecko" | "news_rss") => {
+    const entry = flashCacheEntries.find((c) => c.sourceType === source);
+    return entry && entry.lastFetchedAt > flashCutoff && entry.status === "success";
+  };
+
+  // ── Step 1: Refresh stale flash sources ───────────────────────────────────
+  const flashRefreshTasks = [];
+  if (!isFlashFresh("coingecko")) flashRefreshTasks.push(scrapeCoinGecko(ticker));
+  if (!isFlashFresh("news_rss"))  flashRefreshTasks.push(scrapeNewsRSS(ticker));
+
+  if (flashRefreshTasks.length > 0) {
+    console.log(`[Analyze] Refreshing flash data for ${symbol}...`);
+    await Promise.allSettled(flashRefreshTasks);
+  }
+
+  // ── Step 2: Analyze any unanalyzed flash posts (CoinGecko + News only) ────
+  // Check if there are raw posts without sentiment records
+  const unanalyzedCount = await db
+    .select({ post: rawPosts })
+    .from(rawPosts)
+    .leftJoin(sentimentRecords, eq(rawPosts.id, sentimentRecords.postId))
+    .where(
+      and(
+        eq(rawPosts.tickerId, ticker.id),
+        isNull(sentimentRecords.id),
+        // Only analyze flash sources here — reddit is analyzed by cron
+        // We use a workaround: analyze all pending, reddit cron handles reddit
+      )
+    )
+    .limit(1);
+
+  if (unanalyzedCount.length > 0) {
+    console.log(`[Analyze] Found unanalyzed posts for ${symbol}, running AI...`);
+    await analyzePendingPosts(ticker);
+  }
+
+  // ── Step 3: Pull historical Reddit score from timeseries ──────────────────
+  // This is pre-computed by the 6h cron — instant DB read, no AI needed
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const timeseriesData = await db.query.sentimentTimeseries.findMany({
+    where: and(
+      eq(sentimentTimeseries.tickerId, ticker.id),
+      eq(sentimentTimeseries.interval, "1h"),
+      gte(sentimentTimeseries.bucketStart, oneDayAgo)
+    ),
+    orderBy: [desc(sentimentTimeseries.bucketStart)],
+  });
+
+  // Average the last 4 buckets (last 4 hours) for a stable Reddit baseline
+  const recentBuckets = timeseriesData.slice(0, 4);
+  const historicScore =
+    recentBuckets.length > 0
+      ? recentBuckets.reduce(
+          (sum, b) => sum + parseFloat(b.volumeWeightedScore ?? "0"),
+          0
+        ) / recentBuckets.length
+      : 0;
+
+  // ── Step 4: Calculate flash score from recent CoinGecko + News posts ──────
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+  const flashPosts = await db
+    .select({
+      score:      sentimentRecords.score,
+      label:      sentimentRecords.label,
+      sourceType: rawPosts.sourceType,
+      postedAt:   rawPosts.postedAt,
+    })
+    .from(sentimentRecords)
+    .innerJoin(rawPosts, eq(sentimentRecords.postId, rawPosts.id))
+    .where(
+      and(
+        eq(rawPosts.tickerId, ticker.id),
+        gte(rawPosts.postedAt, twoHoursAgo),
+        // Flash layer: coingecko + news only
+        // (reddit handled separately in timeseries)
+      )
+    );
+
+  // Filter to non-reddit for the flash score
+  const flashOnly = flashPosts.filter(
+    (p) => p.sourceType === "coingecko" || p.sourceType === "news_rss"
+  );
+
+  const flashScore =
+    flashOnly.length > 0
+      ? flashOnly.reduce((sum, p) => sum + parseFloat(p.score ?? "0"), 0) /
+        flashOnly.length
+      : historicScore; // fall back to historic if no flash posts exist yet
+
+  // ── Step 5: THE BLEND ─────────────────────────────────────────────────────
+  // 60% flash (breaking news) + 40% historic (community macro mood)
+  const blendedScore = flashScore * FLASH_WEIGHT + historicScore * HISTORIC_WEIGHT;
+  const normalizedScore = Math.round(blendedScore * 100); // -100 to +100
+
+  // ── Step 6: Fetch live price from CoinGecko ───────────────────────────────
+  // fetchCoinPrice is a lightweight single call — ~200ms
+  const price = ticker.coingeckoId
+    ? await fetchCoinPrice(ticker.coingeckoId)
+    : null;
+
+  // ── Step 7: Recent signals (latest 10 posts with AI labels) ───────────────
+  const recentSignals = await db
+    .select({
+      title:     rawPosts.title,
+      source:    rawPosts.sourceType,
+      label:     sentimentRecords.label,
+      score:     sentimentRecords.score,
+      reasoning: sentimentRecords.reasoning,
+      postedAt:  rawPosts.postedAt,
+      url:       rawPosts.url,
+    })
+    .from(rawPosts)
+    .innerJoin(sentimentRecords, eq(rawPosts.id, sentimentRecords.postId))
+    .where(eq(rawPosts.tickerId, ticker.id))
+    .orderBy(desc(rawPosts.postedAt))
+    .limit(10);
+
+  // ── Step 8: Summary stats from timeseries ─────────────────────────────────
+  const totalPosts    = timeseriesData.reduce((s, b) => s + (b.totalPosts ?? 0), 0);
+  const totalBullish  = timeseriesData.reduce((s, b) => s + (b.bullishCount ?? 0), 0);
+  const totalBearish  = timeseriesData.reduce((s, b) => s + (b.bearishCount ?? 0), 0);
+  const totalNeutral  = timeseriesData.reduce((s, b) => s + (b.neutralCount ?? 0), 0);
+
+  return NextResponse.json({
+    ticker: {
+      symbol: ticker.symbol,
+      name:   ticker.name,
+    },
+
+    // Live price data from CoinGecko
+    price: price ? {
+      usd:                Math.round(price.usd),
+      change24hPercent:   Math.round(price.change24h * 100) / 100,
+      marketCapUsd:       price.marketCapUsd,
+      geckoSentimentUp:   Math.round(price.geckoSentimentUp),
+      geckoSentimentDown: Math.round(price.geckoSentimentDown),
+      redditSubscribers:  price.redditSubscribers,
+    } : null,
+
+    // The blended sentiment score
+    sentiment: {
+      score: normalizedScore,       // -100 to +100
+      label:
+        normalizedScore > 20  ? "bullish" :
+        normalizedScore < -20 ? "bearish" : "neutral",
+
+      // Show the two layers separately so the UI can display them
+      flashScore:    Math.round(flashScore * 100),
+      historicScore: Math.round(historicScore * 100),
+      flashWeight:   FLASH_WEIGHT,
+      historicWeight: HISTORIC_WEIGHT,
+
+      // 24h aggregate stats (from reddit timeseries)
+      totalPostsAnalyzed: totalPosts,
+      bullishPercent: totalPosts > 0 ? Math.round((totalBullish / totalPosts) * 100) : 0,
+      bearishPercent: totalPosts > 0 ? Math.round((totalBearish / totalPosts) * 100) : 0,
+      neutralPercent: totalPosts > 0 ? Math.round((totalNeutral / totalPosts) * 100) : 0,
+
+      // CoinGecko community vote as a third signal
+      geckoVoteUp:   price ? Math.round(price.geckoSentimentUp)   : null,
+      geckoVoteDown: price ? Math.round(price.geckoSentimentDown)  : null,
+    },
+
+    // 24h hourly chart data (from pre-computed timeseries)
+    timeseries: timeseriesData.map((b) => ({
+      time:  b.bucketStart,
+      score: Math.round(parseFloat(b.volumeWeightedScore ?? "0") * 100),
+      posts: b.totalPosts,
+    })),
+
+    // Latest posts with AI verdicts
+    recentSignals,
+
+    meta: {
+      blendFormula:  `${FLASH_WEIGHT * 100}% flash + ${HISTORIC_WEIGHT * 100}% historic`,
+      flashFresh:    isFlashFresh("coingecko") && isFlashFresh("news_rss"),
+      flashPostsUsed: flashOnly.length,
+      historicBucketsUsed: recentBuckets.length,
+      lastUpdated:   new Date().toISOString(),
+    },
+  });
+}
