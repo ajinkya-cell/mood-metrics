@@ -1,65 +1,103 @@
 // AI sentiment analysis engine
-// Uses Vercel AI SDK + Claude to analyze each post and produce a structured score
+// Uses Vercel AI SDK + Nvidia NIM (Llama 3.1 8B) to analyze each post
+// NOTE: NIM doesn't support generateObject's structured output, so we use
+// generateText and parse JSON manually from the response.
 
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { rawPosts, sentimentRecords, sentimentTimeseries } from "@/lib/db/schema";
 import { eq, isNull, and, gte, lte, sql } from "drizzle-orm";
 import type { Ticker, RawPost } from "@/lib/db/schema";
 
 const nim = createOpenAICompatible({
-    name: "nim",
-    baseURL: "https://integrate.api.nvidia.com/v1",
-    headers: {
-        Authorization: `Bearer ${process.env.NIM_API_KEY}`,
-    },
+  name: "nim",
+  baseURL: "https://integrate.api.nvidia.com/v1",
+  headers: {
+    Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
+  },
 });
 
-// ── Zod schema for the AI's structured output ──────────────────────────────────
-const SentimentSchema = z.object({
-  label: z.enum(["bullish", "bearish", "neutral"]),
-  score: z
-    .number()
-    .min(-1)
-    .max(1)
-    .describe("Sentiment score from -1.0 (extremely bearish) to +1.0 (extremely bullish)"),
-  confidence: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe("How confident you are in this analysis, 0 to 1"),
-  reasoning: z
-    .string()
-    .max(300)
-    .describe("One sentence explaining the key reason for this sentiment"),
-});
+type SentimentResult = {
+  label: "bullish" | "bearish" | "neutral";
+  score: number;
+  confidence: number;
+  reasoning: string;
+};
 
 // ── Analyze a single post ──────────────────────────────────────────────────────
-async function analyzePost(post: RawPost, coinName: string) {
+async function analyzePost(post: RawPost, coinName: string): Promise<SentimentResult> {
   const textToAnalyze = [post.title, post.content]
     .filter(Boolean)
     .join("\n")
-    .slice(0, 2000); // Claude doesn't need more than this per post
+    .slice(0, 2000);
 
-  const { object } = await generateObject({
-   model: nim.chatModel("meta/llama-3.1-8b-instruct"), 
-        schema: SentimentSchema,
+  const { text } = await generateText({
+    model: nim.chatModel("meta/llama-3.1-8b-instruct"),
     prompt: `You are a crypto market sentiment analyst. Analyze this content about ${coinName} and determine the market sentiment.
 
 Content:
 ${textToAnalyze}
 
+Respond with ONLY valid JSON in this exact format (no markdown, no explanation):
+{"label": "bullish", "score": 0.5, "confidence": 0.8, "reasoning": "One sentence explaining why."}
+
 Rules:
-- bullish = positive outlook, price will go up, buy signals
-- bearish = negative outlook, price will go down, sell signals  
-- neutral = informational, no clear direction, mixed signals
-- Score +1.0 = extremely bullish, 0 = neutral, -1.0 = extremely bearish
+- label: "bullish" (positive outlook), "bearish" (negative), "neutral" (no clear direction)
+- score: -1.0 (extremely bearish) to +1.0 (extremely bullish), 0 = neutral
+- confidence: 0.0 to 1.0
+- reasoning: one short sentence explaining your analysis
 - Focus on market sentiment, not general news value`,
   });
 
-  return object;
+  return parseSentiment(text);
+}
+
+function parseSentiment(raw: string): SentimentResult {
+  try {
+    // Extract JSON object from the response (it might have surrounding text)
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found in response");
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    // Map various possible field names the model might use to our schema
+    const label = normalizeLabel(
+      parsed.label ?? parsed.sentiment ?? parsed.analysis?.sentiment ?? "neutral"
+    );
+    const score = parseFloat(
+      parsed.score ?? parsed.market_sentiment_score ?? parsed.analysis?.score ?? 0
+    );
+    const confidence = parseFloat(
+      parsed.confidence ?? parsed.analysis?.confidence ?? 0.5
+    );
+    const reasoning =
+      parsed.reasoning ??
+      parsed.reason ??
+      parsed.rationale ??
+      parsed.analysis?.reasoning ??
+      parsed.analysis?.rationale ??
+      "";
+
+    return {
+      label,
+      score: clamp(score, -1, 1),
+      confidence: clamp(confidence, 0, 1),
+      reasoning: String(reasoning).slice(0, 300),
+    };
+  } catch {
+    return { label: "neutral", score: 0, confidence: 0, reasoning: "Failed to parse AI response" };
+  }
+}
+
+function normalizeLabel(val: unknown): "bullish" | "bearish" | "neutral" {
+  const s = String(val).toLowerCase().trim();
+  if (s.includes("bull")) return "bullish";
+  if (s.includes("bear")) return "bearish";
+  return "neutral";
+}
+
+function clamp(val: number, min: number, max: number): number {
+  return Math.min(Math.max(val, min), max);
 }
 
 // ── Recency decay function ─────────────────────────────────────────────────────

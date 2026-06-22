@@ -2,7 +2,7 @@
 
 ## What is this?
 
-A **Next.js** app that aggregates crypto market sentiment from multiple sources (Reddit, CoinGecko, crypto news RSS), analyzes posts with **AI (Anthropic Claude)**, and produces a blended sentiment score for major cryptocurrencies (BTC, ETH, SOL).
+A **Next.js** app that aggregates crypto market sentiment from multiple sources (Reddit, CoinGecko, crypto news RSS), analyzes posts with **AI (Nvidia NIM — Llama 3.1 8B)**, and produces a blended sentiment score for major cryptocurrencies (BTC, ETH, SOL).
 
 ---
 
@@ -48,7 +48,7 @@ A **Next.js** app that aggregates crypto market sentiment from multiple sources 
 | Styling | Tailwind CSS | ^4 | Utility-first CSS |
 | Font | Geist | bundled | Vercel font family |
 | Database | Drizzle ORM + Neon (PostgreSQL) | 0.45.2 | Type-safe SQL |
-| AI | Vercel AI SDK + Anthropic Claude Haiku 4.5 | 6.0.208 | Sentiment analysis |
+| AI | Vercel AI SDK `generateText` + Nvidia NIM (Llama 3.1 8B) | 6.0.208 | Sentiment analysis (manual JSON parsing — NIM lacks structured output) |
 | Scraping | cheerio + rss-parser | 1.2.0 / 3.13.0 | News extraction |
 
 ---
@@ -83,8 +83,8 @@ A **Next.js** app that aggregates crypto market sentiment from multiple sources 
 | `lib/scrapers/coingecko.ts` | CoinGecko price + news scraper |
 | `lib/scrapers/news.ts` | RSS news scraper (cheerio) |
 | `lib/scrapers/news-scrapegraph.ts` | **Legacy** — replaced by news.ts |
-| `lib/scrapers/reddit.ts` | Reddit scraper (8 defenses) |
-| `lib/ai/sentiment.ts` | AI analysis engine (Claude Haiku) |
+| `lib/scrapers/reddit.ts` | Reddit scraper (8 defenses + error-aware cache retry) |
+| `lib/ai/sentiment.ts` | AI analysis engine (Nvidia NIM — Llama 3.1 8B) |
 
 ---
 
@@ -108,9 +108,12 @@ A **Next.js** app that aggregates crypto market sentiment from multiple sources 
 | `REDDIT_CLIENT_SECRET` | (unused) |
 | `REDDIT_USERNAME` | (unused) |
 | `REDDIT_PASSWORD` | (unused) |
-| `SCRAPEGRAPH_API_KEY` | Legacy scraper only |
-| `OPENAI_API_KEY` | Configured but unused (uses Anthropic) |
+| `NVIDIA_API_KEY` | Nvidia NIM API key (AI sentiment analysis) |
+| `COINGECKO_API_KEY` | CoinGecko API key (free tier) |
+| `SCRAPEGRAPH_API_KEY` | Legacy scraper only (unused) |
 | `CRON_SECRET` | Shared secret for cron auth |
+| `NEXTAUTH_SECRET` | NextAuth secret (unused) |
+| `NEXT_PUBLIC_APP_URL` | App URL |
 | `NODE_ENV` | `development` |
 
 ---
@@ -130,8 +133,13 @@ A **Next.js** app that aggregates crypto market sentiment from multiple sources 
 ## Key Design Decisions
 
 - **Reddit uses public JSON API** (no OAuth) — OAuth creds in `.env` are unused
+- **Reddit scraper defense H uses Arctic Shift fallback** — on 403, switches to `arctic-shift.photon-reddit.com` API with `sort=desc` (sorts by `created_utc`)
+- **User-Agent rotation** — 4 realistic browser agents; never includes "Bot" (Cloudflare insta-blocks)
+- **Cache retries on failure** — skips cache if previous run errored or returned 0 posts
+- **Timeout 10s** — Reddit's public JSON API is slow; increased from 6s
+- **Browser-like headers** — `Accept-Language`, `Referer` added for stealth
 - **News scraper uses Cheerio** (free) — migrated from ScrapeGraphAI (paid)
-- **AI uses Claude Haiku** — cheapest/fastest Claude model; 50 posts max per run with 200ms delays
+- **AI uses Nvidia NIM (Llama 3.1 8B)** — via Vercel AI SDK; 50 posts max per run with 200ms delays
 - **pnpm** is preferred package manager (but npm lockfiles exist)
 - **No frontend yet** — `app/page.tsx` is still the default Next.js starter; all functionality is API-only
 - **No tests** — no test framework is set up

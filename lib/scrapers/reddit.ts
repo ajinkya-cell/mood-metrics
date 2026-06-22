@@ -18,17 +18,19 @@ import type { Ticker } from "@/lib/db/schema";
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const CACHE_DURATION_MS = 4 * 60 * 60 * 1000;  // 4 hours
-const FETCH_TIMEOUT_MS  = 6_000;                 // 6s — kills hanging requests
+const FETCH_TIMEOUT_MS  = 10_000;                // 10s — Reddit's public JSON can be slow
 const MAX_RETRIES       = 3;                     // max retry attempts on 429
 const BASE_BACKOFF_MS   = 2_000;                 // exponential backoff base
 
 // ── Defense E: User-Agent rotation ───────────────────────────────────────────
 // Reddit blocks single static User-Agent strings. Rotating across a small
 // pool makes traffic look more like organic browser diversity.
+// IMPORTANT: never include "Bot" in any agent — Reddit's Cloudflare instantly flags it.
 const USER_AGENTS = [
-  "Mozilla/5.0 (compatible; CryptoMoodBot/1.0; +https://github.com/mood-metrics)",
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
 ];
 
 function randomAgent(): string {
@@ -113,8 +115,9 @@ async function fetchWithRetry(
       headers: {
         "User-Agent": randomAgent(),       // Defense E
         "Accept": "application/json",
-        // Telling Reddit we accept gzip reduces payload size ~70%
+        "Accept-Language": "en-US,en;q=0.9",
         "Accept-Encoding": "gzip, deflate, br",
+        "Referer": "https://www.reddit.com/",
       },
     });
   } catch (err) {
@@ -151,6 +154,9 @@ async function fetchWithRetry(
 // ── Defense H: Arctic Shift fallback ─────────────────────────────────────────
 // Arctic Shift is a public Reddit archive. When Reddit blocks us (403),
 // we silently switch to this mirror. Different domain = different IP block scope.
+//
+// API docs: https://github.com/ArthurHeitmann/arctic_shift/blob/master/api/README.md
+//   sort must be "asc" | "desc" (sorts by created_utc). "score" is NOT a valid value.
 
 async function fetchFromArcticShift(
   subreddit: string,
@@ -160,7 +166,7 @@ async function fetchFromArcticShift(
 
   const url =
     `https://arctic-shift.photon-reddit.com/api/posts/search` +
-    `?subreddit=${subreddit}&limit=${limit}&sort=score`;
+    `?subreddit=${subreddit}&limit=${limit}&sort=desc`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -269,9 +275,17 @@ export async function scrapeReddit(ticker: Ticker): Promise<number> {
 
   if (existing) {
     const age = Date.now() - existing.lastFetchedAt.getTime();
-    if (age < CACHE_DURATION_MS) {
+    const isFresh = age < CACHE_DURATION_MS;
+    const isFailed = existing.status === "error" || (existing.postCount ?? 0) === 0;
+
+    // Retry if previous attempt errored OR returned 0 posts (likely blocked)
+    if (isFresh && !isFailed) {
       console.log(`[Reddit] ${ticker.symbol} cache fresh (${Math.round(age / 60000)}m old), skipping`);
       return 0;
+    }
+
+    if (isFailed) {
+      console.log(`[Reddit] ${ticker.symbol} previous attempt ${existing.status} (${existing.postCount} posts) — retrying`);
     }
   }
 

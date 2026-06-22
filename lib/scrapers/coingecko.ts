@@ -174,69 +174,113 @@ export async function scrapeCoinGecko(ticker: Ticker): Promise<number> {
       set: { lastFetchedAt: new Date(), status: "in_progress" },
     });
 
-  console.log(`[CoinGecko] Fetching news for ${ticker.symbol}...`);
+    console.log(`[CoinGecko] Fetching data for ${ticker.symbol}...`);
 
-  try {
-    // Fetch news articles
-    // CoinGecko /coins/{id}/news returns the 50 most recent articles
-    const newsData = await geckoFetch<{ news?: CoinGeckoNewsItem[] }>(
-      `/coins/${ticker.coingeckoId}/news?count=50`
-    );
-
-    const newsItems = newsData.news ?? [];
     let inserted = 0;
 
-    for (const item of newsItems) {
-      // Only articles from the last 5 days (matches our deletion window)
-      const pubDate = new Date(item.updated_at * 1000);
-      const ageMs = Date.now() - pubDate.getTime();
-      if (ageMs > 5 * 24 * 60 * 60 * 1000) continue;
-
-      const content = [item.title, item.description].filter(Boolean).join("\n\n");
-      if (content.length < 20) continue;
-
+    try {
+      // Try the /coins/{id}/news endpoint first (Pro API)
+      // CoinGecko /coins/{id}/news returns the 50 most recent articles
       try {
-        await db
-          .insert(rawPosts)
-          .values({
-            tickerId:   ticker.id,
-            sourceType: "coingecko",
-            externalId: item.id ?? item.url,
-            title:      item.title?.slice(0, 500),
-            content:    content.slice(0, 5000),
-            author:     item.author ?? "CoinGecko News",
-            url:        item.url,
-            upvotes:    0,
-            postedAt:   pubDate,
-          })
-          .onConflictDoNothing();
+        const newsData = await geckoFetch<{ news?: CoinGeckoNewsItem[] }>(
+          `/coins/${ticker.coingeckoId}/news?count=50`
+        );
 
-        inserted++;
-      } catch {
-        // duplicate — skip
+        const newsItems = newsData.news ?? [];
+
+        for (const item of newsItems) {
+          // Only articles from the last 5 days (matches our deletion window)
+          const pubDate = new Date(item.updated_at * 1000);
+          const ageMs = Date.now() - pubDate.getTime();
+          if (ageMs > 5 * 24 * 60 * 60 * 1000) continue;
+
+          const content = [item.title, item.description].filter(Boolean).join("\n\n");
+          if (content.length < 20) continue;
+
+          try {
+            await db
+              .insert(rawPosts)
+              .values({
+                tickerId:   ticker.id,
+                sourceType: "coingecko",
+                externalId: item.id ?? item.url,
+                title:      item.title?.slice(0, 500),
+                content:    content.slice(0, 5000),
+                author:     item.author ?? "CoinGecko News",
+                url:        item.url,
+                upvotes:    0,
+                postedAt:   pubDate,
+              })
+              .onConflictDoNothing();
+
+            inserted++;
+          } catch {
+            // duplicate — skip
+          }
+        }
+      } catch (newsErr) {
+        // If the news endpoint 404s, we are likely on the free tier.
+        // Fall back to creating a synthetic post from the /coins/{id} endpoint.
+        const newsErrorMessage = newsErr instanceof Error ? newsErr.message : "";
+        if (newsErrorMessage.includes("404")) {
+          console.warn(`[CoinGecko] News endpoint 404 (Pro API). Falling back to free-tier /coins/{id} for ${ticker.symbol}...`);
+
+          const coinData = await geckoFetch<CoinGeckoCoinData>(
+            `/coins/${ticker.coingeckoId}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=false&sparkline=false`
+          );
+
+          // Create a synthetic post from community sentiment data
+          const up = coinData.sentiment_votes_up_percentage;
+          const down = coinData.sentiment_votes_down_percentage;
+          const sentiment = up > down ? "bullish" : "bearish";
+          const title = `${ticker.symbol} Community Sentiment: ${up.toFixed(1)}% ${sentiment}`;
+          const content = `Community sentiment for ${ticker.name || ticker.symbol} from CoinGecko: ${up.toFixed(1)}% up, ${down.toFixed(1)}% down. Reddit subscribers: ${coinData.community_data?.reddit_subscribers ?? "N/A"}. Twitter followers: ${coinData.community_data?.twitter_followers ?? "N/A"}.`;
+
+          try {
+            await db
+              .insert(rawPosts)
+              .values({
+                tickerId:   ticker.id,
+                sourceType: "coingecko",
+                externalId: `coingecko-sentiment-${ticker.coingeckoId}-${new Date().toISOString().split("T")[0]}`, // Unique daily ID
+                title:      title,
+                content:    content,
+                author:     "CoinGecko",
+                url:        `https://www.coingecko.com/en/coins/${ticker.coingeckoId}`,
+                upvotes:    0,
+                postedAt:   new Date(),
+              })
+              .onConflictDoNothing();
+
+            inserted++;
+          } catch {
+            // duplicate — skip
+          }
+        } else {
+          throw newsErr; // Re-throw if it's not a 404
+        }
       }
-    }
 
-    // Update cache — success
-    await db
-      .insert(scrapeCache)
-      .values({
-        tickerId:      ticker.id,
-        sourceType:    "coingecko",
-        lastFetchedAt: new Date(),
-        postCount:     inserted,
-        status:        "success",
-      })
-      .onConflictDoUpdate({
-        target: [scrapeCache.tickerId, scrapeCache.sourceType],
-        set: { lastFetchedAt: new Date(), postCount: inserted, status: "success", errorMessage: null },
-      });
+      // Update cache — success
+      await db
+        .insert(scrapeCache)
+        .values({
+          tickerId:      ticker.id,
+          sourceType:    "coingecko",
+          lastFetchedAt: new Date(),
+          postCount:     inserted,
+          status:        "success",
+        })
+        .onConflictDoUpdate({
+          target: [scrapeCache.tickerId, scrapeCache.sourceType],
+          set: { lastFetchedAt: new Date(), postCount: inserted, status: "success", errorMessage: null },
+        });
 
-    console.log(`[CoinGecko] ${ticker.symbol}: inserted ${inserted} articles`);
+      console.log(`[CoinGecko] ${ticker.symbol}: inserted ${inserted} items`);
 
-    // 2s gap between tickers — be polite to free tier
-    await sleep(2000);
-    return inserted;
+      // 2s gap between tickers — be polite to free tier
+      await sleep(2000);
+      return inserted;
 
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
