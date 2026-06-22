@@ -2,12 +2,20 @@
 // Uses Vercel AI SDK + Claude to analyze each post and produce a structured score
 
 import { generateObject } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { rawPosts, sentimentRecords, sentimentTimeseries } from "@/lib/db/schema";
 import { eq, isNull, and, gte, lte, sql } from "drizzle-orm";
 import type { Ticker, RawPost } from "@/lib/db/schema";
+
+const nim = createOpenAICompatible({
+    name: "nim",
+    baseURL: "https://integrate.api.nvidia.com/v1",
+    headers: {
+        Authorization: `Bearer ${process.env.NIM_API_KEY}`,
+    },
+});
 
 // ── Zod schema for the AI's structured output ──────────────────────────────────
 const SentimentSchema = z.object({
@@ -36,8 +44,8 @@ async function analyzePost(post: RawPost, coinName: string) {
     .slice(0, 2000); // Claude doesn't need more than this per post
 
   const { object } = await generateObject({
-    model: anthropic("claude-haiku-4-5"),  // haiku is fast + cheap for this task
-    schema: SentimentSchema,
+   model: nim.chatModel("meta/llama-3.1-8b-instruct"), 
+        schema: SentimentSchema,
     prompt: `You are a crypto market sentiment analyst. Analyze this content about ${coinName} and determine the market sentiment.
 
 Content:
