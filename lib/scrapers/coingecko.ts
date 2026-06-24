@@ -1,31 +1,33 @@
 // CoinGecko scraper — THE FLASH LAYER
-//
-// Designed for real-time freshness. Cache window = 30 minutes.
-// Fetches two things per coin:
-//   1. /coins/{id}/news   — latest news articles
-//   2. /coins/{id}        — community_data (developer_score, sentiment_votes)
-//
-// CoinGecko also gives us free price data we attach to the response,
-// so the dashboard can show price alongside sentiment with zero extra cost.
-//
-// Rate limit strategy:
-//   Free tier: ~30 calls/min unauthenticated, ~500/min with demo key
-//   We use: 2 calls per coin × 3 coins = 6 calls per run → completely safe
+// Updated to include volume data for the new algorithm
 
 import { db } from "@/lib/db/client";
 import { rawPosts, scrapeCache } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import type { Ticker } from "@/lib/db/schema";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const CACHE_DURATION_MS = 30 * 60 * 1000;  // 30 minutes — flash layer
-const FETCH_TIMEOUT_MS  = 8_000;
-const BASE_URL          = "https://api.coingecko.com/api/v3";
+const CACHE_DURATION_MS = 30 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 8_000;
+const BASE_URL = "https://api.coingecko.com/api/v3";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-// ── CoinGecko API types ───────────────────────────────────────────────────────
+// ── UPDATED PRICE TYPE ──────────────────────────────────────────────────────
+// Added volume24h and volume7dAvg for the new algorithm
+
+export type CoinPrice = {
+  usd: number;
+  change24h: number;
+  marketCapUsd: number;
+  volume24h: number;
+  volume7dAvg: number;
+  geckoSentimentUp: number;
+  geckoSentimentDown: number;
+  redditSubscribers: number;
+  twitterFollowers: number;
+};
+
+// ── COINGECKO API TYPES ─────────────────────────────────────────────────────
 
 type CoinGeckoNewsItem = {
   id?: string;
@@ -34,7 +36,7 @@ type CoinGeckoNewsItem = {
   url: string;
   thumb_2x?: string;
   author?: string;
-  updated_at: number;   // unix timestamp
+  updated_at: number;
 };
 
 type CoinGeckoCoinData = {
@@ -45,8 +47,10 @@ type CoinGeckoCoinData = {
     current_price: { usd: number };
     price_change_percentage_24h: number;
     market_cap: { usd: number };
+    total_volume: { usd: number };
+    total_volumes: { usd: number[] };
   };
-  sentiment_votes_up_percentage: number;    // % of users bullish on CoinGecko
+  sentiment_votes_up_percentage: number;
   sentiment_votes_down_percentage: number;
   community_data: {
     reddit_subscribers: number;
@@ -55,26 +59,9 @@ type CoinGeckoCoinData = {
     reddit_average_comments_48h: number;
     twitter_followers: number;
   };
-  developer_data: {
-    stars: number;
-    forks: number;
-    pull_request_contributors: number;
-    commit_count_4_weeks: number;
-  };
 };
 
-// Export so the analyze route can use it for price display
-export type CoinPrice = {
-  usd: number;
-  change24h: number;
-  marketCapUsd: number;
-  geckoSentimentUp: number;    // CoinGecko's own community sentiment %
-  geckoSentimentDown: number;
-  redditSubscribers: number;
-  twitterFollowers: number;
-};
-
-// ── Fetch helper with timeout + retry ─────────────────────────────────────────
+// ── FETCH HELPER ────────────────────────────────────────────────────────────
 
 async function geckoFetch<T>(path: string, attempt = 1): Promise<T> {
   const controller = new AbortController();
@@ -117,8 +104,8 @@ async function geckoFetch<T>(path: string, attempt = 1): Promise<T> {
   }
 }
 
-// ── Fetch current price + community stats ─────────────────────────────────────
-// Exported so /api/analyze can include live price in dashboard response
+// ── FETCH CURRENT PRICE + VOLUME ────────────────────────────────────────────
+// UPDATED: Now returns volume data for the algorithm
 
 export async function fetchCoinPrice(coingeckoId: string): Promise<CoinPrice | null> {
   try {
@@ -126,14 +113,23 @@ export async function fetchCoinPrice(coingeckoId: string): Promise<CoinPrice | n
       `/coins/${coingeckoId}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=false&sparkline=false`
     );
 
+    // Extract 7-day volume average (for volume momentum calculation)
+    const volume7dArray = data.market_data?.total_volumes?.usd ?? [];
+    const volume7dAvg =
+      volume7dArray.length > 0
+        ? volume7dArray.reduce((a, b) => a + b, 0) / volume7dArray.length
+        : 0;
+
     return {
-      usd:                  data.market_data?.current_price?.usd ?? 0,
-      change24h:            data.market_data?.price_change_percentage_24h ?? 0,
-      marketCapUsd:         data.market_data?.market_cap?.usd ?? 0,
-      geckoSentimentUp:     data.sentiment_votes_up_percentage ?? 50,
-      geckoSentimentDown:   data.sentiment_votes_down_percentage ?? 50,
-      redditSubscribers:    data.community_data?.reddit_subscribers ?? 0,
-      twitterFollowers:     data.community_data?.twitter_followers ?? 0,
+      usd: data.market_data?.current_price?.usd ?? 0,
+      change24h: data.market_data?.price_change_percentage_24h ?? 0,
+      marketCapUsd: data.market_data?.market_cap?.usd ?? 0,
+      volume24h: data.market_data?.total_volume?.usd ?? 0,
+      volume7dAvg: volume7dAvg,
+      geckoSentimentUp: data.sentiment_votes_up_percentage ?? 50,
+      geckoSentimentDown: data.sentiment_votes_down_percentage ?? 50,
+      redditSubscribers: data.community_data?.reddit_subscribers ?? 0,
+      twitterFollowers: data.community_data?.twitter_followers ?? 0,
     };
   } catch (err) {
     console.warn(`[CoinGecko] fetchCoinPrice failed for ${coingeckoId}:`, err);
@@ -141,154 +137,123 @@ export async function fetchCoinPrice(coingeckoId: string): Promise<CoinPrice | n
   }
 }
 
-// ── Main scraper ──────────────────────────────────────────────────────────────
+// ── SCRAPE NEWS ─────────────────────────────────────────────────────────────
 
-export async function scrapeCoinGecko(ticker: Ticker): Promise<number> {
+export async function scrapeCoinGecko(
+  ticker: Ticker,
+  opts?: { force?: boolean }
+): Promise<number> {
   if (!ticker.coingeckoId) {
     console.log(`[CoinGecko] No coingecko_id for ${ticker.symbol}`);
     return 0;
   }
 
-  // ── Cache check (30 min for flash layer) ─────────────────────────────────
-  const existing = await db.query.scrapeCache.findFirst({
-    where: and(
-      eq(scrapeCache.tickerId, ticker.id),
-      eq(scrapeCache.sourceType, "coingecko")
-    ),
-  });
+  if (!opts?.force) {
+    const existing = await db.query.scrapeCache.findFirst({
+      where: and(
+        eq(scrapeCache.tickerId, ticker.id),
+        eq(scrapeCache.sourceType, "coingecko")
+      ),
+    });
 
-  if (existing) {
-    const age = Date.now() - existing.lastFetchedAt.getTime();
-    if (age < CACHE_DURATION_MS && existing.status === "success") {
-      console.log(`[CoinGecko] ${ticker.symbol} cache fresh (${Math.round(age / 60000)}m old), skipping`);
-      return 0;
+    if (existing) {
+      const age = Date.now() - existing.lastFetchedAt.getTime();
+      if (age < CACHE_DURATION_MS && existing.status === "success") {
+        console.log(`[CoinGecko] ${ticker.symbol} cache fresh, skipping`);
+        return 0;
+      }
     }
   }
 
-  // Mark in_progress (concurrent guard)
   await db
     .insert(scrapeCache)
-    .values({ tickerId: ticker.id, sourceType: "coingecko", lastFetchedAt: new Date(), status: "in_progress" })
+    .values({
+      tickerId: ticker.id,
+      sourceType: "coingecko",
+      lastFetchedAt: new Date(),
+      status: "in_progress",
+    })
     .onConflictDoUpdate({
       target: [scrapeCache.tickerId, scrapeCache.sourceType],
       set: { lastFetchedAt: new Date(), status: "in_progress" },
     });
 
-    console.log(`[CoinGecko] Fetching data for ${ticker.symbol}...`);
+  console.log(`[CoinGecko] Fetching news for ${ticker.symbol}...`);
 
+  try {
+    const newsData = await geckoFetch<{ news?: CoinGeckoNewsItem[] }>(
+      `/coins/${ticker.coingeckoId}/news?count=50`
+    );
+
+    const newsItems = newsData.news ?? [];
     let inserted = 0;
 
-    try {
-      // Try the /coins/{id}/news endpoint first (Pro API)
-      // CoinGecko /coins/{id}/news returns the 50 most recent articles
+    for (const item of newsItems) {
+      const pubDate = new Date(item.updated_at * 1000);
+      const ageMs = Date.now() - pubDate.getTime();
+      if (ageMs > 5 * 24 * 60 * 60 * 1000) continue;
+
+      const content = [item.title, item.description].filter(Boolean).join("\n\n");
+      if (content.length < 20) continue;
+
       try {
-        const newsData = await geckoFetch<{ news?: CoinGeckoNewsItem[] }>(
-          `/coins/${ticker.coingeckoId}/news?count=50`
-        );
+        await db
+          .insert(rawPosts)
+          .values({
+            tickerId: ticker.id,
+            sourceType: "coingecko",
+            externalId: item.id ?? item.url,
+            title: item.title?.slice(0, 500),
+            content: content.slice(0, 5000),
+            author: item.author ?? "CoinGecko News",
+            url: item.url,
+            upvotes: 0,
+            postedAt: pubDate,
+          })
+          .onConflictDoNothing();
 
-        const newsItems = newsData.news ?? [];
-
-        for (const item of newsItems) {
-          // Only articles from the last 5 days (matches our deletion window)
-          const pubDate = new Date(item.updated_at * 1000);
-          const ageMs = Date.now() - pubDate.getTime();
-          if (ageMs > 5 * 24 * 60 * 60 * 1000) continue;
-
-          const content = [item.title, item.description].filter(Boolean).join("\n\n");
-          if (content.length < 20) continue;
-
-          try {
-            await db
-              .insert(rawPosts)
-              .values({
-                tickerId:   ticker.id,
-                sourceType: "coingecko",
-                externalId: item.id ?? item.url,
-                title:      item.title?.slice(0, 500),
-                content:    content.slice(0, 5000),
-                author:     item.author ?? "CoinGecko News",
-                url:        item.url,
-                upvotes:    0,
-                postedAt:   pubDate,
-              })
-              .onConflictDoNothing();
-
-            inserted++;
-          } catch {
-            // duplicate — skip
-          }
-        }
-      } catch (newsErr) {
-        // If the news endpoint 404s, we are likely on the free tier.
-        // Fall back to creating a synthetic post from the /coins/{id} endpoint.
-        const newsErrorMessage = newsErr instanceof Error ? newsErr.message : "";
-        if (newsErrorMessage.includes("404")) {
-          console.warn(`[CoinGecko] News endpoint 404 (Pro API). Falling back to free-tier /coins/{id} for ${ticker.symbol}...`);
-
-          const coinData = await geckoFetch<CoinGeckoCoinData>(
-            `/coins/${ticker.coingeckoId}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=false&sparkline=false`
-          );
-
-          // Create a synthetic post from community sentiment data
-          const up = coinData.sentiment_votes_up_percentage;
-          const down = coinData.sentiment_votes_down_percentage;
-          const sentiment = up > down ? "bullish" : "bearish";
-          const title = `${ticker.symbol} Community Sentiment: ${up.toFixed(1)}% ${sentiment}`;
-          const content = `Community sentiment for ${ticker.name || ticker.symbol} from CoinGecko: ${up.toFixed(1)}% up, ${down.toFixed(1)}% down. Reddit subscribers: ${coinData.community_data?.reddit_subscribers ?? "N/A"}. Twitter followers: ${coinData.community_data?.twitter_followers ?? "N/A"}.`;
-
-          try {
-            await db
-              .insert(rawPosts)
-              .values({
-                tickerId:   ticker.id,
-                sourceType: "coingecko",
-                externalId: `coingecko-sentiment-${ticker.coingeckoId}-${new Date().toISOString().split("T")[0]}`, // Unique daily ID
-                title:      title,
-                content:    content,
-                author:     "CoinGecko",
-                url:        `https://www.coingecko.com/en/coins/${ticker.coingeckoId}`,
-                upvotes:    0,
-                postedAt:   new Date(),
-              })
-              .onConflictDoNothing();
-
-            inserted++;
-          } catch {
-            // duplicate — skip
-          }
-        } else {
-          throw newsErr; // Re-throw if it's not a 404
-        }
+        inserted++;
+      } catch {
+        // duplicate
       }
+    }
 
-      // Update cache — success
-      await db
-        .insert(scrapeCache)
-        .values({
-          tickerId:      ticker.id,
-          sourceType:    "coingecko",
+    await db
+      .insert(scrapeCache)
+      .values({
+        tickerId: ticker.id,
+        sourceType: "coingecko",
+        lastFetchedAt: new Date(),
+        postCount: inserted,
+        status: "success",
+      })
+      .onConflictDoUpdate({
+        target: [scrapeCache.tickerId, scrapeCache.sourceType],
+        set: {
           lastFetchedAt: new Date(),
-          postCount:     inserted,
-          status:        "success",
-        })
-        .onConflictDoUpdate({
-          target: [scrapeCache.tickerId, scrapeCache.sourceType],
-          set: { lastFetchedAt: new Date(), postCount: inserted, status: "success", errorMessage: null },
-        });
+          postCount: inserted,
+          status: "success",
+          errorMessage: null,
+        },
+      });
 
-      console.log(`[CoinGecko] ${ticker.symbol}: inserted ${inserted} items`);
+    console.log(`[CoinGecko] ${ticker.symbol}: inserted ${inserted} articles`);
 
-      // 2s gap between tickers — be polite to free tier
-      await sleep(2000);
-      return inserted;
-
+    await sleep(2000);
+    return inserted;
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error(`[CoinGecko] ${ticker.symbol} failed:`, msg);
 
     await db
       .insert(scrapeCache)
-      .values({ tickerId: ticker.id, sourceType: "coingecko", lastFetchedAt: new Date(), status: "error", errorMessage: msg })
+      .values({
+        tickerId: ticker.id,
+        sourceType: "coingecko",
+        lastFetchedAt: new Date(),
+        status: "error",
+        errorMessage: msg,
+      })
       .onConflictDoUpdate({
         target: [scrapeCache.tickerId, scrapeCache.sourceType],
         set: { status: "error", errorMessage: msg, lastFetchedAt: new Date() },

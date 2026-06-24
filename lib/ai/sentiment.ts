@@ -10,6 +10,83 @@ import { rawPosts, sentimentRecords, sentimentTimeseries } from "@/lib/db/schema
 import { eq, isNull, and, gte, lte, sql } from "drizzle-orm";
 import type { Ticker, RawPost } from "@/lib/db/schema";
 
+// ── Normalization helpers for new signal sources ──────────────────────────────
+
+export const BLEND_WEIGHTS = {
+  flash:     0.40,
+  historic:  0.30,
+  funding:   0.15,
+  fearGreed: 0.15,
+} as const;
+
+/**
+ * Normalize Fear & Greed Index (0–100) to -1..+1 scale.
+ *   0  (extreme fear)  → -1.0
+ *   50 (neutral)        →  0.0
+ *   100 (extreme greed) → +1.0
+ */
+export function normalizeFearGreed(value: number): number {
+  return clamp((value - 50) / 50, -1, 1);
+}
+
+/**
+ * Normalize Binance funding rate decimal to -1..+1 scale.
+ *   +0.0010 (+0.10%) → +1.0  (bullish leverage)
+ *   -0.0010 (-0.10%) → -1.0  (bearish leverage)
+ *    0.0000          →  0.0  (neutral)
+ *
+ * Rates beyond ±0.1% are capped (extreme readings → contrarian signal).
+ */
+export function normalizeFundingRate(rate: number): number {
+  return clamp(rate / 0.001, -1, 1);
+}
+
+type BlendInput = {
+  flashScore:     number; // -1..+1 from CoinGecko + News
+  historicScore:  number; // -1..+1 from Reddit timeseries
+  fundingScore:   number; // -1..+1 normalized funding rate
+  fearGreedScore: number; // -1..+1 normalized F&G
+};
+
+type BlendOutput = {
+  score: number;     // -100..+100 (scaled for response)
+  label: 'bullish' | 'bearish' | 'neutral';
+  components: {
+    flash:     number;
+    historic:  number;
+    funding:   number;
+    fearGreed: number;
+  };
+};
+
+/**
+ * Compute the 4-layer blended sentiment score.
+ */
+export function calculateBlendedScore(input: BlendInput): BlendOutput {
+  const rawScore =
+    input.flashScore     * BLEND_WEIGHTS.flash +
+    input.historicScore  * BLEND_WEIGHTS.historic +
+    input.fundingScore   * BLEND_WEIGHTS.funding +
+    input.fearGreedScore * BLEND_WEIGHTS.fearGreed;
+
+  const score = Math.round(clamp(rawScore, -1, 1) * 100);
+  const label: BlendOutput['label'] =
+    score > 20  ? 'bullish' :
+    score < -20 ? 'bearish' : 'neutral';
+
+  return {
+    score,
+    label,
+    components: {
+      flash:     Math.round(input.flashScore * 100),
+      historic:  Math.round(input.historicScore * 100),
+      funding:   Math.round(input.fundingScore * 100),
+      fearGreed: Math.round(input.fearGreedScore * 100),
+    },
+  };
+}
+
+
 const nim = createOpenAICompatible({
   name: "nim",
   baseURL: "https://integrate.api.nvidia.com/v1",

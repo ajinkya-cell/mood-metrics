@@ -19,15 +19,15 @@ import {
   rawPosts,
   sentimentRecords,
   scrapeCache,
+  marketIndicators,
 } from "@/lib/db/schema";
 import { eq, and, desc, gte, isNull } from "drizzle-orm";
 import { scrapeCoinGecko, fetchCoinPrice } from "@/lib/scrapers/coingecko";
 import { scrapeNewsRSS } from "@/lib/scrapers/news";
-import { analyzePendingPosts } from "@/lib/ai/sentiment";
+import { scrapeFearGreed } from "@/lib/scrapers/fear-greed";
+import { scrapeBinanceFundingRate } from "@/lib/scrapers/binance-funding";
+import { analyzePendingPosts, normalizeFearGreed, normalizeFundingRate, calculateBlendedScore, BLEND_WEIGHTS } from "@/lib/ai/sentiment";
 
-// ── Blend weights ─────────────────────────────────────────────────────────────
-const FLASH_WEIGHT    = 0.60;  // CoinGecko + News — real-time, breaking news
-const HISTORIC_WEIGHT = 0.40;  // Reddit timeseries — macro community mood
 
 // ── How long flash data stays fresh before we re-fetch ───────────────────────
 const FLASH_CACHE_MS = 30 * 60 * 1000;  // 30 minutes
@@ -65,10 +65,36 @@ export async function GET(req: NextRequest) {
     return entry && entry.lastFetchedAt > flashCutoff && entry.status === "success";
   };
 
+  // Check if the latest funding rate indicator is fresh
+  const latestFundingCheck = await db.query.marketIndicators.findFirst({
+    where: and(
+      eq(marketIndicators.tickerId, ticker.id),
+      eq(marketIndicators.indicatorType, "funding_rate"),
+    ),
+    orderBy: [desc(marketIndicators.collectedAt)],
+  });
+
+  const isFundingFresh = latestFundingCheck &&
+    latestFundingCheck.collectedAt > flashCutoff;
+
+  // Check if the latest Fear & Greed indicator is fresh
+  const latestFngCheck = await db.query.marketIndicators.findFirst({
+    where: and(
+      isNull(marketIndicators.tickerId),
+      eq(marketIndicators.indicatorType, "fear_greed"),
+    ),
+    orderBy: [desc(marketIndicators.collectedAt)],
+  });
+
+  const isFngFresh = latestFngCheck &&
+    latestFngCheck.collectedAt > flashCutoff;
+
   // ── Step 1: Refresh stale flash sources ───────────────────────────────────
   const flashRefreshTasks = [];
   if (!isFlashFresh("coingecko")) flashRefreshTasks.push(scrapeCoinGecko(ticker));
   if (!isFlashFresh("news_rss"))  flashRefreshTasks.push(scrapeNewsRSS(ticker));
+  if (!isFundingFresh)            flashRefreshTasks.push(scrapeBinanceFundingRate(ticker));
+  if (!isFngFresh)                flashRefreshTasks.push(scrapeFearGreed()); // global, but idempotent
 
   if (flashRefreshTasks.length > 0) {
     console.log(`[Analyze] Refreshing flash data for ${symbol}...`);
@@ -119,6 +145,35 @@ export async function GET(req: NextRequest) {
         ) / recentBuckets.length
       : 0;
 
+  // ── Step 3.5: Pull Funding Rate + Fear & Greed ──────────────────────────────
+
+  // Funding rate (latest for this ticker)
+  const latestFunding = await db.query.marketIndicators.findFirst({
+    where: and(
+      eq(marketIndicators.tickerId, ticker.id),
+      eq(marketIndicators.indicatorType, "funding_rate"),
+    ),
+    orderBy: [desc(marketIndicators.collectedAt)],
+  });
+
+  const rawFundingRate = latestFunding
+    ? parseFloat(latestFunding.value as string)
+    : 0;
+  const fundingScore = normalizeFundingRate(rawFundingRate);
+
+  // Fear & Greed (global, no ticker)
+  const latestFng = await db.query.marketIndicators.findFirst({
+    where: and(
+      isNull(marketIndicators.tickerId),
+      eq(marketIndicators.indicatorType, "fear_greed"),
+    ),
+    orderBy: [desc(marketIndicators.collectedAt)],
+  });
+
+  const rawFng = latestFng ? parseFloat(latestFng.value as string) : 50;
+  const fearGreedScore = normalizeFearGreed(rawFng);
+  const fngLabel = latestFng?.label ?? "neutral";
+
   // ── Step 4: Calculate flash score from recent CoinGecko + News posts ──────
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
@@ -151,10 +206,15 @@ export async function GET(req: NextRequest) {
         flashOnly.length
       : historicScore; // fall back to historic if no flash posts exist yet
 
-  // ── Step 5: THE BLEND ─────────────────────────────────────────────────────
-  // 60% flash (breaking news) + 40% historic (community macro mood)
-  const blendedScore = flashScore * FLASH_WEIGHT + historicScore * HISTORIC_WEIGHT;
-  const normalizedScore = Math.round(blendedScore * 100); // -100 to +100
+  // ── Step 5: THE BLEND (4-layer) ─────────────────────────────────────────────
+  // 40% flash + 30% historic + 15% funding rate + 15% fear & greed
+
+  const blended = calculateBlendedScore({
+    flashScore,
+    historicScore,
+    fundingScore,
+    fearGreedScore,
+  });
 
   // ── Step 6: Fetch live price from CoinGecko ───────────────────────────────
   // fetchCoinPrice is a lightweight single call — ~200ms
@@ -203,16 +263,31 @@ export async function GET(req: NextRequest) {
 
     // The blended sentiment score
     sentiment: {
-      score: normalizedScore,       // -100 to +100
-      label:
-        normalizedScore > 20  ? "bullish" :
-        normalizedScore < -20 ? "bearish" : "neutral",
+      score: blended.score,
+      label: blended.label,
 
-      // Show the two layers separately so the UI can display them
-      flashScore:    Math.round(flashScore * 100),
-      historicScore: Math.round(historicScore * 100),
-      flashWeight:   FLASH_WEIGHT,
-      historicWeight: HISTORIC_WEIGHT,
+      // Show the components separately so the UI can display them
+      flashScore:    blended.components.flash,
+      historicScore: blended.components.historic,
+      fundingScore:  blended.components.funding,
+      fearGreedScore: blended.components.fearGreed,
+      flashWeight:   BLEND_WEIGHTS.flash,
+      historicWeight: BLEND_WEIGHTS.historic,
+      fundingWeight:  BLEND_WEIGHTS.funding,
+      fearGreedWeight: BLEND_WEIGHTS.fearGreed,
+
+      // Raw indicator values
+      fundingRate: {
+        rate:  Math.round(rawFundingRate * 100000) / 100000,
+        score: Math.round(fundingScore * 100),
+        label: rawFundingRate > 0.0001 ? 'bullish' :
+               rawFundingRate < -0.0001 ? 'bearish' : 'neutral',
+      },
+      fearGreed: {
+        value: rawFng,
+        score: Math.round(fearGreedScore * 100),
+        label: fngLabel,
+      },
 
       // 24h aggregate stats (from reddit timeseries)
       totalPostsAnalyzed: totalPosts,
@@ -236,7 +311,7 @@ export async function GET(req: NextRequest) {
     recentSignals,
 
     meta: {
-      blendFormula:  `${FLASH_WEIGHT * 100}% flash + ${HISTORIC_WEIGHT * 100}% historic`,
+      blendFormula:  "40% flash + 30% historic + 15% funding + 15% fear_greed",
       flashFresh:    isFlashFresh("coingecko") && isFlashFresh("news_rss"),
       flashPostsUsed: flashOnly.length,
       historicBucketsUsed: recentBuckets.length,

@@ -20,8 +20,10 @@ import { tickers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { scrapeCoinGecko } from "@/lib/scrapers/coingecko";
 import { scrapeNewsRSS } from "@/lib/scrapers/news";
+import { scrapeFearGreed } from "@/lib/scrapers/fear-greed";
+import { scrapeBinanceFundingRate } from "@/lib/scrapers/binance-funding";
 
-export const maxDuration = 60; // 60s is plenty for lightweight fetches
+export const maxDuration = 90; // increased from 60 to account for extra API calls
 
 export async function POST(req: Request) {
   const authHeader = req.headers.get("authorization");
@@ -29,28 +31,44 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(req.url);
+  const force = searchParams.get("force") === "true";
+
   const startedAt = Date.now();
   const results: Record<string, unknown> = {};
+  if (force) console.log("[FlashCron] Force mode — bypassing cache");
 
   try {
     const activeTickers = await db.query.tickers.findMany({
       where: eq(tickers.isActive, true),
     });
 
-    // CoinGecko and News can run in parallel per ticker —
-    // they are different domains with independent rate limits
+    // Run Fear & Greed once first (global indicator — same value for all tickers)
+    await scrapeFearGreed();
+
+    // CoinGecko, News, and Funding Rates can run in parallel per ticker
     for (const ticker of activeTickers) {
       console.log(`[FlashCron] === ${ticker.symbol} ===`);
 
-      const [geckoCount, newsCount] = await Promise.allSettled([
-        scrapeCoinGecko(ticker),
-        scrapeNewsRSS(ticker),
+      const [geckoCount, newsCount, fundingResult] = await Promise.allSettled([
+        scrapeCoinGecko(ticker, { force }),
+        scrapeNewsRSS(ticker, { force }),
+        scrapeBinanceFundingRate(ticker, { force }),
       ]).then((r) =>
-        r.map((result) => (result.status === "fulfilled" ? result.value : 0))
+        r.map((result) => (result.status === "fulfilled" ? result.value : null))
       );
 
-      results[ticker.symbol] = { coingecko: geckoCount, news: newsCount };
+      results[ticker.symbol] = {
+        coingecko: geckoCount ?? 0,
+        news: newsCount ?? 0,
+        fundingRate: fundingResult ? "ok" : "failed",
+      };
     }
+
+    // Add global indicator result
+    results._global = {
+      fearGreed: "fetched",
+    };
 
     // Note: we do NOT call analyzePendingPosts() here.
     // Flash posts get analyzed inline in /api/analyze when a user

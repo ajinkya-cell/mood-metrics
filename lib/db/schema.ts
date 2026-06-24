@@ -9,7 +9,8 @@ import {
   timestamp, 
   uniqueIndex, 
   uuid, 
-  varchar 
+  varchar,
+  jsonb
 } from "drizzle-orm/pg-core";
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -131,6 +132,28 @@ export const scrapeCache = pgTable("scrape_cache", {
   uniqueIndex("scrape_cache_unique").on(t.tickerId, t.sourceType),
 ]);
 
+// ─── Market Indicators ────────────────────────────────────────────────────────
+
+export const marketIndicators = pgTable("market_indicators", {
+  id:             uuid("id").defaultRandom().primaryKey(),
+  tickerId:       uuid("ticker_id")
+                    .references(() => tickers.id, { onDelete: "cascade" }),
+  indicatorType:  varchar("indicator_type", { length: 50 }).notNull(),
+  // 'fear_greed'  → global (tickerId is null)
+  // 'funding_rate' → per-ticker (tickerId is set)
+  value:          numeric("value", { precision: 12, scale: 6 }).notNull(),
+  label:          varchar("label", { length: 50 }),
+  // 'extreme fear' | 'fear' | 'neutral' | 'greed' | 'extreme greed' (F&G)
+  // 'bullish' | 'bearish' | 'neutral' (funding rate classification)
+  metadata:       jsonb("metadata"),
+  // Extra data: annualizedRate for funding, timestamp various sources
+  collectedAt:    timestamp("collected_at").notNull(),
+  createdAt:      timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("mi_ticker_type_idx").on(t.tickerId, t.indicatorType),
+  index("mi_collected_at_idx").on(t.collectedAt),
+]);
+
 // ─── Type Inferences ──────────────────────────────────────────────────────────
 
 export type Ticker = typeof tickers.$inferSelect;
@@ -141,3 +164,5 @@ export type SentimentRecord = typeof sentimentRecords.$inferSelect;
 export type NewSentimentRecord = typeof sentimentRecords.$inferInsert;
 export type SentimentTimeseries = typeof sentimentTimeseries.$inferSelect;
 export type ScrapeCache = typeof scrapeCache.$inferSelect;
+export type MarketIndicator = typeof marketIndicators.$inferSelect;
+export type NewMarketIndicator = typeof marketIndicators.$inferInsert;

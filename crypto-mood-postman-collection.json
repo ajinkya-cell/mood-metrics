@@ -1,0 +1,133 @@
+{
+	"info": {
+		"_postman_id": "8987f5d7-f2ac-4f90-8cb8-eea35cc4eb3a",
+		"name": "Crypto Mood Blended Sentiment API",
+		"description": "Postman collection to test the crypto-mood sentiment analysis and scraper API endpoints.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Search Tickers",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/search?q=BTC",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"search"
+					],
+					"query": [
+						{
+							"key": "q",
+							"value": "BTC",
+							"description": "Ticker symbol or name search query"
+						}
+					]
+				},
+				"description": "Searches for supported active cryptocurrency tickers (e.g. BTC, ETH, SOL)."
+			},
+			"response": []
+		},
+		{
+			"name": "Analyze Ticker Sentiment",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/analyze?symbol=BTC",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"analyze"
+					],
+					"query": [
+						{
+							"key": "symbol",
+							"value": "BTC",
+							"description": "Cryptocurrency ticker symbol (BTC, ETH, or SOL)"
+						}
+					]
+				},
+				"description": "Returns the 4-layer blended sentiment score, live price metrics, and recent sentiment signals for the cryptocurrency."
+			},
+			"response": []
+		},
+		{
+			"name": "Scrape Flash (Trigger Scrapers)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{cronSecret}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/cron/scrape-flash?force=true",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"cron",
+						"scrape-flash"
+					],
+					"query": [
+						{
+							"key": "force",
+							"value": "true",
+							"description": "Set to true to bypass cache and force scrape"
+						}
+					]
+				},
+				"description": "Triggers the flash layer scrapers (CoinGecko, Crypto News RSS feeds, Binance Funding Rates, and Fear & Greed index)."
+			},
+			"response": []
+		},
+		{
+			"name": "Scrape Reddit (Heavy historic scraper)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{cronSecret}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/cron/scrape-reddit",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"cron",
+						"scrape-reddit"
+					]
+				},
+				"description": "Triggers the heavyweight historical layer scraper (Reddit scraping, NIM AI sentiment batch processing, and timeseries aggregate rollups)."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "cronSecret",
+			"value": "your-super-secret-cron-string-here",
+			"type": "string"
+		}
+	]
+}

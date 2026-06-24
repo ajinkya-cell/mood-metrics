@@ -2,39 +2,30 @@
 
 ## What is this?
 
-A **Next.js** app that aggregates crypto market sentiment from multiple sources (Reddit, CoinGecko, crypto news RSS), analyzes posts with **AI (Nvidia NIM — Llama 3.1 8B)**, and produces a blended sentiment score for major cryptocurrencies (BTC, ETH, SOL).
+A **Next.js** web application that aggregates cryptocurrency market sentiment from multiple sources (Reddit, CoinGecko, crypto news RSS), analyzes posts with **AI (Nvidia NIM — Llama 3.1 8B)**, and produces a blended sentiment score for major cryptocurrencies (BTC, ETH, SOL).
 
 ---
 
-## Architecture (Two-Layer Sentiment)
+## Architecture (Four-Layer Sentiment)
 
 ```
-                     ┌──────────────────────────────────────┐
-                     │         CRON SCHEDULERS              │
-                     │  Flash (30min): CoinGecko + News RSS │
-                     │  Historic (6h): Reddit + AI analyze  │
-                     └──────┬──────────────┬────────────────┘
-                            │              │
-                ┌───────────▼──┐    ┌──────▼──────────┐
-                │  FLASH LAYER │    │ HISTORIC LAYER  │
-                │  (60%)       │    │ (40%)           │
-                │              │    │                 │
-                │ coingecko.ts │    │ reddit.ts       │
-                │ news.ts      │    │ sentiment.ts    │
-                └───────┬──────┘    └────────┬────────┘
-                        │                    │
-                        └────────┬───────────┘
-                                 │
-                      ┌──────────▼──────────┐
-                      │    /api/analyze     │
-                      │  Blends 60/40       │
-                      │  Returns JSON       │
-                      └─────────────────────┘
+  ┌── Flash (40%) ──┐ ┌─ Historic (30%) ┐ ┌─ Funding (15%) ─┐ ┌─ F&G (15%) ─┐
+  │ CoinGecko + RSS  │ │    Reddit AI    │ │ Binance Futures │ │ alternative  │
+  └────────┬─────────┘ └────────┬────────┘ └────────┬────────┘ └──────┬──────┘
+           └────────────────────┼────────────────────┼────────────────┘
+                                ▼
+                       ┌────────────────┐
+                       │ /api/analyze   │
+                       │  40/30/15/15   │
+                       └────────────────┘
 ```
 
-- **Flash Layer** (runs every 30 min) — CoinGecko API + crypto news RSS feeds
-- **Historical Layer** (runs every 6 hours) — Reddit subreddit scraping + AI analysis
-- **Blend** — `analyze` endpoint blends 60% flash / 40% historical
+1. **Flash Layer** (40% weight) — Combines CoinGecko news updates and crypto news RSS feeds. Refreshed dynamically on user request or every 30 minutes.
+2. **Historical Layer** (30% weight) — Reddit subreddit post scraping and AI sentiment analysis. Pre-aggregated into hourly buckets. Refreshed via cron every 6 hours.
+3. **Funding Rates Layer** (15% weight) — Binance perpetual funding rates scraper. Reflects leveraged market positioning. Normalized on a `-1.0` (highly bearish leverage) to `+1.0` (highly bullish leverage) scale, capped at `±0.10%`. Refreshed every 30 minutes.
+4. **Fear & Greed Layer** (15% weight) — Global crypto Fear & Greed Index from alternative.me. Normalized from its `0..100` range to a `-1.0` to `+1.0` scale. Refreshed every 30 minutes.
+
+The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/analyze/route.ts) endpoint pulls and combines these four components dynamically to output the final blended score.
 
 ---
 
@@ -43,29 +34,93 @@ A **Next.js** app that aggregates crypto market sentiment from multiple sources 
 | Category | Library | Version | Purpose |
 |---|---|---|---|
 | Framework | Next.js | 16.2.9 | App Router |
-| UI | React | 19.2.4 | — |
-| Language | TypeScript | ^5 | — |
-| Styling | Tailwind CSS | ^4 | Utility-first CSS |
+| UI | React | 19.2.4 | UI components |
+| Language | TypeScript | ^5 | Typed logic |
+| Styling | Tailwind CSS | ^4 | Utility-first styling |
 | Font | Geist | bundled | Vercel font family |
-| Database | Drizzle ORM + Neon (PostgreSQL) | 0.45.2 | Type-safe SQL |
-| AI | Vercel AI SDK `generateText` + Nvidia NIM (Llama 3.1 8B) | 6.0.208 | Sentiment analysis (manual JSON parsing — NIM lacks structured output) |
-| Scraping | cheerio + rss-parser | 1.2.0 / 3.13.0 | News extraction |
+| Database | Drizzle ORM + Neon (PostgreSQL) | 0.45.2 | Serverless PostgreSQL database client |
+| AI | Vercel AI SDK `generateText` + Nvidia NIM (Llama 3.1 8B) | 6.0.208 | AI-powered sentiment extraction with custom JSON parser fallback |
+| Scraping | cheerio + rss-parser | 1.2.0 / 3.13.0 | Lightweight HTML parsing and feed reading |
 
 ---
 
-## Database Schema (5 tables + 3 enums)
+## Database Schema (6 tables + 3 enums)
 
 ### Enums
-- `sentiment_label` — `bullish` / `bearish` / `neutral`
-- `source_type` — `reddit` / `coingecko` / `news_rss`
-- `interval_type` — `1h` / `4h` / `1d`
+- `sentiment_label` — `bullish` | `bearish` | `neutral`
+- `source_type` — `reddit` | `coingecko` | `news_rss`
+- `interval_type` — `1h` | `4h` | `1d`
 
 ### Tables
-1. **`tickers`** — Crypto metadata (symbol, name, coingecko_id, reddit_name, is_active)
-2. **`raw_posts`** — Scraped posts from all sources (ticker FK, source_type, title, content, url, upvotes, posted_at)
-3. **`sentiment_records`** — AI analysis per post (post_id FK, ticker FK, label, score -1..1, confidence 0..1, reasoning)
-4. **`sentiment_timeseries`** — Pre-aggregated hourly buckets (ticker FK, bucket_start, interval, avg_score, bullish/bearish/neutral counts)
-5. **`scrape_cache`** — Prevents redundant scraping (ticker + source_type unique, last_fetched_at, status, error)
+1. **`tickers`** — Cryptocurrencies tracked by the system
+   - `id` (uuid, primary key, default random)
+   - `symbol` (varchar(20), unique, not null) — e.g. `BTC`
+   - `name` (varchar(100), unique, not null) — e.g. `Bitcoin`
+   - `coingeckoId` (varchar(100)) — API identifier for CoinGecko
+   - `redditName` (varchar(100)) — Target subreddit name (e.g. `bitcoin`)
+   - `isActive` (boolean, default true, not null)
+   - `createdAt` (timestamp, default now, not null)
+
+2. **`raw_posts`** — Scraped raw posts/articles from all ingestion layers
+   - `id` (uuid, primary key, default random)
+   - `tickerId` (uuid, foreign key referencing `tickers.id`, cascade delete, not null)
+   - `sourceType` (source_type enum, not null)
+   - `externalId` (varchar(500)) — Unique identifier from source (e.g. post ID or URL) to prevent duplicates
+   - `title` (varchar(500))
+   - `content` (text, not null)
+   - `author` (varchar(200))
+   - `url` (varchar(1000))
+   - `upvotes` (integer, default 0)
+   - `commentCount` (integer, default 0)
+   - `postedAt` (timestamp, not null)
+   - `scrapedAt` (timestamp, default now, not null)
+   - *Indexes*: `raw_posts_ticker_idx` (`tickerId`), `raw_posts_posted_at_idx` (`postedAt`), `raw_posts_source_idx` (`sourceType`), unique index `raw_posts_external_id_unique` (`externalId`, `sourceType`)
+
+3. **`sentiment_records`** — Granular sentiment outputs generated by the Llama 3.1 model
+   - `id` (uuid, primary key, default random)
+   - `postId` (uuid, foreign key referencing `raw_posts.id`, cascade delete, not null, unique)
+   - `tickerId` (uuid, foreign key referencing `tickers.id`, cascade delete, not null)
+   - `label` (sentiment_label enum, not null)
+   - `score` (numeric(4,3), not null) — `-1.0` (bearish) to `+1.0` (bullish)
+   - `confidence` (numeric(4,3)) — `0.0` to `1.0`
+   - `reasoning` (text) — AI-provided rationale
+   - `analyzedAt` (timestamp, default now, not null)
+   - *Indexes*: `sentiment_ticker_idx` (`tickerId`), `sentiment_analyzed_at_idx` (`analyzedAt`)
+
+4. **`sentiment_timeseries`** — Rollups of sentiment scores by interval
+   - `id` (uuid, primary key, default random)
+   - `tickerId` (uuid, foreign key referencing `tickers.id`, cascade delete, not null)
+   - `sourceType` (source_type enum, nullable) — Null indicates aggregate of all sources combined
+   - `bucketStart` (timestamp, not null)
+   - `interval` (interval_type enum, not null) — e.g. `1h`
+   - `avgScore` (numeric(5,4))
+   - `totalPosts` (integer, default 0, not null)
+   - `bullishCount` (integer, default 0, not null)
+   - `bearishCount` (integer, default 0, not null)
+   - `neutralCount` (integer, default 0, not null)
+   - `volumeWeightedScore` (numeric(5,4)) — Weighted score incorporating recency, credibility, and log-scaled upvote counts
+   - *Indexes*: `ts_ticker_bucket_idx` (`tickerId`, `bucketStart`), unique index `ts_unique_bucket` (`tickerId`, `bucketStart`, `interval`, `sourceType`)
+
+5. **`scrape_cache`** — Prevents redundant scraping and tracks errors
+   - `id` (uuid, primary key, default random)
+   - `tickerId` (uuid, foreign key referencing `tickers.id`, cascade delete, not null)
+   - `sourceType` (source_type enum, not null)
+   - `lastFetchedAt` (timestamp, default now, not null)
+   - `postCount` (integer, default 0)
+   - `status` (varchar(20), default "success") — `success` | `error` | `in_progress`
+   - `errorMessage` (text)
+   - *Indexes*: unique index `scrape_cache_unique` (`tickerId`, `sourceType`)
+
+6. **`market_indicators`** — Stores numeric market indicators
+   - `id` (uuid, primary key, default random)
+   - `tickerId` (uuid, foreign key referencing `tickers.id`, cascade delete, nullable) — Null for global indicators like Fear & Greed
+   - `indicatorType` (varchar(50), not null) — `fear_greed` | `funding_rate`
+   - `value` (numeric(12,6), not null) — Raw numeric indicator reading
+   - `label` (varchar(50), nullable) — Score classification (e.g. `extreme fear`, `bullish`)
+   - `metadata` (jsonb) — Arbitrary metadata (e.g. `{ score, annualizedRate }`)
+   - `collectedAt` (timestamp, not null)
+   - `createdAt` (timestamp, default now, not null)
+   - *Indexes*: `mi_ticker_type_idx` (`tickerId`, `indicatorType`), `mi_collected_at_idx` (`collectedAt`)
 
 ---
 
@@ -73,18 +128,21 @@ A **Next.js** app that aggregates crypto market sentiment from multiple sources 
 
 | File | Role |
 |---|---|
-| `app/api/analyze/route.ts` | `GET /api/analyze?symbol=BTC` — blends & returns sentiment |
-| `app/api/cron/scrape-flash/route.ts` | `POST` — CoinGecko + news RSS (30 min cron) |
-| `app/api/cron/scrape-reddit/route.ts` | `POST` — Reddit scrape + AI + timeseries (6h cron) |
-| `app/api/search/route.ts` | `GET /api/search?q=bit` — ticker search |
-| `lib/db/schema.ts` | Full Drizzle schema |
-| `lib/db/client.ts` | Neon + Drizzle client |
-| `lib/db/seed.ts` | Seeds BTC/ETH/SOL tickers |
-| `lib/scrapers/coingecko.ts` | CoinGecko price + news scraper |
-| `lib/scrapers/news.ts` | RSS news scraper (cheerio) |
-| `lib/scrapers/news-scrapegraph.ts` | **Legacy** — replaced by news.ts |
-| `lib/scrapers/reddit.ts` | Reddit scraper (8 defenses + error-aware cache retry) |
-| `lib/ai/sentiment.ts` | AI analysis engine (Nvidia NIM — Llama 3.1 8B) |
+| [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/analyze/route.ts) | `GET /api/analyze?symbol=BTC` — Blends & returns 4-layer sentiment. Refreshes stale data inline if cache expired. |
+| [app/api/cron/scrape-flash/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-flash/route.ts) | `POST` — Triggers parallel updates for CoinGecko + News RSS + Binance Funding + Fear & Greed (30-min cron). Bypasses cache if `?force=true`. |
+| [app/api/cron/scrape-reddit/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-reddit/route.ts) | `POST` — Reddit scrape + AI analysis + timeseries rollup. Cleans up raw posts and sentiment records older than 5 days (6-hour cron). |
+| [app/api/search/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/search/route.ts) | `GET /api/search?q=bit` — Ticker lookup (checks symbols and names). |
+| [lib/db/schema.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/schema.ts) | Full Drizzle schema definitions. |
+| [lib/db/client.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/client.ts) | Neon client setup with Drizzle ORM (HTTP-based for serverless environments). |
+| [lib/db/seed.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/seed.ts) | Seeds starter assets (`BTC`/`ETH`/`SOL`) into database. |
+| [lib/scrapers/coingecko.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/coingecko.ts) | Scrapes market data (volumes, cap) and news articles directly from CoinGecko news API. |
+| [lib/scrapers/news.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/news.ts) | Scrapes crypto news RSS feeds and pulls full-text body using Cheerio. |
+| [lib/scrapers/news-scrapegraph.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/news-scrapegraph.ts) | **Legacy** — Paid LLM scraper replaced by cheerio-based news.ts. |
+| [lib/scrapers/reddit.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/reddit.ts) | Reddit public JSON scraper with 8 robust anti-blocking defenses. |
+| [lib/scrapers/fear-greed.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/fear-greed.ts) | Global Fear & Greed Index scraper from alternative.me. |
+| [lib/scrapers/binance-funding.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/binance-funding.ts) | Ingests perpetual swap funding rates from Binance Futures API. |
+| [lib/ai/sentiment.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/ai/sentiment.ts) | AI sentiment analyzer engine (Nvidia NIM), normalization math, and timeseries rollup logic. |
+| [scripts/check-routes.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/check-routes.ts) | Integration test script that executes calls against all local API routes. |
 
 ---
 
@@ -92,10 +150,10 @@ A **Next.js** app that aggregates crypto market sentiment from multiple sources 
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/api/analyze?symbol=BTC` | None | Get blended sentiment |
-| POST | `/api/cron/scrape-flash` | Bearer CRON_SECRET | Scrape CoinGecko + RSS |
-| POST | `/api/cron/scrape-reddit` | Bearer CRON_SECRET | Scrape Reddit + AI analyze |
-| GET | `/api/search?q=bit` | None | Search tickers |
+| GET | `/api/analyze?symbol=BTC` | None | Evaluates the 4-layer blended sentiment for the asset. |
+| POST | `/api/cron/scrape-flash?force=true` | Bearer `CRON_SECRET` | Parallel scrape of CoinGecko + RSS + Funding Rates + Fear & Greed (30-min cron). Bypasses cache if `?force=true`. |
+| POST | `/api/cron/scrape-reddit` | Bearer `CRON_SECRET` | Heavyweight Reddit scraper execution + AI analysis + database rollups (6-hour cron). |
+| GET | `/api/search?q=bit` | None | Searches matching active tickers. |
 
 ---
 
@@ -103,18 +161,18 @@ A **Next.js** app that aggregates crypto market sentiment from multiple sources 
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | Neon PostgreSQL connection string |
-| `REDDIT_CLIENT_ID` | Reddit script app (unused — uses public JSON API) |
-| `REDDIT_CLIENT_SECRET` | (unused) |
-| `REDDIT_USERNAME` | (unused) |
-| `REDDIT_PASSWORD` | (unused) |
-| `NVIDIA_API_KEY` | Nvidia NIM API key (AI sentiment analysis) |
-| `COINGECKO_API_KEY` | CoinGecko API key (free tier) |
-| `SCRAPEGRAPH_API_KEY` | Legacy scraper only (unused) |
-| `CRON_SECRET` | Shared secret for cron auth |
-| `NEXTAUTH_SECRET` | NextAuth secret (unused) |
-| `NEXT_PUBLIC_APP_URL` | App URL |
-| `NODE_ENV` | `development` |
+| `DATABASE_URL` | Connection string for Neon PostgreSQL database |
+| `REDDIT_CLIENT_ID` | (Unused — public JSON endpoints are used instead of OAuth) |
+| `REDDIT_CLIENT_SECRET` | (Unused) |
+| `REDDIT_USERNAME` | (Unused) |
+| `REDDIT_PASSWORD` | (Unused) |
+| `NVIDIA_API_KEY` | Key for Nvidia NIM API (Llama 3.1 8B inference) |
+| `COINGECKO_API_KEY` | CoinGecko API key (used on demo tier) |
+| `SCRAPEGRAPH_API_KEY` | Legacy scrapegraph scraper key (Unused) |
+| `CRON_SECRET` | Shared secret header checking for secure cron endpoints |
+| `NEXTAUTH_SECRET` | (Unused) |
+| `NEXT_PUBLIC_APP_URL` | The application URL (defaults to `http://localhost:3000`) |
+| `NODE_ENV` | Environment context (`development` / `production`) |
 
 ---
 
@@ -122,34 +180,56 @@ A **Next.js** app that aggregates crypto market sentiment from multiple sources 
 
 | Command | Action |
 |---|---|
-| `npm run dev` | Start dev server |
-| `npm run build` | Build for production |
-| `npm run start` | Start production server |
-| `npm run lint` | ESLint |
-| `npx tsx lib/db/seed.ts` | Seed BTC/ETH/SOL tickers |
+| `npm run dev` | Starts local Next.js dev server |
+| `npm run build` | Builds app for deployment |
+| `npm run start` | Boots production app server |
+| `npm run lint` | Runs ESLint rules |
+| `npx tsx lib/db/seed.ts` | Seeds the database with default assets (BTC, ETH, SOL) |
+| `npx tsx scripts/check-routes.ts` | Runs integration route checks against local dev server |
 
 ---
 
 ## Key Design Decisions
 
-- **Reddit uses public JSON API** (no OAuth) — OAuth creds in `.env` are unused
-- **Reddit scraper defense H uses Arctic Shift fallback** — on 403, switches to `arctic-shift.photon-reddit.com` API with `sort=desc` (sorts by `created_utc`)
-- **User-Agent rotation** — 4 realistic browser agents; never includes "Bot" (Cloudflare insta-blocks)
-- **Cache retries on failure** — skips cache if previous run errored or returned 0 posts
-- **Timeout 10s** — Reddit's public JSON API is slow; increased from 6s
-- **Browser-like headers** — `Accept-Language`, `Referer` added for stealth
-- **News scraper uses Cheerio** (free) — migrated from ScrapeGraphAI (paid)
-- **AI uses Nvidia NIM (Llama 3.1 8B)** — via Vercel AI SDK; 50 posts max per run with 200ms delays
-- **pnpm** is preferred package manager (but npm lockfiles exist)
-- **No frontend yet** — `app/page.tsx` is still the default Next.js starter; all functionality is API-only
-- **No tests** — no test framework is set up
-- **Serverless-ready** — built for Vercel + Neon HTTP driver
+### Reddit Scraper Anti-Blocking (8 Defenses)
+Reddit's public JSON API is highly sensitive to scraping. The [lib/scrapers/reddit.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/reddit.ts) file employs 8 defensive strategies to maximize request survival rate:
+1. **Defense A (Timeout)**: Uses `AbortController` capped at 10s to abort hanging request hooks.
+2. **Defense B (Exponential Backoff)**: Retries requests with exponential backoffs on `429 Too Many Requests`.
+3. **Defense C (Sequential Execution)**: Scrapes subreddits sequentially with randomized jitter delay intervals (e.g. `1200ms` gap) to avoid spike footprints.
+4. **Defense D (Retry-After Respect)**: Reads and honors the `Retry-After` header sent by Reddit.
+5. **Defense E (User-Agent Rotation)**: Rotates randomly across a pool of realistic, non-bot browser User-Agents (never including "Bot").
+6. **Defense F (Noise Filter)**: Runs strict character lengths and match filters before database insertion to ignore thin content.
+7. **Defense G (Cache Flag Locking)**: Updates the scraper status to `in_progress` in the cache database immediately upon starting, protecting against concurrent invocations.
+8. **Defense H (Arctic Shift Fallback)**: Automatically falls back to the public `arctic-shift.photon-reddit.com` API sorted by `created_utc` if the primary JSON endpoint throws a `403 Forbidden` (e.g., Cloudflare block).
+
+### News Scraper Content Extraction
+Replaced the paid `ScrapeGraphAI` LLM-based scraping system with a free, custom-crafted Cheerio scraper in [lib/scrapers/news.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/news.ts).
+- Removes noise tags (scripts, footers, advertisements, sidebars, nav bars).
+- Probes a list of container selectors (`article`, `main`, `.post-content`, `.article-body`, etc.).
+- Truncates extracted text body to 8,000 characters and filters out articles that don't pass ticker-matching validation (matching name, symbol, or CoinGecko ID).
+- Extends individual article request timeouts to 15s to bypass lagging networks.
+
+### CoinGecko News Scraper Integration
+- Scrapes CoinGecko news updates via `/coins/{id}/news` (rather than synthetic post workarounds).
+- Supports cache bypass with the `force` query option to verify latest data on-demand.
+- Rotates demo API keys through standard HTTP headers (`x-cg-demo-api-key`).
+
+### AI Sentiment Analysis Engine
+- Employs Nvidia NIM hosting Llama 3.1 8B Instruct model.
+- Analyzes batches of up to 50 posts at a time to prevent high token costs.
+- Custom fallback parser parses sentiment labels, scores, confidence readings, and reasonings from JSON output strings even if the model fails to return clean JSON blocks.
+
+### Timeseries Pre-aggregations
+- Pre-computes 1-hour intervals for timeseries charts.
+- Weights scores using a **Recency Decay** algorithm (posts have a half-life of 12 hours) combined with **Source Credibility weights** (News = 1.0, CoinGecko = 0.9, Reddit = 0.7) and **Log-scaled Upvote Boosts** so viral community posts don't skew indicators.
 
 ---
 
 ## Git History
 
 ```
+cb5c988  2026-06-24  added : solved reddit.ts
+7f21796  2026-06-24  added : sentiment with nvidia-nim
 f430a4e  2026-06-21  added : news with cheerio && removed : news scrapegraphai
 16ea01e  2026-06-15  updated : coingecko scrapper
 6e6b84c  2026-06-15  added : news scrapper
@@ -163,8 +243,8 @@ b2d636f  2026-06-15  added : reddit scraper
 
 ## Next Steps / Known Gaps
 
-- [ ] Build a frontend UI (dashboard, charts, etc.)
+- [ ] Build a frontend UI dashboard (display charts, current blended sentiment, recent signals with labels, etc.)
 - [ ] Add proper README with project docs
-- [ ] Add tests
-- [ ] Decide on single package manager (pnpm vs npm)
+- [ ] Add testing framework and write unit/integration tests
+- [ ] Align package managers (resolve coexistence of `package-lock.json` and `pnpm-lock.yaml`)
 - [ ] Wire up Reddit OAuth if public JSON API rate-limits become an issue

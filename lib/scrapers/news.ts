@@ -13,7 +13,7 @@ import type { Ticker } from "@/lib/db/schema";
 
 const parser = new Parser();
 const CACHE_DURATION_MS = 30 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 8_000;
+const FETCH_TIMEOUT_MS = 15_000;
 
 const CRYPTO_RSS_FEEDS = [
   "https://www.coindesk.com/arc/outboundfeeds/rss/",
@@ -93,7 +93,7 @@ async function extractArticleText(url: string): Promise<{
       .slice(0, 8000);
 
     // Extract title
-    let title =
+    const title =
       $("h1").first().text() ||
       $("meta[property='og:title']").attr("content") ||
       "Article";
@@ -105,7 +105,11 @@ async function extractArticleText(url: string): Promise<{
 
     return { title, content };
   } catch (err) {
-    console.warn(`[Cheerio] Error extracting ${url}:`, err);
+    if (err instanceof Error && err.name === "AbortError") {
+      console.warn(`[Cheerio] Timeout extracting ${url} (${FETCH_TIMEOUT_MS}ms)`);
+    } else {
+      console.warn(`[Cheerio] Error extracting ${url}:`, err);
+    }
     return null;
   }
 }
@@ -121,19 +125,25 @@ function isAboutCoin(ticker: Ticker, text: string): boolean {
 
 // ── Main scraper ────────────────────────────────────────────────────────────
 
-export async function scrapeNewsRSS(ticker: Ticker): Promise<number> {
-  const existing = await db.query.scrapeCache.findFirst({
-    where: and(
-      eq(scrapeCache.tickerId, ticker.id),
-      eq(scrapeCache.sourceType, "news_rss")
-    ),
-  });
+type ScrapeOptions = {
+  force?: boolean;
+};
 
-  if (existing) {
-    const age = Date.now() - existing.lastFetchedAt.getTime();
-    if (age < CACHE_DURATION_MS && existing.status === "success") {
-      console.log(`[NewsRSS] ${ticker.symbol} cache fresh, skipping`);
-      return 0;
+export async function scrapeNewsRSS(ticker: Ticker, opts?: ScrapeOptions): Promise<number> {
+  if (!opts?.force) {
+    const existing = await db.query.scrapeCache.findFirst({
+      where: and(
+        eq(scrapeCache.tickerId, ticker.id),
+        eq(scrapeCache.sourceType, "news_rss")
+      ),
+    });
+
+    if (existing) {
+      const age = Date.now() - existing.lastFetchedAt.getTime();
+      if (age < CACHE_DURATION_MS && existing.status === "success") {
+        console.log(`[NewsRSS] ${ticker.symbol} cache fresh, skipping`);
+        return 0;
+      }
     }
   }
 
