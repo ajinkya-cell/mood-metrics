@@ -128,6 +128,10 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 
 | File | Role |
 |---|---|
+| [app/components/Dashboard.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/Dashboard.tsx) | Main client component dashboard managing telemetry fetching, live pricing, search query, gauge needles, CMD logs feed and skeletons. |
+| [app/components/DoubleBezel.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/DoubleBezel.tsx) | Enforces nested concentric curves and edge highlighting for visual depth. |
+| [app/components/SentimentChart.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/SentimentChart.tsx) | Custom-built interactive SVG line chart visualizing the 24h historical timeline, mapping coordinates on the fly. |
+| [frontend-implementation.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/frontend-implementation.md) | Frontend implementation plan outlining atmosphere, color tokens, visual dials, bento grid structures, and spring physics properties. |
 | [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/analyze/route.ts) | `GET /api/analyze?symbol=BTC` — Blends & returns 4-layer sentiment. Refreshes stale data inline if cache expired. |
 | [app/api/cron/scrape-flash/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-flash/route.ts) | `POST` — Triggers parallel updates for CoinGecko + News RSS + Binance Funding + Fear & Greed (30-min cron). Bypasses cache if `?force=true`. |
 | [app/api/cron/scrape-reddit/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-reddit/route.ts) | `POST` — Reddit scrape + AI analysis + timeseries rollup. Cleans up raw posts and sentiment records older than 5 days (6-hour cron). |
