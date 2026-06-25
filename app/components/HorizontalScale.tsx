@@ -1,22 +1,24 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-type HorizontalScaleProps = {
+interface HorizontalScaleProps {
   className?: string;
   pattern?: string;
-};
+}
 
-export default function HorizontalScale({
-  className,
-  pattern = "rgba(255,255,255,0.06)",
-}: HorizontalScaleProps) {
+export default function HorizontalScale({ className, pattern }: HorizontalScaleProps) {
+  const customPattern = pattern || "var(--pattern, rgba(255, 255, 255, 0.06))";
+  
   return (
     <div
       className={cn(
-        "horizontal-scale h-12 w-full bg-[repeating-linear-gradient(315deg,var(--pattern)_0,var(--pattern)_1px,transparent_1px,transparent_50%)] border-y border-[var(--pattern)] bg-[size:12px_12px]",
+        "h-12 w-full border-y border-white/5",
         className
       )}
-      style={{ "--pattern": pattern } as React.CSSProperties}
+      style={{
+        backgroundImage: `repeating-linear-gradient(315deg, ${customPattern} 0, ${customPattern} 1px, transparent 1px, transparent 12px)`,
+        backgroundSize: "12px 12px"
+      }}
     />
   );
 }

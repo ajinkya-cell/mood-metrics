@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   CaretUp,
   CaretDown,
+  CaretRight,
   MagnifyingGlass,
   ArrowClockwise,
   Terminal,
@@ -13,10 +14,11 @@ import {
   Newspaper,
   RedditLogo,
 } from "@phosphor-icons/react";
-import DoubleBezel from "./DoubleBezel";
 import SentimentChart from "./SentimentChart";
 import HorizontalScale from "./HorizontalScale";
 import GlowCard from "./GlowCard";
+import TerminalLoader from "./TerminalLoader";
+import DoubleBezel from "./DoubleBezel";
 
 type AnalyzeResponse = {
   ticker: { symbol: string; name: string };
@@ -75,10 +77,12 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(true);
 
   const fetchSentiment = async (symbol: string, force = false) => {
+    const startTime = Date.now();
     try {
-      setLoading(!data || refreshing);
+      setIsAnalyzing(true);
       setError(null);
       const url = `/api/analyze?symbol=${symbol}${force ? "&force=true" : ""}`;
       const res = await fetch(url);
@@ -91,19 +95,29 @@ export default function Dashboard() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 1200 - elapsed);
+      setTimeout(() => {
+        setIsAnalyzing(false);
+        setLoading(false);
+        setRefreshing(false);
+      }, remaining);
     }
   };
 
   useEffect(() => {
-    fetchSentiment(activeSymbol);
+    const timer = setTimeout(() => {
+      fetchSentiment(activeSymbol);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [activeSymbol]);
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
+    const startTime = Date.now();
     try {
+      setIsAnalyzing(true);
       setLoading(true);
       setError(null);
       const searchRes = await fetch(`/api/search?q=${searchQuery}`);
@@ -117,7 +131,12 @@ export default function Dashboard() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search resolution error");
-      setLoading(false);
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 1200 - elapsed);
+      setTimeout(() => {
+        setIsAnalyzing(false);
+        setLoading(false);
+      }, remaining);
     }
   };
 
@@ -129,9 +148,9 @@ export default function Dashboard() {
   const getNeedleCoordinates = (score: number) => {
     const angleInDegrees = -90 + (score / 100) * 135;
     const angleInRadians = (angleInDegrees * Math.PI) / 180;
-    const radius = 55;
-    const cx = 80;
-    const cy = 80;
+    const radius = 52;
+    const cx = 90;
+    const cy = 90;
     const x = cx + radius * Math.cos(angleInRadians);
     const y = cy + radius * Math.sin(angleInRadians);
     return { x, y };
@@ -143,6 +162,10 @@ export default function Dashboard() {
     return "text-zinc-400";
   };
 
+  if (isAnalyzing) {
+    return <TerminalLoader symbol={activeSymbol} />;
+  }
+
   if (loading && !data) {
     return <LoadingSkeleton />;
   }
@@ -153,11 +176,8 @@ export default function Dashboard() {
   return (
     <div className="min-h-[100dvh] w-full bg-[#050505] text-zinc-100 font-sans antialiased overflow-x-hidden pb-16">
       {/* ── LOCAL NAV ── */}
-      <nav className="mx-4 mb-8">
-        <GlowCard
-          accent="zinc"
-          className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3"
-        >
+      <nav className="mx-4 mb-8 pt-4">
+        <div className="max-w-7xl mx-auto border border-white/10 bg-[#0C0C0E]/60 backdrop-blur-xl flex items-center justify-between px-6 py-3 rounded-full shadow-[0_4px_30px_rgba(0,0,0,0.4)]">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
               <span className="text-xs font-mono text-emerald-400 font-bold">M</span>
@@ -167,18 +187,23 @@ export default function Dashboard() {
             </span>
           </div>
 
-          <div className="hidden md:flex items-center gap-1 bg-black/40 p-1 rounded-full border border-white/5">
+          <div className="hidden md:flex items-center gap-1 bg-black/40 p-1 rounded-full border border-white/5 relative">
             {["BTC", "ETH", "SOL"].map((sym) => (
               <button
                 key={sym}
                 onClick={() => setActiveSymbol(sym)}
-                className={`px-5 py-2 rounded-full text-sm font-mono tracking-wider transition-all duration-300 ${
-                  activeSymbol === sym
-                    ? "bg-white/10 text-white shadow-sm border border-white/5"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                className="relative px-5 py-2 rounded-full text-sm font-mono tracking-wider transition-colors duration-300 text-zinc-500 hover:text-zinc-300 cursor-pointer"
               >
-                {sym}
+                {activeSymbol === sym && (
+                  <motion.div
+                    layoutId="activeSymbolPill"
+                    className="absolute inset-0 bg-white/10 rounded-full border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className={`relative z-10 ${activeSymbol === sym ? "text-white font-medium" : ""}`}>
+                  {sym}
+                </span>
               </button>
             ))}
           </div>
@@ -193,7 +218,7 @@ export default function Dashboard() {
               className="bg-black/60 border border-white/5 focus:border-white/15 focus:ring-1 focus:ring-white/10 rounded-full pl-9 pr-4 py-2 text-sm font-mono tracking-wide w-56 transition-all duration-300 outline-none text-zinc-200 placeholder-zinc-600"
             />
           </form>
-        </GlowCard>
+        </div>
       </nav>
 
       <main className="max-w-7xl mx-auto px-4">
@@ -215,11 +240,12 @@ export default function Dashboard() {
         </AnimatePresence>
 
         {data && (
-          <>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* ── LEFT: GAUGE ── */}
-              <div className="lg:col-span-5 flex flex-col gap-6">
-                <GlowCard accent="emerald" className="w-full p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* ── LEFT COLUMN: GAUGE + INGESTION FEED (lg:col-span-5) ── */}
+            <div className="lg:col-span-5 flex flex-col gap-6 w-full animate-[fadeIn_0.6s_ease-out]">
+              {/* GAUGE PANEL wrapped in DoubleBezel */}
+              <DoubleBezel className="w-full">
+                <div className="p-8">
                   <div className="flex justify-between items-start mb-6 font-mono text-xs text-zinc-500 tracking-wider">
                     <div>
                       <span className="block uppercase text-zinc-400 font-bold">
@@ -230,7 +256,7 @@ export default function Dashboard() {
                     <button
                       onClick={triggerForceRefresh}
                       disabled={refreshing}
-                      className="flex items-center gap-1.5 text-xs bg-white/5 border border-white/5 hover:border-white/10 px-2 py-1 rounded-md text-zinc-400 transition-all duration-300 hover:text-zinc-200 active:scale-95 disabled:opacity-40"
+                      className="flex items-center gap-1.5 text-xs bg-white/5 border border-white/5 hover:border-white/10 px-2.5 py-1.5 rounded-md text-zinc-400 transition-all duration-300 hover:text-zinc-200 active:scale-95 disabled:opacity-40 shadow-[0_0_10px_rgba(255,255,255,0.03)] hover:shadow-[0_0_15px_rgba(255,255,255,0.06)] cursor-pointer"
                     >
                       <ArrowClockwise size={10} className={refreshing ? "animate-spin" : ""} />
                       {refreshing ? "REFRESHING" : "SYNC"}
@@ -267,18 +293,21 @@ export default function Dashboard() {
                     )}
                   </div>
 
-                  <div className="flex flex-col items-center justify-center py-4 relative">
-                    <div className="relative w-64 h-64 flex items-center justify-center">
-                      <svg viewBox="0 0 160 160" className="w-full h-full transform -rotate-15">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center mt-6">
+                    {/* Left: The clean, uncluttered dial */}
+                    <div className="relative w-48 h-48 mx-auto flex items-center justify-center">
+                      <svg viewBox="0 0 180 180" className="w-full h-full transform -rotate-15 overflow-visible">
+                        {/* Background Dial Track */}
                         <path
-                          d="M 30.5 129.5 A 70 70 0 1 1 129.5 129.5"
+                          d="M 40.5 139.5 A 70 70 0 1 1 139.5 139.5"
                           fill="none"
                           stroke="rgba(255,255,255,0.03)"
                           strokeWidth="10"
                           strokeLinecap="round"
                         />
+                        {/* Colored Active Sentiment Track Outline */}
                         <path
-                          d="M 30.5 129.5 A 70 70 0 1 1 129.5 129.5"
+                          d="M 40.5 139.5 A 70 70 0 1 1 139.5 139.5"
                           fill="none"
                           stroke={
                             data.sentiment.score > 20
@@ -288,64 +317,215 @@ export default function Dashboard() {
                               : "#71717A"
                           }
                           strokeWidth="2"
-                          strokeOpacity="0.3"
+                          strokeOpacity="0.25"
                           strokeLinecap="round"
                         />
-                        <line
-                          x1="80"
-                          y1="80"
-                          x2={needleCoords.x}
-                          y2={needleCoords.y}
+
+                        {/* Dial Scale Tick Marks & Numbers */}
+                        {[-100, -50, 0, 50, 100].map((val) => {
+                          const angle = -90 + (val / 100) * 135;
+                          const rad = (angle * Math.PI) / 180;
+                          
+                          // Ticks coordinates
+                          const tx1 = 90 + 64 * Math.cos(rad);
+                          const ty1 = 90 + 64 * Math.sin(rad);
+                          const tx2 = 90 + 72 * Math.cos(rad);
+                          const ty2 = 90 + 72 * Math.sin(rad);
+                          
+                          // Numbers placement
+                          const lx = 90 + 84 * Math.cos(rad);
+                          const ly = 90 + 84 * Math.sin(rad);
+                          
+                          return (
+                            <g key={val} className="font-mono text-[8.5px] fill-zinc-500 select-none">
+                              <line
+                                x1={tx1}
+                                y1={ty1}
+                                x2={tx2}
+                                y2={ty2}
+                                stroke="rgba(255, 255, 255, 0.12)"
+                                strokeWidth="1.2"
+                              />
+                              <text
+                                x={lx}
+                                y={ly + 3}
+                                textAnchor="middle"
+                              >
+                                {val > 0 ? `+${val}` : val}
+                              </text>
+                            </g>
+                          );
+                        })}
+
+                        {/* Animated Spring Needle */}
+                        <motion.line
+                          x1="90"
+                          y1="90"
+                          animate={{ x2: needleCoords.x, y2: needleCoords.y }}
+                          transition={{ type: "spring", stiffness: 100, damping: 15, mass: 0.8 }}
                           stroke={
                             data.sentiment.score > 20
                               ? "#10B981"
                               : data.sentiment.score < -20
                               ? "#F43F5E"
-                              : "#ECECED"
+                              : "#71717A"
                           }
-                          strokeWidth="3"
+                          strokeWidth="3.5"
                           strokeLinecap="round"
                           style={{ filter: "drop-shadow(0 0 3px currentColor)" }}
                         />
-                        <circle cx="80" cy="80" r="5" fill="#0C0C0E" stroke="#71717A" strokeWidth="1.5" />
+                        <circle cx="90" cy="90" r="5" fill="#0C0C0E" stroke="#71717A" strokeWidth="1.5" />
                       </svg>
-
-                      <div className="absolute flex flex-col items-center justify-center font-mono">
-                        <span className="text-xs text-zinc-500 tracking-wider">
-                          BLENDED SENTIMENT
-                        </span>
-                        <motion.span
-                          key={data.sentiment.score}
-                          initial={{ scale: 0.9, opacity: 0.8 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ type: "spring", stiffness: 100, damping: 15, mass: 0.8 }}
-                          className={`text-5xl font-bold tracking-tighter ${sentimentColor}`}
-                        >
-                          {data.sentiment.score > 0 ? "+" : ""}
-                          {data.sentiment.score}
-                        </motion.span>
-                        <span className="text-xs uppercase text-zinc-400 font-semibold px-3 py-1 rounded bg-white/5 border border-white/5 mt-2">
-                          {data.sentiment.label}
-                        </span>
-                      </div>
                     </div>
 
-                    <span className="text-xs text-zinc-500 font-mono uppercase text-center mt-4">
-                      Blended components weighted: 40/30/15/15
-                    </span>
+                    {/* Right: The big, beautiful score metrics */}
+                    <div className="flex flex-col items-center md:items-start text-center md:text-left justify-center font-mono">
+                      <span className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase">
+                        BLENDED SENTIMENT
+                      </span>
+                      <motion.span
+                        key={data.sentiment.score}
+                        initial={{ x: -15, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 100, damping: 15 }}
+                        className={`text-6xl md:text-7xl font-bold tracking-tighter ${sentimentColor} my-1`}
+                      >
+                        {data.sentiment.score > 0 ? "+" : ""}
+                        {data.sentiment.score}
+                      </motion.span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded bg-white/5 border border-white/5 ${sentimentColor}`}>
+                          {data.sentiment.label}
+                        </span>
+                        <span className="text-[9px] text-zinc-500">
+                          COCKPIT GREEN
+                        </span>
+                      </div>
+                      
+                      {/* Short subtext breakdown */}
+                      <span className="text-[10px] text-zinc-500 mt-6 max-w-[200px] leading-relaxed border-t border-white/5 pt-3">
+                        Blended components weighted: 40/30/15/15
+                      </span>
+                    </div>
                   </div>
-                </GlowCard>
-              </div>
+                </div>
+              </DoubleBezel>
 
-              {/* ── RIGHT: 4-LAYER BENTO ── */}
-              <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <GlowCard accent="emerald" className="p-6 flex flex-col justify-between min-h-[12rem]">
+              {/* INGESTION FEED PANEL wrapped in DoubleBezel */}
+              <DoubleBezel className="w-full">
+                <div className="p-6 flex flex-col h-[340px]">
+                  <div className="flex items-center justify-between mb-4 font-mono text-zinc-500 text-xs tracking-widest border-b border-white/5 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Terminal size={14} className="text-emerald-500" />
+                      <span>INGESTION LOG — LIVE TELEMETRY</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-500/80 uppercase animate-pulse">SYS_ON</span>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto font-mono text-[11px] space-y-1 pr-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
+                    {data.recentSignals.map((sig, i) => {
+                      const isExpanded = expandedIndex === i;
+                      const isBullish = sig.label === "bullish";
+                      const isBearish = sig.label === "bearish";
+                      const scoreVal = parseFloat(sig.score);
+
+                      return (
+                        <div
+                          key={i}
+                          className={`border-b border-white/5 hover:bg-white/[0.02] px-2 py-2 transition-all duration-300 rounded-lg ${
+                            isExpanded ? "bg-white/[0.02]" : ""
+                          }`}
+                        >
+                          <div
+                            onClick={() => setExpandedIndex(isExpanded ? null : i)}
+                            className="flex items-center justify-between cursor-pointer text-zinc-400 hover:text-zinc-200"
+                          >
+                            <div className="flex items-center gap-2 overflow-hidden mr-4">
+                              <motion.span
+                                animate={{ rotate: isExpanded ? 90 : 0 }}
+                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                className="shrink-0 text-zinc-600"
+                              >
+                                <CaretRight size={10} />
+                              </motion.span>
+                              <span className="text-zinc-600 font-bold shrink-0 text-[10px] tracking-wider">
+                                [{sig.source.toUpperCase().replace("_", " ")}]
+                              </span>
+                              <span className="text-zinc-300 truncate text-[11px]">
+                                {sig.title}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span
+                                className={`font-bold ${
+                                  isBullish
+                                    ? "text-emerald-500"
+                                    : isBearish
+                                    ? "text-rose-500"
+                                    : "text-zinc-500"
+                                }`}
+                              >
+                                {scoreVal > 0 ? "+" : ""}
+                                {scoreVal.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden mt-2 text-zinc-400 space-y-2 border-t border-white/5 pt-2 pl-4"
+                              >
+                                <div className="text-xs leading-relaxed">
+                                  <span className="text-zinc-600 font-bold font-mono">ANALYSIS:</span>{" "}
+                                  {sig.reasoning || "No explanation provided."}
+                                </div>
+                                <div className="flex justify-between items-center text-[10px] text-zinc-600 pt-1 font-mono">
+                                  <span>
+                                    Ingested:{" "}
+                                    {new Date(sig.postedAt).toLocaleString([], {
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  {sig.url && (
+                                    <a
+                                      href={sig.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-300 underline"
+                                    >
+                                      VIEW SOURCE <ArrowSquareOut size={8} />
+                                    </a>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </DoubleBezel>
+            </div>
+
+            {/* ── RIGHT COLUMN: 4-LAYER BENTO + CHART (lg:col-span-7) ── */}
+            <div className="lg:col-span-7 flex flex-col gap-6 w-full animate-[fadeIn_0.6s_ease-out_delay-100ms]">
+              {/* Bento Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <GlowCard accent="emerald" className="p-6 flex flex-col justify-between min-h-[12rem] hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(16,185,129,0.08)] transition-all duration-300 cursor-pointer">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="text-sm text-zinc-500 font-mono tracking-widest block">
+                      <span className="text-xs text-zinc-500 font-mono tracking-widest block">
                         L1 — FLASH NEWS (40%)
                       </span>
-                      <span className="text-sm text-zinc-300 flex items-center gap-1 mt-1">
+                      <span className="text-sm text-zinc-300 flex items-center gap-1.5 mt-2">
                         <Newspaper size={14} className="text-zinc-500" />
                         CoinGecko + RSS Feeds
                       </span>
@@ -365,13 +545,13 @@ export default function Dashboard() {
                   </div>
                 </GlowCard>
 
-                <GlowCard accent="emerald" className="p-6 flex flex-col justify-between min-h-[12rem]">
+                <GlowCard accent="emerald" className="p-6 flex flex-col justify-between min-h-[12rem] hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(16,185,129,0.08)] transition-all duration-300 cursor-pointer">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="text-sm text-zinc-500 font-mono tracking-widest block">
+                      <span className="text-xs text-zinc-500 font-mono tracking-widest block">
                         L2 — HISTORIC REDDIT (30%)
                       </span>
-                      <span className="text-sm text-zinc-300 flex items-center gap-1 mt-1">
+                      <span className="text-sm text-zinc-300 flex items-center gap-1.5 mt-2">
                         <RedditLogo size={14} className="text-zinc-500" />
                         AI Analyzed Subreddits
                       </span>
@@ -391,13 +571,13 @@ export default function Dashboard() {
                   </div>
                 </GlowCard>
 
-                <GlowCard accent="emerald" className="p-6 flex flex-col justify-between min-h-[12rem]">
+                <GlowCard accent="emerald" className="p-6 flex flex-col justify-between min-h-[12rem] hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(16,185,129,0.08)] transition-all duration-300 cursor-pointer">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="text-sm text-zinc-500 font-mono tracking-widest block">
+                      <span className="text-xs text-zinc-500 font-mono tracking-widest block">
                         L3 — FUNDING RATES (15%)
                       </span>
-                      <span className="text-sm text-zinc-300 flex items-center gap-1.5 mt-1">
+                      <span className="text-sm text-zinc-300 flex items-center gap-2 mt-2">
                         <span className="relative flex h-2 w-2">
                           <span
                             className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
@@ -446,13 +626,13 @@ export default function Dashboard() {
                   </div>
                 </GlowCard>
 
-                <GlowCard accent="emerald" className="p-6 flex flex-col justify-between min-h-[12rem]">
+                <GlowCard accent="emerald" className="p-6 flex flex-col justify-between min-h-[12rem] hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(16,185,129,0.08)] transition-all duration-300 cursor-pointer">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="text-sm text-zinc-500 font-mono tracking-widest block">
+                      <span className="text-xs text-zinc-500 font-mono tracking-widest block">
                         L4 — GLOBAL FEAR & GREED (15%)
                       </span>
-                      <span className="text-sm text-zinc-300 flex items-center gap-1 mt-1">
+                      <span className="text-sm text-zinc-300 flex items-center gap-1.5 mt-2">
                         <ShieldCheck size={14} className="text-zinc-500" />
                         Crypto Market Sentiment
                       </span>
@@ -480,111 +660,15 @@ export default function Dashboard() {
                   </div>
                 </GlowCard>
               </div>
-            </div>
 
-            {/* ── DIVIDER ── */}
-            <div className="my-8">
-              <HorizontalScale />
-            </div>
-
-            {/* ── LOWER: CHART + FEED ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-7 border border-white/5 bg-[#0C0C0E]/80 rounded-3xl p-8">
-                <SentimentChart data={data.timeseries} />
-              </div>
-
-              <div className="lg:col-span-5 border border-white/5 bg-[#0C0C0E]/80 rounded-3xl p-6 flex flex-col h-[320px]">
-                <div className="flex items-center gap-2 mb-4 font-mono text-zinc-500 text-xs tracking-widest">
-                  <Terminal size={14} />
-                  <span>SYSTEM INGESTION LOG — LIVE FEED</span>
+              {/* Sentiment Chart Panel wrapped in DoubleBezel */}
+              <DoubleBezel className="w-full">
+                <div className="p-8">
+                  <SentimentChart data={data.timeseries} />
                 </div>
-
-                <div className="flex-1 overflow-y-auto font-mono text-xs space-y-1.5 pr-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
-                  {data.recentSignals.map((sig, i) => {
-                    const isExpanded = expandedIndex === i;
-                    const isBullish = sig.label === "bullish";
-                    const isBearish = sig.label === "bearish";
-                    const scoreVal = parseFloat(sig.score);
-
-                    return (
-                      <div
-                        key={i}
-                        className="border border-transparent hover:border-white/5 hover:bg-black/20 rounded px-2 py-1.5 transition-all duration-300"
-                      >
-                        <div
-                          onClick={() => setExpandedIndex(isExpanded ? null : i)}
-                          className="flex items-center justify-between cursor-pointer text-zinc-500 hover:text-zinc-300"
-                        >
-                          <div className="flex items-center gap-2 overflow-hidden mr-4">
-                            <span className="text-zinc-600 font-bold shrink-0 text-xs">
-                              [{sig.source.toUpperCase().replace("_", " ")}]
-                            </span>
-                            <span className="text-zinc-300 truncate text-xs">
-                              {sig.title}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span
-                              className={
-                                isBullish
-                                  ? "text-emerald-500/80"
-                                  : isBearish
-                                  ? "text-rose-500/80"
-                                  : "text-zinc-500"
-                              }
-                            >
-                              {scoreVal > 0 ? "+" : ""}
-                              {scoreVal.toFixed(2)}
-                            </span>
-                            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1 rounded select-none">
-                              CLASSIFIED
-                            </span>
-                          </div>
-                        </div>
-
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden border-t border-white/5 mt-2 pt-2 text-zinc-400 space-y-1.5"
-                            >
-                              <div className="text-xs">
-                                <span className="text-zinc-600 font-bold">ANALYSIS:</span>{" "}
-                                {sig.reasoning || "No explanation provided."}
-                              </div>
-                              <div className="flex justify-between items-center text-[10px] text-zinc-600 pt-1">
-                                <span>
-                                  Ingested:{" "}
-                                  {new Date(sig.postedAt).toLocaleString([], {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
-                                {sig.url && (
-                                  <a
-                                    href={sig.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-300 underline"
-                                  >
-                                    VIEW SOURCE <ArrowSquareOut size={8} />
-                                  </a>
-                                )}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              </DoubleBezel>
             </div>
-          </>
+          </div>
         )}
       </main>
     </div>
@@ -594,19 +678,23 @@ export default function Dashboard() {
 function LoadingSkeleton() {
   return (
     <div className="min-h-[100dvh] w-full bg-[#050505] p-6 animate-pulse space-y-6">
-      <div className="h-14 w-full max-w-7xl mx-auto rounded-2xl bg-zinc-900 border border-white/5" />
+      <div className="h-14 w-full max-w-7xl mx-auto rounded-full bg-zinc-950 border border-white/5 mt-4" />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto items-start">
-        <div className="lg:col-span-5 h-[28rem] rounded-2xl bg-zinc-900 border border-white/5" />
-        <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="h-48 rounded-2xl bg-zinc-900 border border-white/5" />
-          <div className="h-48 rounded-2xl bg-zinc-900 border border-white/5" />
-          <div className="h-48 rounded-2xl bg-zinc-900 border border-white/5" />
-          <div className="h-48 rounded-2xl bg-zinc-900 border border-white/5" />
+        {/* Left column skeleton */}
+        <div className="lg:col-span-5 flex flex-col gap-6 w-full">
+          <div className="h-[28rem] rounded-[2rem] bg-zinc-950 border border-white/5" />
+          <div className="h-[21rem] rounded-[2rem] bg-zinc-950 border border-white/5" />
         </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
-        <div className="lg:col-span-7 h-72 rounded-2xl bg-zinc-900 border border-white/5" />
-        <div className="lg:col-span-5 h-72 rounded-2xl bg-zinc-900 border border-white/5" />
+        {/* Right column skeleton */}
+        <div className="lg:col-span-7 flex flex-col gap-6 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="h-[12rem] rounded-2xl bg-zinc-950 border border-white/5" />
+            <div className="h-[12rem] rounded-2xl bg-zinc-950 border border-white/5" />
+            <div className="h-[12rem] rounded-2xl bg-zinc-950 border border-white/5" />
+            <div className="h-[12rem] rounded-2xl bg-zinc-950 border border-white/5" />
+          </div>
+          <div className="h-[25rem] rounded-[2rem] bg-zinc-950 border border-white/5" />
+        </div>
       </div>
     </div>
   );

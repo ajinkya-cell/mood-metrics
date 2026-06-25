@@ -3,11 +3,12 @@
 // NOTE: NIM doesn't support generateObject's structured output, so we use
 // generateText and parse JSON manually from the response.
 
-import { generateText } from "ai";
+import { generateText, embed } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { db } from "@/lib/db/client";
 import { rawPosts, sentimentRecords, sentimentTimeseries } from "@/lib/db/schema";
-import { eq, isNull, and, gte, lte, sql } from "drizzle-orm";
+import { eq, isNull, and, desc } from "drizzle-orm";
+import { fetchCoinPrice } from "@/lib/scrapers/coingecko";
 import type { Ticker, RawPost } from "@/lib/db/schema";
 
 // ── Normalization helpers for new signal sources ──────────────────────────────
@@ -218,6 +219,23 @@ export async function analyzePendingPosts(ticker: Ticker): Promise<number> {
     try {
       const result = await analyzePost(post, ticker.name);
 
+      // Generate embedding using Nvidia NIM
+      const textToAnalyze = [post.title, post.content]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 1000);
+      
+      let vector: number[] | null = null;
+      try {
+        const { embedding } = await embed({
+          model: nim.embeddingModel("nvidia/embeddings-nv-embed-qa-4"),
+          value: textToAnalyze,
+        });
+        vector = embedding;
+      } catch (embedError) {
+        console.warn(`[AI] Embedding generation failed for post ${post.id}:`, embedError);
+      }
+
       await db.insert(sentimentRecords).values({
         postId: post.id,
         tickerId: ticker.id,
@@ -225,6 +243,7 @@ export async function analyzePendingPosts(ticker: Ticker): Promise<number> {
         score: result.score.toFixed(3),
         confidence: result.confidence.toFixed(3),
         reasoning: result.reasoning,
+        embedding: vector,
       });
 
       analyzed++;
@@ -244,6 +263,19 @@ export async function analyzePendingPosts(ticker: Ticker): Promise<number> {
 // Call this after analyzePendingPosts to update the timeseries table
 export async function rollupTimeseries(ticker: Ticker): Promise<void> {
   console.log(`[Rollup] Building timeseries for ${ticker.symbol}...`);
+
+  // Fetch current spot price from CoinGecko
+  let currentPrice: string | null = null;
+  try {
+    if (ticker.coingeckoId) {
+      const priceData = await fetchCoinPrice(ticker.coingeckoId);
+      if (priceData && priceData.usd) {
+        currentPrice = priceData.usd.toString();
+      }
+    }
+  } catch (priceErr) {
+    console.warn(`[Rollup] Failed to fetch current price for ${ticker.symbol}:`, priceErr);
+  }
 
   // Get all sentiment records with their post metadata for this ticker
   const records = await db
@@ -325,6 +357,7 @@ export async function rollupTimeseries(ticker: Ticker): Promise<void> {
         bearishCount,
         neutralCount,
         volumeWeightedScore: avgWeighted.toFixed(4),
+        spotPrice: currentPrice,
       })
       .onConflictDoUpdate({
         target: [
@@ -340,6 +373,7 @@ export async function rollupTimeseries(ticker: Ticker): Promise<void> {
           bearishCount,
           neutralCount,
           volumeWeightedScore: avgWeighted.toFixed(4),
+          spotPrice: currentPrice,
         },
       });
   }

@@ -8,7 +8,6 @@ import {
   Gauge,
   Cpu,
   Coins,
-  ShieldCheck,
   EnvelopeSimple,
   Pulse,
   Newspaper,
@@ -24,7 +23,7 @@ const fadeUp = {
   initial: { opacity: 0, y: 24, filter: "blur(4px)" },
   whileInView: { opacity: 1, y: 0, filter: "blur(0px)" },
   viewport: { once: true, amount: 0.3 },
-  transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+  transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as unknown as "linear" },
 };
 
 const staggerContainer = {
@@ -38,7 +37,7 @@ const staggerItem = {
   whileInView: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as unknown as "linear" },
   },
   viewport: { once: true },
 };
@@ -101,7 +100,7 @@ export default function LandingPage() {
             <Link href="/dashboard">
               <motion.div
                 whileTap={{ scale: 0.97 }}
-                className="group flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-mono font-bold tracking-wider transition-all duration-300 active:scale-95"
+                className="group flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-mono font-bold tracking-wider transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.55)]"
               >
                 LAUNCH TERMINAL
                 <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center group-hover:translate-x-1 group-hover:-translate-y-[1px] transition-transform duration-300">
@@ -113,7 +112,7 @@ export default function LandingPage() {
             <Link href="/methodology">
               <motion.div
                 whileTap={{ scale: 0.97 }}
-                className="px-6 py-3 rounded-full border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-white text-sm font-mono tracking-wider transition-all duration-300 active:scale-95"
+                className="px-6 py-3 rounded-full border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-white text-sm font-mono tracking-wider transition-all duration-300 active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.03)] hover:shadow-[0_0_25px_rgba(255,255,255,0.08)]"
               >
                 METHODOLOGY
               </motion.div>
@@ -272,7 +271,7 @@ export default function LandingPage() {
             />
             <button
               type="submit"
-              className="absolute right-1 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black text-xs font-mono font-bold rounded-full tracking-wider transition-all duration-300 active:scale-95"
+              className="absolute right-1 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black text-xs font-mono font-bold rounded-full tracking-wider transition-all duration-300 active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]"
             >
               SUBSCRIBE
             </button>

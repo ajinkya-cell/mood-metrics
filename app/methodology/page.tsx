@@ -1,251 +1,331 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
+  BookOpen,
+  Info,
   MathOperations,
   Newspaper,
   RedditLogo,
   Coins,
   Gauge,
-  Info,
   CheckCircle,
+  Clock,
+  Circle,
 } from "@phosphor-icons/react";
-import DoubleBezel from "../components/DoubleBezel";
+import SectionEyebrow from "../components/SectionEyebrow";
+
+const SECTIONS = [
+  { id: "overview", label: "1. Overview & Mission" },
+  { id: "why-sentiment", label: "2. Why Sentiment Matters" },
+  { id: "four-layers", label: "3. The Ingestion Layers" },
+  { id: "math-blending", label: "4. Blended Calculations" },
+  { id: "fine-adjustments", label: "5. Recency & Virality Math" },
+  { id: "verdicts", label: "6. Interpreting Verdicts" },
+];
 
 export default function MethodologyPage() {
+  const [activeSection, setActiveSection] = useState<string>("overview");
+
+  // Highlight active TOC item on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPos = window.scrollY + 200;
+      for (const section of SECTIONS) {
+        const element = document.getElementById(section.id);
+        if (element) {
+          const top = element.offsetTop;
+          const height = element.offsetHeight;
+          if (scrollPos >= top && scrollPos < top + height) {
+            setActiveSection(section.id);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const top = element.offsetTop - 100;
+      window.scrollTo({
+        top: top,
+        behavior: "smooth",
+      });
+      setActiveSection(id);
+    }
+  };
+
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-12 select-none overflow-hidden pb-20 font-sans">
-      {/* Header */}
-      <div className="mb-12">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/5 bg-[#0C0C0E] text-[10px] uppercase tracking-[0.2em] font-mono text-zinc-500 font-bold mb-4">
-          <MathOperations size={12} />
-          SYSTEM METHODOLOGY
-        </div>
-        <h1 className="text-4xl font-extrabold tracking-tight text-white">
-          How MoodMetrics Works
+    <div className="w-full max-w-7xl mx-auto px-6 py-12 pb-20">
+      {/* Page Header */}
+      <div className="mb-12 border-b border-white/5 pb-8">
+        <SectionEyebrow icon={<BookOpen size={12} className="text-emerald-400" />}>
+          DOCUMENTATION PORTAL
+        </SectionEyebrow>
+        <h1 className="text-4xl font-extrabold tracking-tight text-white font-sans mt-2">
+          System Documentation & Methodology
         </h1>
-        <p className="text-zinc-500 text-sm font-mono mt-2 max-w-2xl">
-          A descriptive breakdown of our 4-layer sentiment blending algorithm, data sourcing, and directional score interpretation.
+        <p className="text-zinc-500 text-sm mt-2 max-w-3xl font-sans leading-relaxed">
+          A comprehensive guide explaining the purpose, data pipeline mechanics, and mathematical scoring systems that power MoodMetrics.
         </p>
       </div>
 
-      {/* The Blend Formula visual block */}
-      <section className="mb-12">
-        <DoubleBezel className="p-8">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-            <div>
-              <span className="text-[10px] text-zinc-500 font-mono tracking-widest block uppercase">
-                THE BLENDED CORE FORMULA
-              </span>
-              <h2 className="text-2xl font-bold text-white mt-1">
-                Score = (L1 × 40%) + (L2 × 30%) + (L3 × 15%) + (L4 × 15%)
-              </h2>
-              <p className="text-xs text-zinc-400 mt-2 max-w-lg leading-relaxed">
-                By blending short-term market momentum (Flash), historical community consensus (Historic), leverage market positioning (Funding), and macro global indicators (Fear & Greed), MoodMetrics creates a high-fidelity sentiment oracle.
-              </p>
-            </div>
-            <div className="font-mono text-xs text-zinc-300 bg-black/40 border border-white/5 p-4 rounded-xl max-w-md shrink-0 w-full lg:w-auto">
-              <span className="text-emerald-400 font-bold">Weighted Formula Readout:</span>
-              <div className="mt-2 space-y-1 text-[11px] text-zinc-400">
-                <div>• Flash Ingestion (L1): <span className="text-white">40% weight</span></div>
-                <div>• Historic Reddit (L2): <span className="text-white">30% weight</span></div>
-                <div>• Funding Rates (L3): <span className="text-white">15% weight</span></div>
-                <div>• Fear & Greed Index (L4): <span className="text-white">15% weight</span></div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+        {/* LEFT COLUMN: Sticky Table of Contents */}
+        <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
+          <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
+            DOCUMENT OUTLINE
+          </span>
+          <nav className="flex flex-col gap-2 font-mono text-xs">
+            {SECTIONS.map((section) => (
+              <button
+                key={section.id}
+                onClick={() => scrollToSection(section.id)}
+                className={`text-left py-1.5 px-3 rounded transition-all ${
+                  activeSection === section.id
+                    ? "bg-white/5 border border-white/10 text-white font-bold"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {section.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        {/* RIGHT COLUMN: Document Article */}
+        <main className="lg:col-span-9 text-zinc-300 font-sans text-sm leading-relaxed max-w-3xl space-y-16">
+          {/* Section 1: Overview */}
+          <section id="overview" className="scroll-mt-28 space-y-6">
+            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+              <Info size={20} className="text-emerald-400" />
+              1. Overview & Mission
+            </h2>
+            <p>
+              In traditional finance, assets are evaluated using fundamental parameters like earnings reports, cash flow, and debt ratios. In cryptocurrency, these metrics are often absent, thin, or heavily distorted.
+            </p>
+            <p>
+              Instead, cryptocurrency pricing behaves like a <strong>reflexive Keynesian beauty contest</strong>: prices fluctuate based on collective market psychology, crowd narratives, and leveraged liquidation points. 
+            </p>
+            <p>
+              <strong>MoodMetrics</strong> is a quantitative sentiment aggregator designed to map this psychology. The system continuously ingests raw text, community upvote metrics, funding distributions, and volatility indexes, converting unstructured emotional signals into a standardized, mathematical index from <strong>-100 (extreme fear and panic)</strong> to <strong>+100 (extreme greed and bullish momentum)</strong>.
+            </p>
+            <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-5 text-xs text-zinc-400 font-mono space-y-2">
+              <div className="text-emerald-400 font-bold uppercase tracking-wider text-[9px] mb-1">
+                SYSTEM DATA FLOW SUMMARY
               </div>
+              <div>• Data Scraping: Parallel news RSS, Reddit API fallbacks, Binance perp contracts, alternative.me index</div>
+              <div>• Classification: Nvidia NIM hosts fine-tuned Llama 3.1 8B Instruct model for post-by-post sentiment labels</div>
+              <div>• Pre-Aggregation: Normalized weighting rollups calculated hourly and cached inside a Neon SQL database</div>
             </div>
-          </div>
-        </DoubleBezel>
-      </section>
+          </section>
 
-      {/* Descriptive Layer Analysis */}
-      <section className="space-y-6 mb-16">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Info className="text-emerald-400" />
-          The Four Ingestion Layers
-        </h2>
+          {/* Section 2: Why Sentiment Matters */}
+          <section id="why-sentiment" className="scroll-mt-28 space-y-6">
+            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+              <CheckCircle size={20} className="text-emerald-400" />
+              2. Why Sentiment Matters
+            </h2>
+            <p>
+              Most traders rely heavily on price-chart indicators (e.g. RSI, MACD, Bollinger Bands). While useful, these are lagging metrics; they only tell you that a price moved <em>after</em> the order book has already executed the trades.
+            </p>
+            <p>
+              Sentiment, on the other hand, acts as a **leading indicator**. Price cascades in crypto are rarely linear. They happen when:
+            </p>
+            <ul className="list-disc pl-5 space-y-2">
+              <li><strong>Fear Cascades:</strong> Retail investors panic-post on social boards, leading to spot market distributions.</li>
+              <li><strong>Leverage Wipes:</strong> Too many traders use high leverage. If funding rates skew positive, long traders are paying shorts to keep contracts open, leaving them highly vulnerable to a drop that triggers a chain-reaction of liquidations.</li>
+              <li><strong>Narrative Divergence:</strong> Traditional media publishes positive news articles, but community forums remain intensely skeptical. This divergence often indicates that the market is overextended.</li>
+            </ul>
+            <p>
+              By quantifying the raw emotional data and leverage skew before they affect spot prices, MoodMetrics provides traders with a way to assess systemic risk.
+            </p>
+          </section>
 
-        <div className="grid grid-cols-1 gap-6">
-          {/* L1: Flash Ingestion */}
-          <DoubleBezel className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <Newspaper size={16} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white text-sm">L1 — Flash Ingestion (40% Weight)</h3>
-                  <span className="text-[10px] text-zinc-500 font-mono">REAL-TIME SENTIMENT & BREAKING NEWS</span>
-                </div>
-              </div>
-              <span className="text-[10px] font-mono bg-zinc-900 border border-white/5 px-2.5 py-1 rounded text-zinc-400">
-                FETCH FREQUENCY: EVERY 30 MINUTES
-              </span>
-            </div>
-            <div className="space-y-3 text-xs text-zinc-400 leading-relaxed">
-              <p>
-                <strong>What it is:</strong> The Flash Layer measures immediate sentiment momentum. It evaluates CoinGecko community vote percentages (upvotes vs downvotes) and parses breaking headlines from main RSS publications (CoinDesk, Cointelegraph, Decrypt, and Cryptoslate).
-              </p>
-              <p>
-                <strong>How it is fetched:</strong> Live queries extract the active coin metadata from CoinGecko's `/coins/[id]` endpoint. RSS XML documents are concurrently read and parsed using Cheerio to extract article descriptions, filter keywords, and verify coin relevance.
-              </p>
-              <p>
-                <strong>Calculation:</strong> Raw articles are processed and combined with community vote metrics to generate a normalized rating from `-100` (bearish panic) to `+100` (bullish momentum).
-              </p>
-            </div>
-          </DoubleBezel>
+          {/* Section 3: The Ingestion Layers */}
+          <section id="four-layers" className="scroll-mt-28 space-y-6">
+            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+              <Newspaper size={20} className="text-emerald-400" />
+              3. The Ingestion Layers
+            </h2>
+            <p>
+              MoodMetrics gathers data across four distinct layers, capturing different time horizons and participant behaviors:
+            </p>
 
-          {/* L2: Historic Reddit */}
-          <DoubleBezel className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <RedditLogo size={16} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white text-sm">L2 — Historic Reddit AI (30% Weight)</h3>
-                  <span className="text-[10px] text-zinc-500 font-mono">MACRO-COMMUNITY MOOD TIMELINE</span>
-                </div>
-              </div>
-              <span className="text-[10px] font-mono bg-zinc-900 border border-white/5 px-2.5 py-1 rounded text-zinc-400">
-                FETCH FREQUENCY: EVERY 6 HOURS
-              </span>
-            </div>
-            <div className="space-y-3 text-xs text-zinc-400 leading-relaxed">
-              <p>
-                <strong>What it is:</strong> A long-term baseline tracking community consensus. Instead of relying on instant reactions, the Historic Layer crawls Reddit boards, extracting public threads to capture deep-rooted sentiment.
-              </p>
-              <p>
-                <strong>How it is fetched:</strong> A cron script triggers sequential JSON requests across targeted coin subreddits. Captured post titles and text are analyzed by our Nvidia Llama 3.1 8B Instruct model, generating precise directional scores.
-              </p>
-              <p>
-                <strong>Calculation:</strong> Individual post scores are run through a **Recency Decay** formula ($t_{1/2} = 12h$) and a **Log-scaled Upvote Boost** (viral posts are boosted but not allowed to break the scale). These are pre-aggregated into 1-hour timeseries buckets.
-              </p>
-            </div>
-          </DoubleBezel>
-
-          {/* L3: Funding Rates */}
-          <DoubleBezel className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <Coins size={16} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white text-sm">L3 — Funding Rates (15% Weight)</h3>
-                  <span className="text-[10px] text-zinc-500 font-mono">DERIVATIVES LEVERAGE BIAS</span>
+            <div className="space-y-6 pt-4 font-mono text-xs">
+              {/* L1 */}
+              <div className="border-l-2 border-emerald-500/50 pl-4 space-y-2">
+                <h3 className="text-white font-bold text-sm font-sans">L1 — The Flash Ingestion Layer (40% Weight)</h3>
+                <p className="text-zinc-400 font-sans text-xs">
+                  This layer measures short-term sentiment momentum. It parses breaking headlines from RSS news syndications (including CoinDesk, Cointelegraph, Decrypt, and Cryptoslate) and integrates real-time community upvotes/downvotes from CoinGecko.
+                </p>
+                <div className="text-[10px] text-zinc-500 font-mono">
+                  REFRESH CADENCE: 30 MINUTES | RETENTION HISTORY: 5 DAYS
                 </div>
               </div>
-              <span className="text-[10px] font-mono bg-zinc-900 border border-white/5 px-2.5 py-1 rounded text-zinc-400">
-                FETCH FREQUENCY: EVERY 30 MINUTES
-              </span>
-            </div>
-            <div className="space-y-3 text-xs text-zinc-400 leading-relaxed">
-              <p>
-                <strong>What it is:</strong> Leveraged market positioning telemetry. Perpetual swaps utilize funding rates to keep the perpetual price pegged to spot. Positive rates indicate long traders pay short traders (excess bullish leverage); negative rates indicate shorts pay longs (excess bearish leverage).
-              </p>
-              <p>
-                <strong>How it is fetched:</strong> Queried directly from the Binance Futures perp contract API (`/fapi/v1/fundingRate?symbol=BTCUSDT`).
-              </p>
-              <p>
-                <strong>Calculation:</strong> The decimal rate is divided by `0.001` (representing a high 0.10% premium) and clamped: $f(rate) = clamp(rate / 0.001, -1, 1)$. This maps rates to a `-1.0..+1.0` scale (and multiplied by 100 on the dashboard).
-              </p>
-            </div>
-          </DoubleBezel>
 
-          {/* L4: Fear & Greed */}
-          <DoubleBezel className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <Gauge size={16} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white text-sm">L4 — Global Fear & Greed (15% Weight)</h3>
-                  <span className="text-[10px] text-zinc-500 font-mono">GLOBAL MARKET EMOTION</span>
+              {/* L2 */}
+              <div className="border-l-2 border-emerald-500/50 pl-4 space-y-2">
+                <h3 className="text-white font-bold text-sm font-sans">L2 — The Historic Community Layer (30% Weight)</h3>
+                <p className="text-zinc-400 font-sans text-xs">
+                  This layer monitors dedicated asset forums (e.g. r/bitcoin, r/ethereum, r/solana) using sequential, anti-blocking public scrapers. It captures retail consensus and long-term narrative baseline trends.
+                </p>
+                <div className="text-[10px] text-zinc-500 font-mono">
+                  REFRESH CADENCE: 6 HOURS | RETENTION HISTORY: 5 DAYS
                 </div>
               </div>
-              <span className="text-[10px] font-mono bg-zinc-900 border border-white/5 px-2.5 py-1 rounded text-zinc-400">
-                FETCH FREQUENCY: EVERY 30 MINUTES
-              </span>
-            </div>
-            <div className="space-y-3 text-xs text-zinc-400 leading-relaxed">
-              <p>
-                <strong>What it is:</strong> The global crypto market index tracking volatility, volume momentum, and social presence.
-              </p>
-              <p>
-                <strong>How it is fetched:</strong> Ingested daily from Alternative.me's public endpoint (`/fng/`).
-              </p>
-              <p>
-                <strong>Calculation:</strong> Shifted to center around 50 (neutral): $f(value) = clamp((value - 50) / 50, -1, 1)$, translating the raw `0..100` range to a `-1.0..+1.0` scale.
-              </p>
-            </div>
-          </DoubleBezel>
-        </div>
-      </section>
 
-      {/* Interpretation Section (bullish, bearish, neutral) */}
-      <section>
-        <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-6">
-          <CheckCircle className="text-emerald-400" />
-          Interpreting the Blended Score
-        </h2>
+              {/* L3 */}
+              <div className="border-l-2 border-emerald-500/50 pl-4 space-y-2">
+                <h3 className="text-white font-bold text-sm font-sans">L3 — The Perpetual Funding Rates Layer (15% Weight)</h3>
+                <p className="text-zinc-400 font-sans text-xs">
+                  Queries perpetual swap contracts directly from the Binance Futures API. Positive rates show long leverage build-ups; negative rates indicate heavy short contract skews.
+                </p>
+                <div className="text-[10px] text-zinc-500 font-mono">
+                  REFRESH CADENCE: 30 MINUTES | SOURCE: BINANCE FUTURES API
+                </div>
+              </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-xs text-zinc-400">
-          {/* Bullish */}
-          <DoubleBezel className="p-6 flex flex-col justify-between h-72">
-            <div>
-              <span className="text-emerald-400 font-bold text-sm block mb-1">
-                BULLISH STATE (+21 to +100)
-              </span>
-              <span className="text-[9.5px] text-zinc-500 block mb-4 border-b border-white/5 pb-2">
-                LONG ACCUMULATION BIAS
-              </span>
-              <p className="font-sans leading-relaxed text-zinc-400 text-xs">
-                Indicates strong positive alignment. News publications report constructive updates, Reddit discussions are highly positive, perpetual funding is positive (long leverage), and the global index indicates high greed. Spot accumulation is likely favored.
-              </p>
+              {/* L4 */}
+              <div className="border-l-2 border-emerald-500/50 pl-4 space-y-2">
+                <h3 className="text-white font-bold text-sm font-sans">L4 — The Global Fear & Greed Index (15% Weight)</h3>
+                <p className="text-zinc-400 font-sans text-xs">
+                  Pulls the global daily Fear & Greed index from alternative.me. It reflects macro market volatility, trading volume, search trend popularity, and social spikes.
+                </p>
+                <div className="text-[10px] text-zinc-500 font-mono">
+                  REFRESH CADENCE: 30 MINUTES | SOURCE: ALTERNATIVE.ME INDEX
+                </div>
+              </div>
             </div>
-            <span className="text-emerald-500 text-[10px] font-bold block mt-4 border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 rounded w-max">
-              MARKET ACTION: CONSIDER LONG BIAS
-            </span>
-          </DoubleBezel>
+          </section>
 
-          {/* Neutral */}
-          <DoubleBezel className="p-6 flex flex-col justify-between h-72">
-            <div>
-              <span className="text-zinc-300 font-bold text-sm block mb-1">
-                NEUTRAL STATE (-20 to +20)
-              </span>
-              <span className="text-[9.5px] text-zinc-500 block mb-4 border-b border-white/5 pb-2">
-                CONSOLIDATION / RANGE-BOUND
-              </span>
-              <p className="font-sans leading-relaxed text-zinc-400 text-xs">
-                Indicates mixed signals or range-bound consolidation. Positive community hype may be offset by high derivatives funding drag, or strong on-chain indicators may meet local news corrections. Sentiment is balanced and lacks clear trend direction.
-              </p>
-            </div>
-            <span className="text-zinc-400 text-[10px] font-bold block mt-4 border border-white/5 bg-white/5 px-2 py-1 rounded w-max">
-              MARKET ACTION: WAIT FOR BREAKOUT
-            </span>
-          </DoubleBezel>
+          {/* Section 4: Blended Calculations */}
+          <section id="math-blending" className="scroll-mt-28 space-y-6">
+            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+              <MathOperations size={20} className="text-emerald-400" />
+              4. Blended Score Logic
+            </h2>
+            <p>
+              To create a unified sentiment metric, the system processes each layer into a normalized value between <strong>-1.0 (extremely bearish)</strong> and <strong>+1.0 (extremely bullish)</strong>, aggregates them using predefined weights, and multiplies the final result by 100.
+            </p>
+            <p className="font-mono bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white text-sm">
+              Blended Score = [(L1 × 0.40) + (L2 × 0.30) + (L3 × 0.15) + (L4 × 0.15)] × 100
+            </p>
+            <p>
+              Each component score is normalized as follows:
+            </p>
+            <ul className="list-disc pl-5 space-y-4">
+              <li>
+                <strong>L1 (Flash) and L2 (Reddit) Normalization:</strong> Raw articles and forum posts are parsed by Llama 3.1, which outputs an exact sentiment score from -1.0 to +1.0. These individual scores are averaged together.
+              </li>
+              <li>
+                <strong>L3 (Funding Rate) Normalization:</strong> Perpetual swap funding rates typically hover between -0.05% and +0.05% per 8 hours. We divide the raw funding rate by <strong>0.001 (representing 0.10% premium)</strong> and cap the result:
+                <br />
+                <code className="text-emerald-400 bg-white/5 px-2 py-0.5 rounded font-mono text-xs">
+                  Funding Score = clamp(Rate / 0.001, -1.0, 1.0)
+                </code>
+              </li>
+              <li>
+                <strong>L4 (Fear & Greed) Normalization:</strong> The raw index is a value from 0 to 100. We center it around neutral (50) and map it:
+                <br />
+                <code className="text-emerald-400 bg-white/5 px-2 py-0.5 rounded font-mono text-xs">
+                  Fear & Greed Score = clamp((Index - 50) / 50, -1.0, 1.0)
+                </code>
+              </li>
+            </ul>
+          </section>
 
-          {/* Bearish */}
-          <DoubleBezel className="p-6 flex flex-col justify-between h-72">
-            <div>
-              <span className="text-rose-400 font-bold text-sm block mb-1">
-                BEARISH STATE (-100 to -21)
-              </span>
-              <span className="text-[9.5px] text-zinc-500 block mb-4 border-b border-white/5 pb-2">
-                SHORT DISTRIBUTION BIAS
-              </span>
-              <p className="font-sans leading-relaxed text-zinc-400 text-xs">
-                Indicates negative alignment and fear. Heavy bearish articles, negative Reddit consensus, negative funding rates (shorts paying longs due to high shorting leverage), and extreme fear in the global index. Short positioning or distribution bias is favored.
-              </p>
+          {/* Section 5: Recency & Virality Math */}
+          <section id="fine-adjustments" className="scroll-mt-28 space-y-6">
+            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+              <Clock size={20} className="text-emerald-400" />
+              5. Recency & Virality Math
+            </h2>
+            <p>
+              Crypto markets shift rapidly. To ensure the timeseries index is responsive without losing its baseline signal, the blending engine applies two mathematical adjustments:
+            </p>
+
+            <div className="space-y-6 font-sans">
+              <div>
+                <h4 className="text-white font-bold text-sm">A. Exponential Recency Decay</h4>
+                <p className="mt-1">
+                  Social media conversations degrade in relevance quickly. The system treats post age with a **half-life decay calculation of 12 hours**:
+                </p>
+                <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 mt-2 font-mono text-xs text-center">
+                  Weight(t) = exp(-t / 12)
+                </div>
+                <p className="mt-2 text-xs text-zinc-400">
+                  Where <em>t</em> is the hours elapsed since ingestion. A post from 12 hours ago carries only half the weight of a fresh post.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="text-white font-bold text-sm">B. Source Credibility Scaling</h4>
+                <p className="mt-1">
+                  To prevent noisy social media comments from drowning out factual news, weights are scaled by source:
+                </p>
+                <ul className="list-disc pl-5 mt-2 text-xs space-y-1 text-zinc-400">
+                  <li>Traditional News RSS: <strong className="text-white">100% (1.0 weight)</strong></li>
+                  <li>CoinGecko Curated Feeds: <strong className="text-white">90% (0.9 weight)</strong></li>
+                  <li>Public Reddit Posts: <strong className="text-white">70% (0.7 weight)</strong></li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="text-white font-bold text-sm">C. Logarithmic Upvote Boost</h4>
+                <p className="mt-1">
+                  Highly upvoted social posts reflect strong community consensus. Rather than multiplying linearly (which would allow a single viral post to crash the index), we apply a **log-scaled upvote multiplier**:
+                </p>
+                <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 mt-2 font-mono text-xs text-center">
+                  Upvote Boost = log10(max(upvotes, 1) + 1) × 0.10
+                </div>
+                <p className="mt-2 text-xs text-zinc-400">
+                  This boost is added to the post&apos;s base weight. A post with 1,000 upvotes gets a substantial weight boost, but remains clamped within safe thresholds.
+                </p>
+              </div>
             </div>
-            <span className="text-rose-500 text-[10px] font-bold block mt-4 border border-rose-500/20 bg-rose-500/5 px-2 py-1 rounded w-max">
-              MARKET ACTION: CONSIDER RISK OFFSET
-            </span>
-          </DoubleBezel>
-        </div>
-      </section>
+          </section>
+
+          {/* Section 6: Interpreting Verdicts */}
+          <section id="verdicts" className="scroll-mt-28 space-y-6">
+            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+              <Gauge size={20} className="text-emerald-400" />
+              6. Interpreting Verdicts
+            </h2>
+            <p>
+              The final score displays on the cockpit dashboard in one of three states, showing the corresponding market bias:
+            </p>
+
+            <div className="space-y-4">
+              <div className="border border-white/5 rounded-xl p-4 bg-zinc-950/40 font-sans">
+                <span className="text-emerald-400 font-mono font-bold text-xs">BULLISH BIAS (+21 to +100)</span>
+                <p className="text-zinc-400 text-xs mt-1">
+                  News is constructive, Reddit threads are optimistic, perpetual funding is positive (longs paying shorts), and global fear & greed is high. This setup favors spot accumulation or momentum long trades.
+                </p>
+              </div>
+
+              <div className="border border-white/5 rounded-xl p-4 bg-zinc-950/40 font-sans">
+                <span className="text-zinc-300 font-mono font-bold text-xs">NEUTRAL CONSOLIDATION (-20 to +20)</span>
+                <p className="text-zinc-400 text-xs mt-1">
+                  Mixed signals. For example, bullish Reddit chatter might be cancelled out by negative derivatives funding, or positive RSS news might meet extreme macro fear. This indicates a range-bound market, suggesting caution or trend breakout monitoring.
+                </p>
+              </div>
+
+              <div className="border border-white/5 rounded-xl p-4 bg-zinc-950/40 font-sans">
+                <span className="text-rose-400 font-mono font-bold text-xs">BEARISH BIAS (-100 to -21)</span>
+                <p className="text-zinc-400 text-xs mt-1">
+                  Outbound news is pessimistic, forums are panicking, and perpetual swap funding is negative (shorts paying longs, showing heavy short positioning skew). This indicates high systemic risk, favoring capital preservation or hedging.
+                </p>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
   );
 }

@@ -22,7 +22,7 @@ const CRYPTO_RSS_FEEDS = [
 // ── ScrapeGraphAI helper ───────────────────────────────────────────────────────
 // You give it a URL + a prompt, it returns structured JSON
 
-async function scrapeWithAI(url: string, coinName: string): Promise<{
+async function scrapeWithAI(url: string): Promise<{
   title: string;
   content: string;
   publishedAt: string | null;
@@ -140,7 +140,7 @@ export async function scrapeNewsRSS(ticker: Ticker): Promise<number> {
     // ── Scrape each article with ScrapeGraphAI ─────────────────────────────
     // Limit to 5 per run (flash layer — runs every 30 min, conserve API credits)
     for (const article of relevantArticles.slice(0, 5)) {
-      const scraped = await scrapeWithAI(article.url, ticker.name);
+      const scraped = await scrapeWithAI(article.url);
       if (!scraped) continue;
 
       try {

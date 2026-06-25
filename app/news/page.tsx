@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { db } from "@/lib/db/client";
-import { rawPosts, sourceTypeEnum, tickers } from "@/lib/db/schema";
+import { rawPosts, tickers } from "@/lib/db/schema";
 import { desc, eq, and, or } from "drizzle-orm";
 import { Newspaper, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
 import DoubleBezel from "../components/DoubleBezel";

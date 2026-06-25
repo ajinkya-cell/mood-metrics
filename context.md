@@ -84,6 +84,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
    - `score` (numeric(4,3), not null) — `-1.0` (bearish) to `+1.0` (bullish)
    - `confidence` (numeric(4,3)) — `0.0` to `1.0`
    - `reasoning` (text) — AI-provided rationale
+   - `embedding` (vector(1536)) — Nvidia NIM generated Llama embedding vector
    - `analyzedAt` (timestamp, default now, not null)
    - *Indexes*: `sentiment_ticker_idx` (`tickerId`), `sentiment_analyzed_at_idx` (`analyzedAt`)
 
@@ -99,6 +100,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
    - `bearishCount` (integer, default 0, not null)
    - `neutralCount` (integer, default 0, not null)
    - `volumeWeightedScore` (numeric(5,4)) — Weighted score incorporating recency, credibility, and log-scaled upvote counts
+   - `spotPrice` (numeric(20,8)) — Snap spot price of asset during interval bucket
    - *Indexes*: `ts_ticker_bucket_idx` (`tickerId`, `bucketStart`), unique index `ts_unique_bucket` (`tickerId`, `bucketStart`, `interval`, `sourceType`)
 
 5. **`scrape_cache`** — Prevents redundant scraping and tracks errors
@@ -128,25 +130,32 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 
 | File | Role |
 |---|---|
-| [app/components/Dashboard.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/Dashboard.tsx) | Main client component dashboard managing telemetry fetching, live pricing, search query, gauge needles, CMD logs feed and skeletons. |
+| [app/components/Dashboard.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/Dashboard.tsx) | Main client component dashboard managing telemetry fetching, live pricing, search query, gauge needles, CMD logs feed and skeletons. It displays the `TerminalLoader` overlay during coin fetching and analysis. |
+| [app/components/GlobalNav.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/GlobalNav.tsx) | Header navigation featuring dynamic routing paths for Dashboard, AI Records, Quant Lab, Advanced Tools, How It Works, and Support. |
+| [app/components/TerminalLoader.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/TerminalLoader.tsx) | Retro-themed CRT terminal loading overlay. Shows scrolling analysis step logs and an animated SVG coin with radial sweep laser scanning. |
 | [app/components/DoubleBezel.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/DoubleBezel.tsx) | Enforces nested concentric curves and edge highlighting for visual depth. |
 | [app/components/SentimentChart.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/SentimentChart.tsx) | Custom-built interactive SVG line chart visualizing the 24h historical timeline, mapping coordinates on the fly. |
+| [app/components/HorizontalScale.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/HorizontalScale.tsx) | Signature diagonal scale graphic divider representing HUD grid telemetry coordinates. |
+| [app/components/MaskGradient.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/MaskGradient.tsx) | Masked text component with radial or linear gradient overlays. |
+| [app/components/GrainOverlay.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/GrainOverlay.tsx) | SVG-based analog noise filter globally overlays UI layout for premium texture. |
+| [app/components/GlowCard.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/GlowCard.tsx) | Double-bezel sentiment card containers dynamically glowing (emerald/rose/zinc/purple). |
+| [app/components/SectionEyebrow.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/SectionEyebrow.tsx) | Section monospace sub-label with pulsing indicator dot. |
+| [app/records/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/records/page.tsx) | Sentiment records list page showing granular database records, Llama 3.1 AI reasoning details, interactive filtration controls, SVG stacked volume + sentiment score timelines, and an AI Verdict Matrix scatter plot. |
+| [app/advanced/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/advanced/page.tsx) | Advanced Tools page serving as an experimental sandbox for 5 quantitative features (Lag Correlation, Divergence alerts, AI Narratives, Historical Playback, and Whale/Retail crossovers). |
+| [app/backtester/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/backtester/page.tsx) | Quant Strategy Backtester page supporting entry/exit condition limits and plotting simulated strategy yields against passive hold benchmarks. |
+| [app/methodology/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/methodology/page.tsx) | Purpose page explaining the mission ("What"), value proposition ("Why"), and math configurations ("How") of the sentiment blends in a clean doc format. |
+| [app/support/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/support/page.tsx) | Page highlighting the developer story (lone developer context), disclaimers (not for trading), active project bottlenecks (lack of X API, demo CoinGecko keys, small model limits), and an interactive "Buy me a Coffee" widget. |
+| [lib/utils.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/utils.ts) | Class name merger utility `cn()`. |
 | [frontend-implementation.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/frontend-implementation.md) | Frontend implementation plan outlining atmosphere, color tokens, visual dials, bento grid structures, and spring physics properties. |
 | [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/analyze/route.ts) | `GET /api/analyze?symbol=BTC` — Blends & returns 4-layer sentiment. Refreshes stale data inline if cache expired. |
+| [app/api/records/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/records/route.ts) | `GET /api/records` — Queries and returns granular sentiment records with search keyword query, source filters, statistical rollups, and timeline charts timeframe slices. |
+| [app/api/advanced/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/advanced/route.ts) | `GET /api/advanced` — Serves timeseries history, funding rate aggregates, and recent sentiment records filterable by ticker component for advanced modeling. |
 | [app/api/cron/scrape-flash/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-flash/route.ts) | `POST` — Triggers parallel updates for CoinGecko + News RSS + Binance Funding + Fear & Greed (30-min cron). Bypasses cache if `?force=true`. |
 | [app/api/cron/scrape-reddit/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-reddit/route.ts) | `POST` — Reddit scrape + AI analysis + timeseries rollup. Cleans up raw posts and sentiment records older than 5 days (6-hour cron). |
 | [app/api/search/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/search/route.ts) | `GET /api/search?q=bit` — Ticker lookup (checks symbols and names). |
 | [lib/db/schema.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/schema.ts) | Full Drizzle schema definitions. |
 | [lib/db/client.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/client.ts) | Neon client setup with Drizzle ORM (HTTP-based for serverless environments). |
-| [lib/db/seed.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/seed.ts) | Seeds starter assets (`BTC`/`ETH`/`SOL`) into database. |
-| [lib/scrapers/coingecko.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/coingecko.ts) | Scrapes market data (volumes, cap) and news articles directly from CoinGecko news API. |
-| [lib/scrapers/news.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/news.ts) | Scrapes crypto news RSS feeds and pulls full-text body using Cheerio. |
-| [lib/scrapers/news-scrapegraph.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/news-scrapegraph.ts) | **Legacy** — Paid LLM scraper replaced by cheerio-based news.ts. |
-| [lib/scrapers/reddit.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/reddit.ts) | Reddit public JSON scraper with 8 robust anti-blocking defenses. |
-| [lib/scrapers/fear-greed.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/fear-greed.ts) | Global Fear & Greed Index scraper from alternative.me. |
-| [lib/scrapers/binance-funding.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/binance-funding.ts) | Ingests perpetual swap funding rates from Binance Futures API. |
-| [lib/ai/sentiment.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/ai/sentiment.ts) | AI sentiment analyzer engine (Nvidia NIM), normalization math, and timeseries rollup logic. |
-| [scripts/check-routes.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/check-routes.ts) | Integration test script that executes calls against all local API routes. |
+| [scripts/enable-vector.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/enable-vector.ts) | Setup script to enable the pgvector extension on the Neon database server. |
 
 ---
 
@@ -155,6 +164,8 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/api/analyze?symbol=BTC` | None | Evaluates the 4-layer blended sentiment for the asset. |
+| GET | `/api/records` | None | Retrieves AI-extracted sentiment records with filter queries and timeseries. |
+| GET | `/api/advanced` | None | Serves quantitative timeline datasets and records. |
 | POST | `/api/cron/scrape-flash?force=true` | Bearer `CRON_SECRET` | Parallel scrape of CoinGecko + RSS + Funding Rates + Fear & Greed (30-min cron). Bypasses cache if `?force=true`. |
 | POST | `/api/cron/scrape-reddit` | Bearer `CRON_SECRET` | Heavyweight Reddit scraper execution + AI analysis + database rollups (6-hour cron). |
 | GET | `/api/search?q=bit` | None | Searches matching active tickers. |
@@ -227,6 +238,20 @@ Replaced the paid `ScrapeGraphAI` LLM-based scraping system with a free, custom-
 - Pre-computes 1-hour intervals for timeseries charts.
 - Weights scores using a **Recency Decay** algorithm (posts have a half-life of 12 hours) combined with **Source Credibility weights** (News = 1.0, CoinGecko = 0.9, Reddit = 0.7) and **Log-scaled Upvote Boosts** so viral community posts don't skew indicators.
 
+### Retro CRT Terminal Loader
+- A subtle, minimal CRT loading modal with a blurred backdrop (`backdrop-blur-md`) overlays the workspace during coin analysis, search, or sync updates.
+- Features a clean 180px SVG dial scale showing ticks and labels (`-100` to `+100`) without any text overlap inside the dial.
+- Splits the Gauge Panel into a 2-column card layout: the dial sits on the left, and the large spring-animated score (e.g. `+12`), state badges, and weighting info sit clearly on the right side.
+- Enforces a 1200ms minimum display threshold to stay snappy and low-footprint while completing the scroll sequence.
+
+### Dashboard Alignment & Micro-interactions
+- Aligned columns vertically into a stable two-column cockpit to resolve layout grids tension:
+  - **Left column (`lg:col-span-5` flex stack)**: Stacks the Gauge Telemetry Panel and the Live Ingestion Log Panel.
+  - **Right column (`lg:col-span-7` flex stack)**: Stacks the 4-layer Bento Grid and the Sentiment Chart Panel.
+- Encased all major dashboard blocks inside nested `DoubleBezel` panels for a consistent Awwwards-tier visual texture.
+- Implemented responsive active tab selector highlights using Framer Motion (`layoutId="activeSymbolPill"`) and spring-damped needle rotations on the sentiment gauge.
+- Added animated CaretRight disclosures to the live ingestion log feed and subtle hover scale transformations to bento cards.
+
 ---
 
 ## Git History
@@ -247,7 +272,7 @@ b2d636f  2026-06-15  added : reddit scraper
 
 ## Next Steps / Known Gaps
 
-- [ ] Build a frontend UI dashboard (display charts, current blended sentiment, recent signals with labels, etc.)
+- [x] Build a frontend UI dashboard (display charts, current blended sentiment, recent signals with labels, etc.)
 - [ ] Add proper README with project docs
 - [ ] Add testing framework and write unit/integration tests
 - [ ] Align package managers (resolve coexistence of `package-lock.json` and `pnpm-lock.yaml`)

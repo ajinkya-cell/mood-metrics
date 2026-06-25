@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Sliders, MathOperations } from "@phosphor-icons/react";
+import React, { useState } from "react";
+import { Sliders } from "@phosphor-icons/react";
 import DoubleBezel from "../components/DoubleBezel";
-import { motion } from "motion/react";
 
 type SimulatePoint = {
   time: string;

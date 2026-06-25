@@ -31,7 +31,7 @@ export default async function FeedPage({ searchParams }: PageProps) {
   }
 
   if (activeSource !== "ALL") {
-    whereConditions.push(eq(rawPosts.sourceType, activeSource.toLowerCase() as any));
+    whereConditions.push(eq(rawPosts.sourceType, activeSource.toLowerCase() as "reddit" | "coingecko" | "news_rss"));
   }
 
   // Fetch from database with join
@@ -127,7 +127,6 @@ export default async function FeedPage({ searchParams }: PageProps) {
         ) : (
           feedItems.map((item) => {
             const isReddit = item.sourceType === "reddit";
-            const isGecko = item.sourceType === "coingecko";
 
             return (
               <DoubleBezel key={item.id} className="w-full">

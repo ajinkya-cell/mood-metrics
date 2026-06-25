@@ -10,7 +10,8 @@ import {
   uniqueIndex, 
   uuid, 
   varchar,
-  jsonb
+  jsonb,
+  customType
 } from "drizzle-orm/pg-core";
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -28,6 +29,22 @@ export const sourceTypeEnum = pgEnum("source_type", [
 ]);
 
 export const intervalEnum = pgEnum("interval_type", ["1h", "4h", "1d"]);
+
+// Custom type for pgvector
+export const pgVector = customType<{ data: number[]; driverData: string; config: { dimensions: number } }>({
+  dataType(config) {
+    return `vector(${config?.dimensions ?? 1536})`;
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(",")}]`;
+  },
+  fromDriver(value: string): number[] {
+    return value
+      .replace(/[\[\]]/g, "")
+      .split(",")
+      .map((v) => parseFloat(v));
+  },
+});
 
 // ─── Tickers ──────────────────────────────────────────────────────────────────
 
@@ -81,6 +98,7 @@ export const sentimentRecords = pgTable("sentiment_records", {
   score: numeric("score", { precision: 4, scale: 3 }).notNull(),
   confidence: numeric("confidence", { precision: 4, scale: 3 }),
   reasoning: text("reasoning"),
+  embedding: pgVector("embedding", { dimensions: 1536 }),
   analyzedAt: timestamp("analyzed_at").defaultNow().notNull(),
 },
 (t) => [
@@ -104,6 +122,7 @@ export const sentimentTimeseries = pgTable("sentiment_timeseries", {
   bearishCount: integer("bearish_count").default(0).notNull(),
   neutralCount: integer("neutral_count").default(0).notNull(),
   volumeWeightedScore: numeric("volume_weighted_score", { precision: 5, scale: 4 }),
+  spotPrice: numeric("spot_price", { precision: 20, scale: 8 }),
 },
 (t) => [
   index("ts_ticker_bucket_idx").on(t.tickerId, t.bucketStart),

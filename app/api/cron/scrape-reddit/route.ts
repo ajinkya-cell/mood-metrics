@@ -30,12 +30,12 @@ export async function POST(req: Request) {
   const results: Record<string, unknown> = {};
 
   try {
-    // ── Step 1: Cleanup posts older than 5 days ──────────────────────────────
+    // ── Step 1: Cleanup posts older than 90 days ──────────────────────────────
     // Delete sentiment_records first (FK references raw_posts)
-    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
-    await db.delete(sentimentRecords).where(lt(sentimentRecords.analyzedAt, fiveDaysAgo));
-    await db.delete(rawPosts).where(lt(rawPosts.scrapedAt, fiveDaysAgo));
+    await db.delete(sentimentRecords).where(lt(sentimentRecords.analyzedAt, ninetyDaysAgo));
+    await db.delete(rawPosts).where(lt(rawPosts.scrapedAt, ninetyDaysAgo));
 
     console.log("[RedditCron] Cleanup done");
 
