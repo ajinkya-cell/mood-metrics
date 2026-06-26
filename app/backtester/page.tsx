@@ -308,7 +308,7 @@ export default function BacktesterPage() {
       {/* Header */}
       <div className="mb-10 border-b border-white/5 pb-8">
         <SectionEyebrow icon={<Sliders size={12} className="text-emerald-400" />}>
-          QUANT LAB LABELS
+          BACKTEST LABELS
         </SectionEyebrow>
         <h1 className="text-4xl font-extrabold tracking-tight text-white font-sans mt-2">
           Strategy Backtester
@@ -408,8 +408,11 @@ export default function BacktesterPage() {
                     type="number"
                     min="-100"
                     max="100"
-                    value={entryThreshold}
-                    onChange={(e) => setEntryThreshold(parseInt(e.target.value, 10))}
+                    value={isNaN(entryThreshold) ? "" : entryThreshold}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setEntryThreshold(isNaN(val) ? 0 : val);
+                    }}
                     className="bg-black border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-white/10 w-full text-center"
                   />
                 </div>
@@ -419,8 +422,11 @@ export default function BacktesterPage() {
                     type="number"
                     min="-100"
                     max="100"
-                    value={exitThreshold}
-                    onChange={(e) => setExitThreshold(parseInt(e.target.value, 10))}
+                    value={isNaN(exitThreshold) ? "" : exitThreshold}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setExitThreshold(isNaN(val) ? 0 : val);
+                    }}
                     className="bg-black border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-white/10 w-full text-center"
                   />
                 </div>
@@ -431,8 +437,11 @@ export default function BacktesterPage() {
                 <label className="text-[9px] text-zinc-500 font-bold uppercase">Initial Capital (USD)</label>
                 <input
                   type="number"
-                  value={initialCapital}
-                  onChange={(e) => setInitialCapital(parseInt(e.target.value, 10))}
+                  value={isNaN(initialCapital) ? "" : initialCapital}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setInitialCapital(isNaN(val) ? 0 : val);
+                  }}
                   className="bg-black border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-white/10 w-full text-left"
                 />
               </div>
@@ -558,14 +567,14 @@ export default function BacktesterPage() {
         </div>
       </div>
 
-      {/* Detailed In-depth Quant Lab Reference Manual with Sticky TOC Sidebar */}
+      {/* Detailed In-depth Backtest Reference Manual with Sticky TOC Sidebar */}
       <DoubleBezel className="w-full mt-12 p-8 font-sans">
         <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
           <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">
             <BookOpen size={20} />
           </div>
           <div>
-            <h2 className="text-xl md:text-2xl font-extrabold text-white tracking-tight font-sans">QUANT LAB: USER MANUAL & MATHEMATICAL REFERENCE</h2>
+            <h2 className="text-xl md:text-2xl font-extrabold text-white tracking-tight font-sans">BACKTEST: USER MANUAL & MATHEMATICAL REFERENCE</h2>
             <span className="text-xs text-zinc-500 font-mono">MOODMETRICS SIMULATION HANDBOOK • SPECIFICATION v2.0</span>
           </div>
         </div>
@@ -609,7 +618,7 @@ export default function BacktesterPage() {
                 Classical market hypothesis assumes asset prices adjust instantly to fundamental value. In reality, cryptocurrency markets exhibit extreme reflexivity. Public narrative and social sentiment influence trade flows, which in turn move prices, creating feedback loops of FOMO and panic.
               </p>
               <p>
-                Quant Lab models this feedback mechanism by translating subjective community texts into objective indicators, testing whether sentiment thresholds can anticipate market turning points.
+                Backtest models this feedback mechanism by translating subjective community texts into objective indicators, testing whether sentiment thresholds can anticipate market turning points.
               </p>
             </section>
 

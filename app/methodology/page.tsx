@@ -22,6 +22,7 @@ const SECTIONS = [
   { id: "math-blending", label: "4. Blended Calculations" },
   { id: "fine-adjustments", label: "5. Recency & Virality Math" },
   { id: "verdicts", label: "6. Interpreting Verdicts" },
+  { id: "telemetry-metrics", label: "7. Metrics & Visualizations" },
 ];
 
 export default function MethodologyPage() {
@@ -320,6 +321,87 @@ export default function MethodologyPage() {
                 <span className="text-rose-400 font-mono font-bold text-xs">BEARISH BIAS (-100 to -21)</span>
                 <p className="text-zinc-400 text-xs mt-1">
                   Outbound news is pessimistic, forums are panicking, and perpetual swap funding is negative (shorts paying longs, showing heavy short positioning skew). This indicates high systemic risk, favoring capital preservation or hedging.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 7: Metrics & Visualizations */}
+          <section id="telemetry-metrics" className="scroll-mt-28 space-y-6">
+            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+              <CheckCircle size={20} className="text-emerald-400" />
+              7. Metrics & Visualizations Reference
+            </h2>
+            <p>
+              To extract actionable quantitative signals from qualitative text datasets, MoodMetrics presents multiple telemetry layers across the Dashboard and AI Records pages.
+            </p>
+
+            <div className="space-y-6 font-sans">
+              {/* Blended Score vs. Average Score */}
+              <div className="border border-white/5 rounded-xl p-6 bg-zinc-950/40">
+                <h3 className="text-white font-bold text-sm font-mono uppercase tracking-wider mb-3">
+                  Blended Score vs. Average Text Sentiment
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-zinc-400">
+                  <div className="space-y-2">
+                    <strong className="text-emerald-400 block font-mono text-[10px] uppercase">A. DASHBOARD BLENDED SCORE (-100 to +100)</strong>
+                    <p className="leading-relaxed">
+                      A multi-layer **Macro sentiment index** compiled on the fly. It aggregates social media text (Llama-parsed Reddit posts), curated feeds, traditional News RSS articles, derivatives leverage skew (Binance funding rates), and global macro-sentiments (Fear & Greed index).
+                    </p>
+                    <p className="text-[10px] italic">
+                      <strong>Importance:</strong> Captures leverage dynamics and contrarian sentiment indicators. It prevents social media noise from misrepresenting actual capital positioning.
+                    </p>
+                  </div>
+                  <div className="space-y-2 border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
+                    <strong className="text-emerald-400 block font-mono text-[10px] uppercase">B. AVERAGE TEXT SENTIMENT (-100 to +100)</strong>
+                    <p className="leading-relaxed">
+                      A **Micro text sentiment average** computed directly from the Neon database. It represents the simple arithmetic mean score of only the individual textual records (Reddit comments, news briefs) that match your active search and filter queries.
+                    </p>
+                    <p className="text-[10px] italic">
+                      <strong>Importance:</strong> Isolates pure public and journalistic written bias. It allows researchers to drill down into keyword-specific, timeline-bound textual changes without macro index distortions.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Historical Sentiment Timeline */}
+              <div>
+                <h4 className="text-white font-bold text-sm font-mono text-xs uppercase text-emerald-400 tracking-wider">A. Historical Sentiment Timeline</h4>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-400 font-sans">
+                  The Historical Sentiment Timeline plots sentiment changes over time. It is calculated by dividing the selected timeframe (24h, 7d, or 30d) into equal chronological buckets. The system aggregates all sentiment records falling inside each bucket, computes their arithmetic mean, and connects these data points using an SVG Bezier spline:
+                </p>
+                <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 mt-2 font-mono text-xs text-center text-zinc-300">
+                  Bucket_Avg(T) = &Sigma; (Sentiment_i) / Count(T)
+                </div>
+                <p className="mt-2 text-xs text-zinc-500 leading-relaxed font-sans">
+                  This chart enables users to trace the visual alignment of sentiment peaks and troughs with actual coin price movements.
+                </p>
+              </div>
+
+              {/* AI Verdict Scatter Matrix */}
+              <div>
+                <h4 className="text-white font-bold text-sm font-mono text-xs uppercase text-emerald-400 tracking-wider">B. AI Verdict Scatter Matrix</h4>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-400 font-sans">
+                  The scatter matrix maps the active record subset on a coordinate space. The X-axis represents the **AI Sentiment Score** (-1.0 to +1.0) and the Y-axis represents the **AI Classifier Confidence** (0% to 100%).
+                </p>
+                <ul className="list-disc pl-5 mt-2 text-xs text-zinc-400 space-y-1 font-sans">
+                  <li><strong className="text-rose-400">Bearish Zone:</strong> Plotted on the left (negative scores). Color-coded in rose.</li>
+                  <li><strong className="text-zinc-350">Neutral Zone:</strong> Plotted in the center (near 0.0). Color-coded in gray/zinc.</li>
+                  <li><strong className="text-emerald-400">Bullish Zone:</strong> Plotted on the right (positive scores). Color-coded in emerald.</li>
+                </ul>
+                <p className="mt-2 text-xs text-zinc-500 leading-relaxed font-sans">
+                  This scatter plot immediately highlights high-confidence sentiment outliers and tracks whether bullish or bearish sentiment dominates the conversation density.
+                </p>
+              </div>
+
+              {/* AI Classifier Confidence */}
+              <div>
+                <h4 className="text-white font-bold text-sm font-mono text-xs uppercase text-emerald-400 tracking-wider">C. AI Classifier Confidence</h4>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-400 font-sans">
+                  Calculated directly by the **Llama 3.1 8B Model** for each individual ingestion piece. It represents the model&apos;s self-reported certainty when assigning a classification label (Bullish, Bearish, or Neutral).
+                </p>
+                <p className="mt-2 text-xs text-zinc-500 leading-relaxed font-sans">
+                  A high confidence score (e.g. &gt;85%) indicates that the underlying post contains strong, unambiguous language (e.g., &quot;buying more, price target is up 50%&quot;). A lower confidence score indicates conflicting text, mixed sentiment statements, or high stylistic noise.
                 </p>
               </div>
             </div>

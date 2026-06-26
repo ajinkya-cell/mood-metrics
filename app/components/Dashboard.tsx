@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import Link from "next/link";
 import {
   CaretUp,
   CaretDown,
@@ -187,53 +188,39 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-[100dvh] w-full bg-[#050505] text-zinc-100 font-sans antialiased overflow-x-hidden pb-16">
-      {/* ── LOCAL NAV ── */}
-      <nav className="mx-4 mb-8 pt-4">
-        <div className="max-w-7xl mx-auto border border-white/10 bg-[#0C0C0E]/60 backdrop-blur-xl flex items-center justify-between px-6 py-3 rounded-full shadow-[0_4px_30px_rgba(0,0,0,0.4)]">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
-              <span className="text-xs font-mono text-emerald-400 font-bold">M</span>
+      <main className="max-w-7xl mx-auto px-4 pt-6">
+        {/* Minimal Dashboard Header */}
+        <div className="mb-8 pb-6 border-b border-white/5">
+          <span className="text-[10px] text-zinc-500 font-mono tracking-[0.2em] uppercase block">
+            QUANTITATIVE COCKPIT
+          </span>
+          <div className="flex items-baseline gap-4 md:gap-6 mt-1">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-white font-sans">
+              Market Sentiment
+            </h1>
+            
+            {/* Minimal Coin Selector */}
+            <div className="flex items-center gap-3 md:gap-4 font-mono text-xs tracking-widest select-none">
+              <span className="text-zinc-700 font-bold">/</span>
+              {["BTC", "ETH", "SOL"].map((sym) => {
+                const isActive = activeSymbol === sym;
+                return (
+                  <button
+                    key={sym}
+                    onClick={() => setActiveSymbol(sym)}
+                    className={`cursor-pointer py-0.5 transition-all duration-200 hover:text-white ${
+                      isActive
+                        ? "text-emerald-400 font-extrabold border-b-2 border-emerald-500/80 px-0.5"
+                        : "text-zinc-500"
+                    }`}
+                  >
+                    {sym}
+                  </button>
+                );
+              })}
             </div>
-            <span className="font-mono text-sm tracking-[0.3em] font-semibold text-white">
-              MOODMETRICS
-            </span>
           </div>
-
-          <div className="hidden md:flex items-center gap-1 bg-black/40 p-1 rounded-full border border-white/5 relative">
-            {["BTC", "ETH", "SOL"].map((sym) => (
-              <button
-                key={sym}
-                onClick={() => setActiveSymbol(sym)}
-                className="relative px-5 py-2 rounded-full text-sm font-mono tracking-wider transition-colors duration-300 text-zinc-500 hover:text-zinc-300 cursor-pointer"
-              >
-                {activeSymbol === sym && (
-                  <motion.div
-                    layoutId="activeSymbolPill"
-                    className="absolute inset-0 bg-white/10 rounded-full border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.08)]"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <span className={`relative z-10 ${activeSymbol === sym ? "text-white font-medium" : ""}`}>
-                  {sym}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <form onSubmit={handleSearchSubmit} className="relative flex items-center">
-            <MagnifyingGlass size={14} className="absolute left-3 text-zinc-500 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search ticker (e.g. SOL)..."
-              className="bg-black/60 border border-white/5 focus:border-white/15 focus:ring-1 focus:ring-white/10 rounded-full pl-9 pr-4 py-2 text-sm font-mono tracking-wide w-56 transition-all duration-300 outline-none text-zinc-200 placeholder-zinc-600"
-            />
-          </form>
         </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto px-4">
         <AnimatePresence>
           {error && (
             <motion.div
@@ -419,6 +406,12 @@ export default function Dashboard() {
                       <span className="text-xs text-zinc-500 mt-6 max-w-[200px] leading-relaxed border-t border-white/5 pt-3">
                         Blended components weighted: 40/30/15/15
                       </span>
+                      <Link
+                        href="/methodology"
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300 underline font-bold mt-2 font-mono tracking-wider transition-colors duration-200"
+                      >
+                        METHODOLOGY READ MORE →
+                      </Link>
                     </div>
                   </div>
                 </div>

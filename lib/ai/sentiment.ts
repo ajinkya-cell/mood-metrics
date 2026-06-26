@@ -217,9 +217,10 @@ function clamp(val: number, min: number, max: number): number {
 
 // ── Recency decay function ─────────────────────────────────────────────────────
 // Newer posts count more. A post from 12h ago is worth 60% of a fresh post.
-function recencyWeight(postedAt: Date): number {
-  const hoursOld = (Date.now() - postedAt.getTime()) / (1000 * 60 * 60);
-  return Math.exp(-hoursOld / 12); // half-life of ~12 hours
+// Calculation is relative to a reference date (e.g. the start of the hourly bucket) to preserve historical integrity.
+function recencyWeight(postedAt: Date, referenceDate: Date = new Date()): number {
+  const hoursOld = (referenceDate.getTime() - postedAt.getTime()) / (1000 * 60 * 60);
+  return Math.exp(-Math.max(0, hoursOld) / 12); // half-life of ~12 hours
 }
 
 // ── Source credibility weights ─────────────────────────────────────────────────
@@ -355,7 +356,7 @@ export async function rollupTimeseries(ticker: Ticker): Promise<void> {
     const bucket = buckets.get(bucketKey)!;
     const score = parseFloat(record.score ?? "0");
     const upvotes = record.upvotes ?? 0;
-    const recency = recencyWeight(record.postedAt);
+    const recency = recencyWeight(record.postedAt, bucketDate);
     const sourceW = SOURCE_WEIGHT[record.sourceType as keyof typeof SOURCE_WEIGHT] ?? 0.7;
 
     bucket.scores.push(score);
@@ -406,7 +407,6 @@ export async function rollupTimeseries(ticker: Ticker): Promise<void> {
           bearishCount,
           neutralCount,
           volumeWeightedScore: avgWeighted.toFixed(4),
-          spotPrice: currentPrice,
         },
       });
   }
