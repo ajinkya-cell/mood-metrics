@@ -3,22 +3,15 @@ import { cn } from "@/lib/utils";
 
 interface HorizontalScaleProps {
   className?: string;
-  pattern?: string;
 }
 
-export default function HorizontalScale({ className, pattern }: HorizontalScaleProps) {
-  const customPattern = pattern || "var(--pattern, rgba(255, 255, 255, 0.06))";
-  
+export default function HorizontalScale({ className }: HorizontalScaleProps) {
   return (
     <div
       className={cn(
-        "h-12 w-full border-y border-white/5",
+        "h-10 w-full bg-[repeating-linear-gradient(315deg,var(--pattern)_0,var(--pattern)_1px,transparent_1px,transparent_50%)] border-y border-[var(--pattern)] bg-[size:10px_10px]",
         className
       )}
-      style={{
-        backgroundImage: `repeating-linear-gradient(315deg, ${customPattern} 0, ${customPattern} 1px, transparent 1px, transparent 12px)`,
-        backgroundSize: "12px 12px"
-      }}
     />
   );
 }

@@ -185,3 +185,18 @@ export type SentimentTimeseries = typeof sentimentTimeseries.$inferSelect;
 export type ScrapeCache = typeof scrapeCache.$inferSelect;
 export type MarketIndicator = typeof marketIndicators.$inferSelect;
 export type NewMarketIndicator = typeof marketIndicators.$inferInsert;
+
+// ─── Guestbook Notes ──────────────────────────────────────────────────────────
+
+export const guestbookNotes = pgTable("guestbook_notes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  message: text("message").notNull(),
+  x: integer("x").notNull(),
+  y: integer("y").notNull(),
+  connections: jsonb("connections").default([]).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export type GuestbookNote = typeof guestbookNotes.$inferSelect;
+export type NewGuestbookNote = typeof guestbookNotes.$inferInsert;

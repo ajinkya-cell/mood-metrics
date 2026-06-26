@@ -41,7 +41,7 @@ export default function SupportPage() {
   const [supportersWall, setSupportersWall] = useState<Supporter[]>([
     { name: "Satoshi_99", coffees: 5, message: "Excellent work on the 4-layer blend algorithm.", timestamp: "2 hours ago" },
     { name: "AlphaSeeker", coffees: 3, message: "We need that Twitter API integration ASAP!", timestamp: "6 hours ago" },
-    { name: "SolMaxi", coffees: 1, message: "Keep solana metrics fresh, great terminal UI.", timestamp: "1 day ago" },
+    { name: "SolMaxi", coffees: 1, message: "Keep solana metrics fresh, great dashboard UI.", timestamp: "1 day ago" },
   ]);
 
   // Highlight active TOC item on scroll

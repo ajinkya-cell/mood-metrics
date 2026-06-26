@@ -290,6 +290,8 @@ b2d636f  2026-06-15  added : reddit scraper
 
 ---
 
+- Changed navbar positioning from `sticky` to `fixed` so it overlays on top of the hero section with a glassmorphism effect. Removed `pt-28` padding from the hero section, allowing the gradient background to span fully behind the fixed nav.
+
 ## Recent Modifications
 - Fixed a parsing/syntax error in [page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/advanced/page.tsx) under `AnomalyEnginePanel` where an unclosed loop and trailing element structure broke compilation. Cleaned up HTML structures, closed the anomalies map, and restored component boundaries.
 - Refactored Strategy Backtester in [page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/backtester/page.tsx) and Advanced API in [route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/advanced/route.ts) to select and deliver `spotPrice`. Created server-side strategy simulation API endpoint [route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/backtest/route.ts) to perform realistic quantitative backtests over real historical database logs with Monte Carlo simulation fallback logic.
@@ -323,6 +325,38 @@ b2d636f  2026-06-15  added : reddit scraper
 - Refined global footer [[GlobalFooter.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/GlobalFooter.tsx)] with gradient top border divider, refined grid proportions (4/3/5), muted lowercase labels with wider letter-spacing, cleaner monospace nav links with emerald hover accents, creator section with inline social icon buttons scaled on hover, and a streamlined legal bar with tech attribution. Removed the ArrowUpRight icon dependency and bold uppercase headings for a more subtle, premium tone.
 - Redesigned the coin selector in the Dashboard component [[Dashboard.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/Dashboard.tsx)], removing the box bezel container, background, shadow layout, and search input options completely. Replaced it with an ultra-minimal, free-floating slash-separated typography choice list (`/ BTC ETH SOL`) aligned directly inline to the right of the main Market Sentiment header title to maximize minimalism and terminal styling.
 - Replaced the temporary character-based logo placeholders in the header navigation [[GlobalNav.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/GlobalNav.tsx)] and global footer [[GlobalFooter.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/GlobalFooter.tsx)] with the official `logo.png` image, removed the adjacent "MOODMETRICS" brand text, reduced the header navigation container max-width to `max-w-5xl` to make it narrower, and scaled the logo image dimensions in the header to `w-[75px] h-[75px]` (`w-10 h-10` in the footer).
-
-
-
+- Standardized the typography layout of all sidebar outline and menu navigations in the Advanced Tools page [[advanced/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/advanced/page.tsx)]. Replaced the oversized fonts (`text-base`, `text-sm`) and large padding buttons with minimal, compact, and low-profile `text-xs` list items and `text-[10px]` Outline headers with border separators, matching the cohesive sidebar styles of the Methodology and Backtester pages.
+- Created a new interactive Obsidian-style guestbook node grid component [[ObsidianDotGrid.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/ObsidianDotGrid.tsx)]. It allows users to write their name and a friendly message, dynamically drawing interconnected nodes on a grid map with customized details.
+- Overhauled the home page landing view [[page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/page.tsx)]:
+  - Restored a clean, centered layout structure for the Hero section.
+  - Aligned the Hero container completely with the navigation bar, pulling the background content fully up under the header (`-mt-[120px]`) to eliminate the top whitespace margin gap completely, making it flush with the top of the body behind the navbar.
+  - Set the Hero heading to: **"Map the Mood."**, implementing a staggered, hover-triggered typographic spring-wave animation over the characters of `"Mood"` using the high-contrast **`Instrument_Serif`** italic Google font.
+  - Added a tilted, monochrome pointing finger hand icon (`☞` rotated at `-12deg`) right before the word `"Mood"` pointing directly to it without active animations.
+  - Built an interactive **Launch Dashboard** button with a dark emerald translucent background, custom border glow, and a high-speed green laser line scan sweep effect that triggers on hover.
+  - Positioned the `Arc` horizon mask (at `top-[296px]`) and the `Gradient` background (at `top-[calc(60vmax+296px)]` with a `40px` blur) to follow the exact geometric proportions from the Dia dome mockups, creating a perfect colorful optical curve horizon.
+  - Redesigned the Bento Grid layout to follow a symmetrical 3-2-3 row structure (Row 1: 3 cards, Row 2: 2 cards, Row 3: 3 cards), offering different widths at every row yet remaining balanced as a whole.
+  - Refined bento card microinteractions to be tasteful and hover-driven: removed all continuous SVG animations and replaced them with static vector indicators that perform smooth spring transitions only when hovered.
+  - Linked the friendly "Let Me Know You Were Here" visitor board.
+  - Replaced the horizontal divider with the custom `HorizontalScale` repeating-linear-gradient design and removed the newsletter ingestion section.
+- Refactored the network guestbook component [[ObsidianDotGrid.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/ObsidianDotGrid.tsx)] and integrated with a real database table:
+  - Added the `guestbook_notes` table in [[schema.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/schema.ts)] and pushed the schema migration to Neon PostgreSQL.
+  - Created the endpoint [[route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/guestbook/route.ts)] to support GET and POST operations.
+  - Updated the guestbook UI to load notes from the database on mount and save new notes in real-time, utilizing pre-seeded data as a fallback.
+  - Made the background dot pattern less prominent by reducing pattern radius (`r="0.7"`), dot fill opacity (`opacity-40`, `fill="rgba(255,255,255,0.09)"`), and dot scale.
+  - Connected all nodes in the mesh visual graph with lines of the same visual strength (`stroke="#3f3f46"`, `opacity={0.35}`, and `strokeWidth={1}`), removing high-contrast color/size changes on selection to unify visual balance.
+- Cleaned up references to the word "terminal" in other app pages:
+  - In [[records/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/records/page.tsx)], updated back-anchor button text from `"BACK TERMINAL"` to `"BACK TO DASHBOARD"`.
+  - In [[support/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/support/page.tsx)], changed comment text references from `"terminal UI"` to `"dashboard UI"`.
+- Overhauled the home page hero layout and branding highlights to minimize emerald green usage and create a satisfying tactile feel:
+  - Kept "Map the Mood" centered on a single line on all screen sizes (`whitespace-nowrap`) using responsive fluid viewport typography (`text-[8vw] sm:text-6xl`).
+  - Changed the finger pointing hand symbol to `☜` pointing down-left (`rotate-45`) from the top-right corner of the word `"Mood"`.
+  - Neutralized the initial brand animation colors of the "Mood" text to zinc-200 and white on hover.
+  - Redesigned the Launch Dashboard CTA with a tactile 3D keycap button that active-compresses (`active:translate-y-[4px]` and `active:border-b-[1px]`) and features a mechanical warm amber LED dot indicator, removing the outermost recess bezel.
+  - Removed the heavy emerald green highlights across bento grid tools and guestbook boards. The dot grid node map uses a high-contrast white and dark zinc aesthetic instead.
+  - Changed global navbar active links to monochrome white highlights.
+  - Removed all complex SVG microinteractions inside bento grid cards, replacing them with custom-generated, subtle and low-opacity technical background charts/plots.
+  - Integrated spring-animated Zoom In, Zoom Out, and Reset Zoom overlay controls on the Obsidian visitor network board visualizer.
+  - Created a database seeding script [[seed-guestbook.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/seed-guestbook.ts)] that dynamically imports database modules to avoid hoisting and populated the Neon PostgreSQL database table with 8 coordinate-mapped, interconnected nodes. Synced this dataset to the `INITIAL_MESSAGES` fallback block in the UI.
+- Disabled client and server caching for guestbook notes:
+  - Added `{ cache: "no-store" }` to client-side guestbook fetch calls in [[ObsidianDotGrid.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/ObsidianDotGrid.tsx)].
+  - Appended `"Cache-Control": "no-store, max-age=0, must-revalidate"` headers to the GET handler response in [[route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/guestbook/route.ts)] to guarantee live database data loading on every page load.

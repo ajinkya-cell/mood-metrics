@@ -138,25 +138,25 @@ export default function AdvancedToolsPage() {
         {/* ── MAIN WORKSPACE SPLIT (UNBOXED AND ROOMY) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
           {/* Left Column: Minimal sticky outline menu */}
-          <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4">
-            <span className="text-sm text-zinc-300 font-bold uppercase tracking-widest font-mono border-b border-white/5 pb-2">
+          <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6">
+            <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
               QUANT TOOLS
             </span>
-            <nav className="flex flex-col gap-2 font-mono text-base">
+            <nav className="flex flex-col gap-2 font-mono text-xs">
               {TOOLS.map((tool) => (
                 <button
                    key={tool.id}
                    onClick={() => setActiveTab(tool.id)}
-                   className={`text-left py-3.5 px-5 rounded-xl transition-all duration-500 relative ${
+                   className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer relative ${
                      activeTab === tool.id
-                       ? "text-white font-bold bg-white/5 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]"
-                       : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                       ? "bg-white/5 border border-white/10 text-white font-bold"
+                       : "text-zinc-500 hover:text-zinc-300"
                    }`}
                 >
                   {activeTab === tool.id && (
                     <motion.span
                       layoutId="activeGlowTab"
-                      className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-emerald-400 rounded-full"
+                      className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-emerald-400 rounded-full"
                       transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
@@ -1551,8 +1551,8 @@ function LagCorrelationDocs() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-sm">
-        <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider">Outline</span>
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
         <nav className="flex flex-col gap-2">
           {[
             { id: "overview", label: "1. Core Objectives" },
@@ -1658,8 +1658,8 @@ function NarrativeClusteringDocs() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-sm">
-        <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider">Outline</span>
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
         <nav className="flex flex-col gap-2">
           {[
             { id: "overview", label: "1. Core Objectives" },
@@ -1760,8 +1760,8 @@ function EventPlaybackDocs() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-sm">
-        <span className="text-xs text-zinc-455 font-bold uppercase tracking-wider">Outline</span>
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
         <nav className="flex flex-col gap-2">
           {[
             { id: "overview", label: "1. Core Objectives" },
@@ -1856,8 +1856,8 @@ function WhaleVsRetailDocs() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-sm">
-        <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider">Outline</span>
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
         <nav className="flex flex-col gap-2">
           {[
             { id: "overview", label: "1. Core Objectives" },
@@ -1959,8 +1959,8 @@ function NarrativeTrajectoriesDocs() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-sm">
-        <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider">Outline</span>
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
         <nav className="flex flex-col gap-2">
           {[
             { id: "overview", label: "1. Core Objectives" },

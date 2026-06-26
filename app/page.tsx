@@ -3,21 +3,41 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
+import { Albert_Sans, Source_Serif_4, Instrument_Serif } from "next/font/google";
 import {
   ArrowRight,
   Gauge,
   Cpu,
   Coins,
-  EnvelopeSimple,
   Pulse,
-  Newspaper,
+  Database,
+  Sliders,
+  Clock,
+  TrendUp,
+  Brain,
+  MathOperations,
 } from "@phosphor-icons/react";
-import DoubleBezel from "./components/DoubleBezel";
 import HorizontalScale from "./components/HorizontalScale";
-import MaskGradient from "./components/MaskGradient";
 import GlowCard from "./components/GlowCard";
 import SectionEyebrow from "./components/SectionEyebrow";
+import ObsidianDotGrid from "./components/ObsidianDotGrid";
 import { cn } from "@/lib/utils";
+
+const albert = Albert_Sans({
+  weight: ["100", "200", "300", "400", "500", "700", "800"],
+  subsets: ["latin"],
+});
+
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  weight: "variable",
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: "italic",
+});
 
 const fadeUp = {
   initial: { opacity: 0, y: 24, filter: "blur(4px)" },
@@ -42,242 +62,420 @@ const staggerItem = {
   viewport: { once: true },
 };
 
-const LAYERS = [
-  {
-    icon: Newspaper,
-    title: "L1 — FLASH LAYER (40%)",
-    desc: "Scrapes CoinGecko market summaries and traditional media RSS feeds at 30-minute intervals.",
-  },
-  {
-    icon: Cpu,
-    title: "L2 — HISTORIC REDDIT (30%)",
-    desc: "Crawls community subreddits sequentially using 8 anti-blocking defense hooks and Nvidia Llama 3.1.",
-  },
-  {
-    icon: Coins,
-    title: "L3 — FUNDING RATES (15%)",
-    desc: "Monitors Binance Futures perpetual swaps to determine leveraged long/short market skew.",
-  },
-  {
-    icon: Gauge,
-    title: "L4 — FEAR & GREED (15%)",
-    desc: "Pulls Alternative.me's daily global Fear & Greed index, normalized dynamically to a -1..+1 scale.",
-  },
-];
-
 export default function LandingPage() {
-  return (
-    <div className="w-full flex flex-col items-center select-none overflow-hidden pb-20">
-      {/* ── HERO SECTION ── */}
-      <motion.section
-        {...fadeUp}
-        className="w-full max-w-7xl px-6 pt-16 md:pt-24 pb-24 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center"
-      >
-        <div className="lg:col-span-7 flex flex-col items-start text-left">
-          <SectionEyebrow icon={<Pulse size={10} className="text-emerald-400" />}>
-            <span className="text-emerald-400">LIVE</span> TELEMETRY ACTIVE
-          </SectionEyebrow>
+  const [gridSymbols, setGridSymbols] = React.useState<{ char: string; type: string }[]>([]);
 
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter leading-none text-white max-w-3xl mb-6">
-            Ingesting panic.
-            <br />
-            <MaskGradient
-              as="span"
-              from="from-emerald-400 via-emerald-300 to-emerald-500"
-              className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl"
-            >
-              Quantifying greed.
-            </MaskGradient>
+  React.useEffect(() => {
+    const symbolTypes = [
+      { char: "▲", type: "up" },
+      { char: "▼", type: "down" },
+      { char: "+", type: "plus" },
+      { char: "-", type: "minus" },
+      { char: "Ø", type: "neutral" },
+      { char: "₿", type: "crypto" },
+      { char: "Ξ", type: "crypto" },
+      { char: "◎", type: "crypto" },
+    ];
+    const items = Array.from({ length: 140 }).map(() => {
+      return symbolTypes[Math.floor(Math.random() * symbolTypes.length)];
+    });
+    setGridSymbols(items);
+  }, []);
+
+  const feelAnimWord = () => {
+    const chars = [..."Mood"];
+    return (
+      <motion.span
+        whileHover="hover"
+        initial="initial"
+        className="cursor-default select-none inline-block"
+      >
+        {chars.map((char, index) => (
+          <motion.span
+            key={`${char}-${index}`}
+            variants={{
+              initial: { y: 0, fontWeight: 300, color: "#e4e4e7" },
+              hover: {
+                y: -10,
+                fontWeight: 700,
+                color: "#ffffff",
+                transition: {
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 10,
+                  delay: index * 0.06,
+                },
+              },
+            }}
+            className={cn(
+              "inline-block tracking-tighter px-0.5 transition-all duration-300",
+              instrumentSerif.className
+            )}
+          >
+            {char}
+          </motion.span>
+        ))}
+      </motion.span>
+    );
+  };
+
+  return (
+    <div className="w-full flex flex-col items-center select-none overflow-hidden pb-20 bg-[#050505]">
+      {/* ── HERO SECTION WITH DOME HORIZON ── */}
+      <section className="relative w-full min-h-screen flex flex-col justify-center items-center pt-36 pb-24 px-6 md:px-12 -mt-[120px]">
+        {/* Dome Horizon Background Glow */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-20">
+          <Gradient />
+          <Arc />
+        </div>
+
+        <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center justify-center text-center mt-[120px]">
+          <h1
+            className={cn(
+              "text-[8vw] sm:text-6xl md:text-7xl lg:text-8xl tracking-tight py-4 text-white leading-[1.08] font-extrabold max-w-5xl mt-3 text-center whitespace-nowrap",
+              albert.className
+            )}
+          >
+            Map the{" "}
+            <span className="relative inline-block pr-8 sm:pr-10 md:pr-12">
+              {feelAnimWord()}
+              <span className="absolute -top-3 sm:-top-5 -right-1.5 text-[5vw] sm:text-3xl md:text-4xl select-none transform rotate-45 text-zinc-500 font-normal">
+                ☜
+              </span>
+            </span>
           </h1>
 
-          <p className="text-sm md:text-base text-zinc-400 leading-relaxed max-w-[55ch] mb-8 font-mono">
-            MoodMetrics is a clinical sentiment oracle aggregating raw Reddit
-            data, perpetual funding leverage, CoinGecko news updates, and global
-            Fear & Greed indexes into real-time blended signals.
+          <p
+            className={cn(
+              "max-w-md mx-auto mt-8 text-zinc-400 text-sm md:text-base font-mono leading-relaxed px-4 text-center",
+              albert.className
+            )}
+          >
+            MoodMetrics surfaces what's next, what's real, and what the crowd is missing. We parse social consensus, whale flows, and news records into simple visual indexes.
           </p>
 
-          <div className="flex flex-wrap gap-4">
-            <Link href="/dashboard">
-              <motion.div
-                whileTap={{ scale: 0.97 }}
-                className="group flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-mono font-bold tracking-wider transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.55)]"
-              >
-                LAUNCH TERMINAL
-                <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center group-hover:translate-x-1 group-hover:-translate-y-[1px] transition-transform duration-300">
-                  <ArrowRight size={12} weight="bold" />
-                </span>
-              </motion.div>
-            </Link>
-
-            <Link href="/methodology">
-              <motion.div
-                whileTap={{ scale: 0.97 }}
-                className="px-6 py-3 rounded-full border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-white text-sm font-mono tracking-wider transition-all duration-300 active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.03)] hover:shadow-[0_0_25px_rgba(255,255,255,0.08)]"
-              >
-                METHODOLOGY
-              </motion.div>
-            </Link>
-          </div>
+          <Link href="/dashboard" className="mt-12 group inline-block">
+            <button
+              className={cn(
+                "relative px-8 py-4 bg-gradient-to-b from-zinc-850 to-zinc-900 hover:from-zinc-750 hover:to-zinc-850 text-zinc-200 hover:text-white border-t border-white/10 border-x border-zinc-700/40 border-b-[5px] border-zinc-950 rounded-[12px] active:border-b-[1px] active:translate-y-[4px] transition-all duration-150 ease-out font-mono text-xs font-bold tracking-widest flex items-center gap-3 cursor-pointer select-none shadow-[0_4px_10px_rgba(0,0,0,0.5)] active:shadow-none",
+                albert.className
+              )}
+            >
+              {/* Mechanical Switch LED Indicator */}
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover:bg-amber-400 transition-colors duration-300 shadow-[0_0_4px_rgba(251,191,36,0.4)]" />
+              
+              LAUNCH DASHBOARD
+              
+              <ArrowRight size={12} className="text-zinc-500 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+            </button>
+          </Link>
         </div>
+      </section>
 
-        <div className="lg:col-span-5 w-full">
-          <DoubleBezel className="w-full p-6">
-            <div className="flex justify-between items-baseline mb-6 font-mono text-xs text-zinc-500">
-              <span>TEL_FEED_ACTIVE</span>
-              <span className="text-emerald-400">SYNC_OK</span>
-            </div>
-
-            <div className="divide-y divide-white/5 font-mono">
-              {[
-                { name: "Bitcoin", sym: "BTC", score: 42, price: "$95,240", change: "+1.2%" },
-                { name: "Ethereum", sym: "ETH", score: 12, price: "$3,120", change: "-0.4%" },
-                { name: "Solana", sym: "SOL", score: -15, price: "$145", change: "+3.8%" },
-              ].map((coin) => (
-                <Link
-                  key={coin.sym}
-                  href="/dashboard"
-                  className="flex items-center justify-between py-4 px-2 hover:bg-white/[0.015] rounded-xl transition-all duration-300 group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center text-sm font-bold text-zinc-300">
-                      {coin.sym}
-                    </div>
-                    <div>
-                      <span className="text-sm text-white block font-sans font-bold">
-                        {coin.name}
-                      </span>
-                      <span className="text-xs text-zinc-500">{coin.price}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-zinc-500">{coin.change}</span>
-                    <span
-                      className={cn(
-                        "text-sm font-bold px-2 py-0.5 rounded",
-                        coin.score > 20
-                          ? "bg-emerald-950/20 text-emerald-400 border border-emerald-500/20"
-                          : coin.score < -20
-                          ? "bg-rose-950/20 text-rose-400 border border-rose-500/20"
-                          : "bg-zinc-900 text-zinc-400 border border-white/5"
-                      )}
-                    >
-                      {coin.score > 0 ? "+" : ""}
-                      {coin.score}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </DoubleBezel>
-        </div>
-      </motion.section>
-
-      {/* ── DIVIDER ── */}
+      {/* ── HORIZONTAL DIVIDER ── */}
       <HorizontalScale />
 
-      {/* ── TRUST STRIP ── */}
-      <motion.section
-        {...fadeUp}
-        className="w-full border-y border-white/5 bg-zinc-950/40 py-12 flex flex-col items-center"
-      >
-        <span className="text-xs font-mono tracking-[0.25em] text-zinc-600 uppercase mb-4">
-          POWERED BY SECURE TELEMETRY CHANNELS
-        </span>
-        <div className="flex justify-center gap-16 text-zinc-500 font-mono text-sm opacity-60">
-          <span className="hover:text-emerald-400/60 transition-colors duration-300">
-            COINGECKO_API
-          </span>
-          <span className="hover:text-emerald-400/60 transition-colors duration-300">
-            BINANCE_FUTURES
-          </span>
-          <span className="hover:text-emerald-400/60 transition-colors duration-300">
-            REDDIT_PUBLIC_JSON
-          </span>
-          <span className="hover:text-emerald-400/60 transition-colors duration-300">
-            ALTERNATIVE_ME
-          </span>
-        </div>
-      </motion.section>
-
-      {/* ── DIVIDER ── */}
-      <HorizontalScale pattern="rgba(16,185,129,0.12)" />
-
-      {/* ── FEATURES ASYMMETRIC BENTO ── */}
+      {/* ── FEATURES BENTO GRID (8 TOOLS WITH MICROINTERACTIONS & PREVIEWS) ── */}
       <motion.section
         {...staggerContainer}
-        className="w-full max-w-7xl px-6 py-24 flex flex-col items-start"
+        className="w-full max-w-5xl px-6 py-24 flex flex-col items-start z-10"
       >
-        <SectionEyebrow icon={<Pulse size={10} className="text-emerald-400" />}>
-          TELEMETRY INFRASTRUCTURE
+        <SectionEyebrow icon={<Pulse size={10} className="text-zinc-400" />}>
+          QUANTITATIVE SYSTEM MATRIX
         </SectionEyebrow>
-        <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white mb-12">
-          Four-Layer Sentiment Ingestion
+        <h2 className="text-3xl font-extrabold tracking-tight text-white mb-12">
+          De-Noise Crowds. Map Systemic Momentum.
         </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
-          {LAYERS.map((layer, i) => {
-            const Icon = layer.icon;
-            const isWide = i === 0;
-            return (
-              <motion.div
-                key={i}
-                {...staggerItem}
-                className={isWide ? "lg:col-span-7" : "lg:col-span-5"}
+          {/* Row 1, Card 2: AI Records Matrix (lg:col-span-3) */}
+          <motion.div
+            {...staggerItem}
+            className="lg:col-span-3 flex flex-col justify-between h-full"
+          >
+            <Link href="/records" className="h-full block">
+              <GlowCard
+                accent="zinc"
+                className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-300 h-full group"
               >
-                <GlowCard
-                  accent="emerald"
-                  className="p-8 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-300"
-                >
-                  <Icon size={28} className="text-emerald-400 mb-4" />
+                <div>
+                  <Database
+                    size={24}
+                    className="text-zinc-400 mb-3 group-hover:scale-105 group-hover:text-zinc-200 transition-all duration-300"
+                  />
+                  <h3 className="font-mono text-xs text-white uppercase tracking-wider mb-1.5">
+                    AI Records Matrix
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 leading-relaxed font-sans">
+                    Browse reasoning logs and confidence indexes generated by our sentiment classifier.
+                  </p>
+                </div>
+                <span className="text-[10px] text-zinc-450 font-mono mt-4 flex items-center gap-1 group-hover:text-white transition-colors">
+                  Explore tool <ArrowRight size={10} className="transform transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
+              </GlowCard>
+            </Link>
+          </motion.div>
+
+          {/* Row 1, Card 1: Blended Sentiment Cockpit (lg:col-span-6) */}
+          <motion.div
+            {...staggerItem}
+            className="lg:col-span-6 flex flex-col justify-between h-full"
+          >
+            <Link href="/dashboard" className="h-full block">
+              <GlowCard
+                accent="emerald"
+                className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-300 h-full group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-[url('/bento_grid_1.jpg')] bg-cover bg-center opacity-10 pointer-events-none mix-blend-overlay" />
+                
+                <div className="relative z-10 flex flex-col justify-between h-full">
                   <div>
-                    <h3 className="font-mono text-sm text-white uppercase tracking-wider mb-2">
-                      {layer.title}
+                    <Gauge
+                      size={24}
+                      className="text-emerald-500 mb-3 group-hover:scale-105 transition-all duration-300"
+                    />
+                    <h3 className="font-mono text-xs text-white uppercase tracking-wider mb-1.5">
+                      Blended Sentiment Cockpit
                     </h3>
-                    <p className="text-sm text-zinc-500 leading-relaxed font-sans">
-                      {layer.desc}
+                    <p className="text-[11px] text-zinc-500 leading-relaxed font-sans max-w-md">
+                      Monitor our real-time blending oracle aggregating funding skews, social threads, and media indexes into a unified coefficient.
                     </p>
                   </div>
-                </GlowCard>
-              </motion.div>
-            );
-          })}
+                  <span className="text-[10px] text-emerald-500 font-mono mt-4 flex items-center gap-1 group-hover:text-emerald-400 transition-colors">
+                    Explore tool <ArrowRight size={10} className="transform transition-transform duration-300 group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </GlowCard>
+            </Link>
+          </motion.div>
+
+          {/* Row 1, Card 3: Strategy Backtester (lg:col-span-3) */}
+          <motion.div
+            {...staggerItem}
+            className="lg:col-span-3 flex flex-col justify-between h-full"
+          >
+            <Link href="/backtester" className="h-full block">
+              <GlowCard
+                accent="zinc"
+                className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-300 h-full group"
+              >
+                <div>
+                  <Sliders
+                    size={24}
+                    className="text-zinc-400 mb-3 group-hover:scale-105 group-hover:text-zinc-200 transition-all duration-300"
+                  />
+                  <h3 className="font-mono text-xs text-white uppercase tracking-wider mb-1.5">
+                    Strategy Backtester
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 leading-relaxed font-sans">
+                    Test contrarian rules against spot price history to analyze return distributions.
+                  </p>
+                </div>
+                <span className="text-[10px] text-zinc-450 font-mono mt-4 flex items-center gap-1 group-hover:text-white transition-colors">
+                  Explore tool <ArrowRight size={10} className="transform transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
+              </GlowCard>
+            </Link>
+          </motion.div>
+
+          {/* Row 2, Card 4: Narrative Trajectories (lg:col-span-6) */}
+          <motion.div
+            {...staggerItem}
+            className="lg:col-span-6 flex flex-col justify-between h-full"
+          >
+            <Link href="/advanced?tab=trajectories" className="h-full block">
+              <GlowCard
+                accent="zinc"
+                className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-300 h-full group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-[url('/bento_grid_2.jpg')] bg-cover bg-center opacity-10 pointer-events-none mix-blend-overlay" />
+                
+                <div className="relative z-10 flex flex-col justify-between h-full">
+                  <div>
+                    <TrendUp
+                      size={24}
+                      className="text-zinc-400 mb-3 group-hover:scale-105 transition-all duration-300"
+                    />
+                    <h3 className="font-mono text-xs text-white uppercase tracking-wider mb-1.5">
+                      Narrative Trajectories
+                    </h3>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed font-sans max-w-md">
+                      Map similarity-based connections between daily centroids over time to spot long-term narrative shifts.
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-zinc-450 font-mono mt-4 flex items-center gap-1 group-hover:text-white transition-colors">
+                    Explore tool <ArrowRight size={10} className="transform transition-transform duration-300 group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </GlowCard>
+            </Link>
+          </motion.div>
+
+          {/* Row 2, Card 5: Whale Crossover Skew (lg:col-span-6) */}
+          <motion.div
+            {...staggerItem}
+            className="lg:col-span-6 flex flex-col justify-between h-full"
+          >
+            <Link href="/advanced?tab=crossovers" className="h-full block">
+              <GlowCard
+                accent="zinc"
+                className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-300 h-full group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-[url('/bento_grid_3.jpg')] bg-cover bg-center opacity-10 pointer-events-none mix-blend-overlay" />
+                
+                <div className="relative z-10 flex flex-col justify-between h-full">
+                  <div>
+                    <Coins
+                      size={24}
+                      className="text-zinc-400 mb-3 group-hover:scale-105 transition-all duration-300"
+                    />
+                    <h3 className="font-mono text-xs text-white uppercase tracking-wider mb-1.5">
+                      Whale Crossover Skew
+                    </h3>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed font-sans max-w-md">
+                      Correlate institutional movements against retail consensus logs to detect major buy/sell divergences.
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-zinc-450 font-mono mt-4 flex items-center gap-1 group-hover:text-white transition-colors">
+                    Explore tool <ArrowRight size={10} className="transform transition-transform duration-300 group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </GlowCard>
+            </Link>
+          </motion.div>
+
+          {/* Row 3, Card 6: Pearson Correlation (lg:col-span-3) */}
+          <motion.div
+            {...staggerItem}
+            className="lg:col-span-3 flex flex-col justify-between h-full"
+          >
+            <Link href="/advanced?tab=correlation" className="h-full block">
+              <GlowCard
+                accent="zinc"
+                className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-300 h-full group"
+              >
+                <div>
+                  <MathOperations
+                    size={24}
+                    className="text-zinc-400 mb-3 group-hover:scale-105 group-hover:text-zinc-200 transition-all duration-300"
+                  />
+                  <h3 className="font-mono text-xs text-white uppercase tracking-wider mb-1.5">
+                    Pearson Correlation
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 leading-relaxed font-sans">
+                    Calculate time-shifted lag coefficients between social signals and price moves.
+                  </p>
+                </div>
+                <span className="text-[10px] text-zinc-450 font-mono mt-4 flex items-center gap-1 group-hover:text-white transition-colors">
+                  Explore tool <ArrowRight size={10} className="transform transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
+              </GlowCard>
+            </Link>
+          </motion.div>
+
+          {/* Row 3, Card 7: Historical Playback (lg:col-span-6) */}
+          <motion.div
+            {...staggerItem}
+            className="lg:col-span-6 flex flex-col justify-between h-full"
+          >
+            <Link href="/advanced?tab=playback" className="h-full block">
+              <GlowCard
+                accent="zinc"
+                className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-300 h-full group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-[url('/bento_grid_4.jpg')] bg-cover bg-center opacity-10 pointer-events-none mix-blend-overlay" />
+                
+                <div className="relative z-10 flex flex-col justify-between h-full">
+                  <div>
+                    <Clock
+                      size={24}
+                      className="text-zinc-400 mb-3 group-hover:scale-105 transition-all duration-300"
+                    />
+                    <h3 className="font-mono text-xs text-white uppercase tracking-wider mb-1.5">
+                      Historical Playback
+                    </h3>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed font-sans max-w-md">
+                      Replay critical market events hour-by-hour, syncing spot prices, leverage rates, and AI classified feed streams.
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-zinc-450 font-mono mt-4 flex items-center gap-1 group-hover:text-white transition-colors">
+                    Explore tool <ArrowRight size={10} className="transform transition-transform duration-300 group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </GlowCard>
+            </Link>
+          </motion.div>
+
+          {/* Row 3, Card 8: AI Narrative Clouds (lg:col-span-3) */}
+          <motion.div
+            {...staggerItem}
+            className="lg:col-span-3 flex flex-col justify-between h-full"
+          >
+            <Link href="/advanced?tab=clouds" className="h-full block">
+              <GlowCard
+                accent="zinc"
+                className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-300 h-full group"
+              >
+                <div>
+                  <Brain
+                    size={24}
+                    className="text-zinc-400 mb-3 group-hover:scale-105 group-hover:text-zinc-200 transition-all duration-300"
+                  />
+                  <h3 className="font-mono text-xs text-white uppercase tracking-wider mb-1.5">
+                    AI Narrative Clouds
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 leading-relaxed font-sans">
+                    Map semantic clusters using daily document embeddings in a 2D projection.
+                  </p>
+                </div>
+                <span className="text-[10px] text-zinc-450 font-mono mt-4 flex items-center gap-1 group-hover:text-white transition-colors">
+                  Explore tool <ArrowRight size={10} className="transform transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
+              </GlowCard>
+            </Link>
+          </motion.div>
         </div>
       </motion.section>
 
-      {/* ── DIVIDER ── */}
+      {/* ── HORIZONTAL DIVIDER ── */}
       <HorizontalScale />
 
-      {/* ── NEWSLETTER CTA ── */}
+      {/* ── GUESTBOOK BOARD SECTION (LET ME KNOW YOU WERE HERE) ── */}
       <motion.section
         {...fadeUp}
-        className="w-full max-w-xl px-6 py-24"
+        className="w-full max-w-5xl px-6 py-24 flex flex-col items-start z-10"
       >
-        <GlowCard accent="emerald" className="p-10 flex flex-col items-center text-center">
-          <EnvelopeSimple size={40} className="text-zinc-500 mb-4" />
-          <h3 className="text-xl font-bold tracking-tight text-white mb-2">
-            Ingestion Reports Inbox
-          </h3>
-          <p className="text-sm text-zinc-500 max-w-sm mb-6 font-mono">
-            Receive automated daily digests of classified sentiment signals,
-            funding anomalies, and AI reasoning blocks.
-          </p>
+        <SectionEyebrow icon={<Pulse size={10} className="text-zinc-400" />}>
+          VISITOR NETWORK BOARD
+        </SectionEyebrow>
+        <h2 className="text-3xl font-extrabold tracking-tight text-white mb-2">
+          Let Me Know You Were Here
+        </h2>
+        <p className="text-xs text-zinc-500 font-mono leading-relaxed max-w-2xl mb-8">
+          Drop a pin on our network grid! Leave a greeting, project feedback, or general praise. Your note dynamically links to the visitor array.
+        </p>
 
-          <form onSubmit={(e) => e.preventDefault()} className="w-full flex items-center relative">
-            <input
-              type="email"
-              placeholder="Secure email coordinates..."
-              className="bg-black/60 border border-white/5 focus:border-white/15 focus:ring-1 focus:ring-white/10 rounded-full pl-5 pr-36 py-4 text-sm font-mono tracking-wide w-full transition-all duration-300 outline-none text-zinc-200 placeholder-zinc-700"
-            />
-            <button
-              type="submit"
-              className="absolute right-1 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black text-xs font-mono font-bold rounded-full tracking-wider transition-all duration-300 active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]"
-            >
-              SUBSCRIBE
-            </button>
-          </form>
-        </GlowCard>
+        <ObsidianDotGrid />
       </motion.section>
     </div>
   );
 }
+
+const Arc = () => {
+  return (
+    <div className="absolute top-[296px] left-1/2 aspect-square -translate-x-1/2 rounded-full bg-[#050505] w-[150vmax]" />
+  );
+};
+
+const Gradient = () => {
+  return (
+    <div
+      className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[1.02] top-[calc(60vmax+296px)] w-[200vmax] h-[200vmax] blur-[40px] opacity-35 pointer-events-none select-none"
+      style={{
+        background:
+          "radial-gradient(100vmax, rgba(0,0,0,0) 54.81%, rgb(255,172,227) 60.098%, rgba(255,241,172,0.5) 62.983%, rgb(121,201,255) 68.5%, rgb(74,96,209) 80%, rgb(80,146,199) 90%, rgb(60,106,255) 93%, rgb(86,86,86) 97%, rgba(0,0,0,0) 100%)",
+      }}
+    />
+  );
+};

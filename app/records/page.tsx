@@ -633,7 +633,7 @@ export default function SentimentRecordsPage() {
             href="/dashboard"
             className="flex items-center gap-2 px-6 py-4 border border-white/15 bg-[#0C0C0E] hover:bg-white/5 text-zinc-300 hover:text-white rounded-xl text-base md:text-lg transition-all font-extrabold tracking-wider"
           >
-            <ArrowLeft size={18} /> BACK TERMINAL
+            <ArrowLeft size={18} /> BACK TO DASHBOARD
           </Link>
         </div>
       </div>

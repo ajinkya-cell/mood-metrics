@@ -24,7 +24,7 @@ export default function GlobalNav() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 w-full px-4 pt-4 pb-2">
+    <header className="fixed top-0 z-50 w-full px-4 pt-4 pb-2">
       <div className="max-w-5xl mx-auto flex items-center justify-between rounded-2xl border border-white/5 bg-[#0C0C0E]/85 backdrop-blur-xl px-6 py-2  shadow-[0_0_15px_-5px_rgba(0,0,0,0.4)] transition-all duration-500 hover:shadow-[0_0_25px_-8px_rgba(255,255,255,0.04)]">
         <Link href="/" className="flex items-center group transition-all duration-300">
           <img
@@ -44,13 +44,13 @@ export default function GlobalNav() {
                 href={link.href}
                 className={`flex items-center gap-1.5 py-2 text-xs font-mono tracking-wider transition-all duration-300 ${
                   isActive
-                    ? "text-emerald-400 font-extrabold border-b-2 border-emerald-500/80 px-0.5"
+                    ? "text-white font-extrabold border-b-2 border-white/80 px-0.5"
                     : "text-zinc-400 hover:text-white"
                 }`}
               >
                 <Icon
                   size={14}
-                  className={isActive ? "text-emerald-400" : "text-zinc-500"}
+                  className={isActive ? "text-white" : "text-zinc-500"}
                 />
                 <span>{link.label}</span>
               </Link>
@@ -93,7 +93,7 @@ export default function GlobalNav() {
               href={link.href}
               className={`shrink-0 text-xs font-mono tracking-wider transition-all duration-300 pb-1.5 ${
                 isActive
-                  ? "text-emerald-400 font-extrabold border-b-2 border-emerald-500/80"
+                  ? "text-white font-extrabold border-b-2 border-white/80"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
