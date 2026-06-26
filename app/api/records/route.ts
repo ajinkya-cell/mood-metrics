@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { sentimentRecords, rawPosts, tickers, sentimentTimeseries } from "@/lib/db/schema";
 import { eq, and, desc, gte, ilike, or, sql } from "drizzle-orm";
+import { getEmbedding } from "@/lib/ai/sentiment";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,6 +11,7 @@ export async function GET(req: NextRequest) {
     const label = searchParams.get("label")?.toLowerCase() ?? "ALL";
     const source = searchParams.get("source")?.toLowerCase() ?? "ALL";
     const search = searchParams.get("search") ?? "";
+    const searchType = searchParams.get("searchType")?.toLowerCase() ?? "text";
     const timeframe = searchParams.get("timeframe") ?? "7d"; // 24h, 7d, 30d
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 100);
     const offset = Math.max(parseInt(searchParams.get("offset") ?? "0", 10), 0);
@@ -21,7 +23,17 @@ export async function GET(req: NextRequest) {
 
     const targetTicker = activeTickers.find((t) => t.symbol === symbol);
 
-    // 2. Build where conditions for posts/sentiment records
+    // 2. Generate Query Embedding for Semantic Search
+    let queryVector: number[] | null = null;
+    if (search.trim() !== "" && searchType === "semantic" && process.env.NVIDIA_API_KEY) {
+      try {
+        queryVector = await getEmbedding(search.trim(), "query");
+      } catch (err) {
+        console.error("[Semantic Search API] Failed to embed search query:", err);
+      }
+    }
+
+    // 3. Build where conditions for posts/sentiment records
     const conditions = [];
 
     if (symbol !== "ALL" && targetTicker) {
@@ -36,7 +48,7 @@ export async function GET(req: NextRequest) {
       conditions.push(eq(rawPosts.sourceType, source as "reddit" | "coingecko" | "news_rss"));
     }
 
-    if (search.trim() !== "") {
+    if (search.trim() !== "" && !queryVector) {
       conditions.push(
         or(
           ilike(rawPosts.title, `%${search}%`),
@@ -46,6 +58,14 @@ export async function GET(req: NextRequest) {
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const similarity = queryVector
+      ? sql<number>`1 - (${sentimentRecords.embedding} <=> ${`[${queryVector.join(",")}]`}::vector)`
+      : sql<number>`1.0`;
+
+    const orderByClause = queryVector
+      ? desc(similarity)
+      : desc(sentimentRecords.analyzedAt);
 
     // 3. Query records with joined data
     const records = await db
@@ -64,12 +84,13 @@ export async function GET(req: NextRequest) {
         upvotes: rawPosts.upvotes,
         tickerSymbol: tickers.symbol,
         tickerName: tickers.name,
+        similarity: similarity,
       })
       .from(sentimentRecords)
       .innerJoin(rawPosts, eq(sentimentRecords.postId, rawPosts.id))
       .innerJoin(tickers, eq(sentimentRecords.tickerId, tickers.id))
       .where(whereClause)
-      .orderBy(desc(sentimentRecords.analyzedAt))
+      .orderBy(orderByClause)
       .limit(limit)
       .offset(offset);
 
@@ -135,7 +156,10 @@ export async function GET(req: NextRequest) {
     };
 
     return NextResponse.json({
-      records,
+      records: records.map(r => ({
+        ...r,
+        similarity: r.similarity ? parseFloat(r.similarity.toString()) : null,
+      })),
       stats,
       timeseries: timeseriesData.map((t) => ({
         time: t.time,
@@ -151,6 +175,7 @@ export async function GET(req: NextRequest) {
         label,
         source,
         search,
+        searchType,
         timeframe,
         limit,
         offset,

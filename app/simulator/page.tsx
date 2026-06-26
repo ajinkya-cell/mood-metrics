@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sliders } from "@phosphor-icons/react";
+import { Sliders, BookOpen } from "@phosphor-icons/react";
 import DoubleBezel from "../components/DoubleBezel";
 
 type SimulatePoint = {
@@ -127,7 +127,7 @@ export default function SimulatorPage() {
     <div className="w-full max-w-7xl mx-auto px-6 py-12 select-none overflow-hidden pb-20 font-mono">
       {/* Header */}
       <div className="mb-10">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/5 bg-[#0C0C0E] text-[10px] uppercase tracking-[0.2em] font-mono text-zinc-500 font-bold mb-4">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/5 bg-[#0C0C0E] text-xs uppercase tracking-[0.2em] font-mono text-zinc-500 font-bold mb-4">
           <Sliders size={12} />
           FORMULA WORKSHOP
         </div>
@@ -137,6 +137,46 @@ export default function SimulatorPage() {
         <p className="text-zinc-500 text-sm mt-1 max-w-2xl font-sans">
           Experiment with math weights and watch the simulated historical sentiment curves adjust in real-time.
         </p>
+      </div>
+
+      {/* Concept Explanation Card */}
+      <div className="border-l-2 border-emerald-500/40 bg-emerald-500/[0.015] rounded-r-2xl pl-6 pr-5 py-5 flex flex-col md:flex-row gap-4 items-start font-sans text-xs leading-relaxed max-w-7xl shadow-[0_2px_12px_-3px_rgba(16,185,129,0.01)] mb-8">
+        <div className="p-2.5 bg-emerald-500/5 border border-emerald-500/10 text-emerald-400 rounded-xl shrink-0">
+          <BookOpen size={16} />
+        </div>
+        <div className="space-y-3 text-zinc-400">
+          <div>
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">Concept & Mechanics</h3>
+            <p>
+              The Weight Simulator is an interactive modeling sandbox where users can adjust mathematical weights of the four primary sentiment layers to customize the blended telemetry formula. By sliding individual weights, you modify the system's baseline focus (e.g., placing more importance on institutional perp rates versus retail reddit chatter).
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-white/5 pt-3">
+            <div>
+              <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How it is calculated</h3>
+              <p className="text-[11px] text-zinc-500">
+                The blended sentiment score is calculated dynamically using a weighted linear combination:
+                <br />
+                <code className="text-emerald-400 text-[10px] font-mono block my-1">
+                  Blended = (L1 * W1 + L2 * W2 + L3 * W3 + L4 * W4) / 100
+                </code>
+                Where W represents the weight percentage (always summing to 100%), L1 is Flash News (40% default), L2 is Historic Reddit (30%), L3 is Perp Funding (15%), and L4 is Fear & Greed (15%). As you move any slider, the other sliders adjust proportionally to enforce the 100% total limit.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How to use it</h3>
+              <p className="text-[11px] text-zinc-500">
+                1. Adjust any layer's slider in the Tuning Workbench on the left.
+                <br />
+                2. Observe how the other three layers auto-balance to keep the formula sum at exactly 100%.
+                <br />
+                3. The simulated sentiment graph on the right will recalculate its 24h historical score trajectory instantly.
+                <br />
+                4. Hover over points on the graph to inspect the exact individual contribution from each layer for that specific hour.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

@@ -44,6 +44,7 @@ type SentimentRecord = {
   upvotes: number;
   tickerSymbol: string;
   tickerName: string;
+  similarity?: number | null;
 };
 
 type TimeseriesPoint = {
@@ -75,6 +76,7 @@ export default function SentimentRecordsPage() {
   const [selectedLabel, setSelectedLabel] = useState<string>("ALL");
   const [selectedSource, setSelectedSource] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchType, setSearchType] = useState<string>("text"); // "text" | "semantic"
   const [timeframe, setTimeframe] = useState<string>("7d");
   const [limit] = useState<number>(20);
   const [page, setPage] = useState<number>(0);
@@ -112,6 +114,7 @@ export default function SentimentRecordsPage() {
         label: selectedLabel,
         source: selectedSource,
         search: searchQuery,
+        searchType,
         timeframe,
         limit: limit.toString(),
         offset: offset.toString(),
@@ -433,7 +436,7 @@ export default function SentimentRecordsPage() {
             Visualizing the cluster distribution of scores (-1.0 to 1.0) against AI confidence values (0 to 1.0).
           </p>
 
-          <div className="relative bg-[#08080A] rounded-xl border border-white/5 p-2 flex items-center justify-center">
+          <div className="relative p-2 flex items-center justify-center">
             <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%">
               {/* Axes */}
               <line
@@ -765,18 +768,38 @@ export default function SentimentRecordsPage() {
             </select>
           </div>
 
+          {/* Search Mode Selector */}
+          <div className="md:col-span-2 flex flex-col gap-2">
+            <label className="text-[10px] text-zinc-500 font-bold uppercase">SEARCH MODE</label>
+            <select
+              value={searchType}
+              onChange={(e) => {
+                setSearchType(e.target.value);
+                setPage(0);
+              }}
+              className="bg-black/80 border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-white/10 w-full"
+            >
+              <option value="text">KEYWORD TEXT</option>
+              <option value="semantic">AI SEMANTIC (vector)</option>
+            </select>
+          </div>
+
           {/* Text Search Input */}
-          <div className="md:col-span-4 flex flex-col gap-2 relative">
-            <label className="text-[10px] text-zinc-500 font-bold uppercase">KEYWORD QUERY</label>
+          <div className="md:col-span-2 flex flex-col gap-2 relative">
+            <label className="text-[10px] text-zinc-500 font-bold uppercase">{searchType === "semantic" ? "AI PROMPT" : "KEYWORD QUERY"}</label>
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search raw titles/content..."
+                placeholder={searchType === "semantic" ? "Ask AI e.g. 'etf flows'..." : "Search titles/content..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-black/80 border border-white/5 rounded-lg pl-8 pr-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-white/10 w-full placeholder-zinc-700 font-sans"
               />
-              <MagnifyingGlass size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
+              {searchType === "semantic" ? (
+                <Brain size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400 animate-pulse" />
+              ) : (
+                <MagnifyingGlass size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-650" />
+              )}
             </div>
           </div>
 
@@ -831,6 +854,11 @@ export default function SentimentRecordsPage() {
                     <span className="text-[10px] text-zinc-500">
                       UPVOTES: {item.upvotes ?? 0}
                     </span>
+                    {item.similarity !== undefined && item.similarity !== null && item.similarity < 1.0 && (
+                      <span className="px-1.5 py-0.5 rounded bg-purple-950/20 text-purple-400 border border-purple-500/20 font-bold uppercase text-[8px] font-mono tracking-wider">
+                        MATCH: {Math.round(item.similarity * 100)}%
+                      </span>
+                    )}
                   </div>
 
                   <span className="text-zinc-500">
@@ -854,7 +882,7 @@ export default function SentimentRecordsPage() {
                   </div>
 
                   {/* AI Verdict panel */}
-                  <div className="flex items-center gap-4 bg-black/40 border border-white/5 p-3 rounded-xl shrink-0 font-mono">
+                  <div className="flex items-center gap-4 py-2 px-1 font-mono shrink-0">
                     <div className="text-center min-w-[70px]">
                       <span className="text-[8px] text-zinc-500 block uppercase mb-1">
                         AI VERDICT
@@ -872,7 +900,7 @@ export default function SentimentRecordsPage() {
                       </span>
                     </div>
 
-                    <div className="text-center min-w-[50px] border-l border-white/10 pl-3">
+                    <div className="text-center min-w-[50px] border-l border-white/10 pl-4">
                       <span className="text-[8px] text-zinc-500 block uppercase mb-1">
                         SCORE
                       </span>
@@ -890,7 +918,7 @@ export default function SentimentRecordsPage() {
                       </span>
                     </div>
 
-                    <div className="text-center min-w-[50px] border-l border-white/10 pl-3">
+                    <div className="text-center min-w-[50px] border-l border-white/10 pl-4">
                       <span className="text-[8px] text-zinc-500 block uppercase mb-1">
                         CONFIDENCE
                       </span>
@@ -924,7 +952,7 @@ export default function SentimentRecordsPage() {
                 </div>
 
                 {isExpanded && (
-                  <div className="mt-4 p-4 rounded-xl border border-emerald-500/20 bg-emerald-950/5 text-xs text-zinc-400 font-sans leading-relaxed">
+                  <div className="mt-4 border-l-2 border-emerald-500/30 bg-emerald-500/[0.015] rounded-r-xl pl-4 pr-3 py-3 text-xs text-zinc-400 font-sans leading-relaxed">
                     <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-[10px] font-bold mb-2">
                       <Brain size={12} />
                       NVIDIA NIM LLAMA-3.1-8B-INSTRUCT CLASSIFICATION ANALYSIS:

@@ -44,7 +44,7 @@ export default function GlobalNav() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-mono tracking-tight transition-all duration-300 ${
+                className={`flex items-center gap-1 px-3.5 py-1.5 rounded-full text-xs font-mono tracking-tight transition-all duration-300 ${
                   isActive
                     ? "bg-white/10 text-white shadow-[inset_0_0_8px_rgba(255,255,255,0.06)] border border-white/5"
                     : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
@@ -80,7 +80,7 @@ export default function GlobalNav() {
             <Link
               key={link.href}
               href={link.href}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-[10px] font-mono transition-all duration-300 ${
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-mono transition-all duration-300 ${
                 isActive
                   ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/25"
                   : "text-zinc-500 bg-zinc-900/30 border border-transparent hover:bg-zinc-900/50"

@@ -26,6 +26,7 @@ import { scrapeCoinGecko, fetchCoinPrice } from "@/lib/scrapers/coingecko";
 import { scrapeNewsRSS } from "@/lib/scrapers/news";
 import { scrapeFearGreed } from "@/lib/scrapers/fear-greed";
 import { scrapeBinanceFundingRate } from "@/lib/scrapers/binance-funding";
+import { scrapeWhaleData } from "@/lib/scrapers/whale-tracker";
 import { analyzePendingPosts, normalizeFearGreed, normalizeFundingRate, calculateBlendedScore, BLEND_WEIGHTS } from "@/lib/ai/sentiment";
 
 
@@ -89,12 +90,25 @@ export async function GET(req: NextRequest) {
   const isFngFresh = latestFngCheck &&
     latestFngCheck.collectedAt > flashCutoff;
 
+  // Check if the latest whale net flow indicator is fresh
+  const latestWhaleCheck = await db.query.marketIndicators.findFirst({
+    where: and(
+      eq(marketIndicators.tickerId, ticker.id),
+      eq(marketIndicators.indicatorType, "whale_net_flow"),
+    ),
+    orderBy: [desc(marketIndicators.collectedAt)],
+  });
+
+  const isWhaleFresh = latestWhaleCheck &&
+    latestWhaleCheck.collectedAt > flashCutoff;
+
   // ── Step 1: Refresh stale flash sources ───────────────────────────────────
   const flashRefreshTasks = [];
   if (!isFlashFresh("coingecko")) flashRefreshTasks.push(scrapeCoinGecko(ticker));
   if (!isFlashFresh("news_rss"))  flashRefreshTasks.push(scrapeNewsRSS(ticker));
   if (!isFundingFresh)            flashRefreshTasks.push(scrapeBinanceFundingRate(ticker));
   if (!isFngFresh)                flashRefreshTasks.push(scrapeFearGreed()); // global, but idempotent
+  if (!isWhaleFresh)              flashRefreshTasks.push(scrapeWhaleData(ticker));
 
   if (flashRefreshTasks.length > 0) {
     console.log(`[Analyze] Refreshing flash data for ${symbol}...`);
@@ -173,6 +187,25 @@ export async function GET(req: NextRequest) {
   const rawFng = latestFng ? parseFloat(latestFng.value as string) : 50;
   const fearGreedScore = normalizeFearGreed(rawFng);
   const fngLabel = latestFng?.label ?? "neutral";
+
+  // Whale net flow (latest for this ticker)
+  const latestWhale = await db.query.marketIndicators.findFirst({
+    where: and(
+      eq(marketIndicators.tickerId, ticker.id),
+      eq(marketIndicators.indicatorType, "whale_net_flow"),
+    ),
+    orderBy: [desc(marketIndicators.collectedAt)],
+  });
+
+  const rawWhaleFlow = latestWhale
+    ? parseFloat(latestWhale.value as string)
+    : 0;
+  const whaleMetadata = latestWhale
+    ? (latestWhale.metadata as any)
+    : { score: 0, transactions: [] };
+  const whaleScore = whaleMetadata.score ?? 0;
+  const whaleLabel = latestWhale?.label ?? "neutral";
+  const whaleTransactions = whaleMetadata.transactions ?? [];
 
   // ── Step 4: Calculate flash score from recent CoinGecko + News posts ──────
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
@@ -298,6 +331,12 @@ export async function GET(req: NextRequest) {
       // CoinGecko community vote as a third signal
       geckoVoteUp:   price ? Math.round(price.geckoSentimentUp)   : null,
       geckoVoteDown: price ? Math.round(price.geckoSentimentDown)  : null,
+
+      // Whale Movement Layer metrics
+      whaleScore: Math.round(whaleScore * 100),
+      whaleNetFlowUsd: rawWhaleFlow,
+      whaleLabel: whaleLabel,
+      whaleTransactions: whaleTransactions,
     },
 
     // 24h hourly chart data (from pre-computed timeseries)

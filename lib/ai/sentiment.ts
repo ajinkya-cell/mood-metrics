@@ -96,6 +96,43 @@ const nim = createOpenAICompatible({
   },
 });
 
+export async function getEmbedding(text: string, inputType: "passage" | "query" = "passage"): Promise<number[] | null> {
+  const apiKey = process.env.NVIDIA_API_KEY;
+  if (!apiKey) return null;
+  
+  try {
+    const res = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "nvidia/llama-nemotron-embed-1b-v2",
+        input: [text],
+        encoding_format: "float",
+        input_type: inputType,
+      }),
+    });
+    
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(`[AI] Nvidia Embeddings API error: ${res.status} ${res.statusText}. Response: ${errText}`);
+      return null;
+    }
+    
+    const data: any = await res.json();
+    const rawVector = data.data?.[0]?.embedding;
+    if (Array.isArray(rawVector)) {
+      return rawVector.slice(0, 1536);
+    }
+    return null;
+  } catch (err) {
+    console.error("[AI] Error getting embedding:", err);
+    return null;
+  }
+}
+
 type SentimentResult = {
   label: "bullish" | "bearish" | "neutral";
   score: number;
@@ -227,11 +264,7 @@ export async function analyzePendingPosts(ticker: Ticker): Promise<number> {
       
       let vector: number[] | null = null;
       try {
-        const { embedding } = await embed({
-          model: nim.embeddingModel("nvidia/embeddings-nv-embed-qa-4"),
-          value: textToAnalyze,
-        });
-        vector = embedding;
+        vector = await getEmbedding(textToAnalyze, "passage");
       } catch (embedError) {
         console.warn(`[AI] Embedding generation failed for post ${post.id}:`, embedError);
       }

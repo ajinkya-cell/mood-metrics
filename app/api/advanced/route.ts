@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
         bullish: sentimentTimeseries.bullishCount,
         bearish: sentimentTimeseries.bearishCount,
         neutral: sentimentTimeseries.neutralCount,
+        spotPrice: sentimentTimeseries.spotPrice,
       })
       .from(sentimentTimeseries)
       .where(
@@ -102,6 +103,7 @@ export async function GET(req: NextRequest) {
         bullish: t.bullish,
         bearish: t.bearish,
         neutral: t.neutral,
+        spotPrice: t.spotPrice ? parseFloat(t.spotPrice) : null,
       })),
       indicators: indicatorsData.map((ind) => ({
         type: ind.type,

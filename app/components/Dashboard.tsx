@@ -49,6 +49,18 @@ type AnalyzeResponse = {
     neutralPercent: number;
     geckoVoteUp: number | null;
     geckoVoteDown: number | null;
+    whaleScore: number;
+    whaleNetFlowUsd: number;
+    whaleLabel: string;
+    whaleTransactions: Array<{
+      txHash: string;
+      amount: number;
+      amountUsd: number;
+      fromAddress: string;
+      toAddress: string;
+      timestamp: string;
+      type: "inflow" | "outflow" | "transfer";
+    }>;
   };
   timeseries: Array<{ time: string; score: number; posts: number }>;
   recentSignals: Array<{
@@ -240,9 +252,9 @@ export default function Dashboard() {
         </AnimatePresence>
 
         {data && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* ── LEFT COLUMN: GAUGE + INGESTION FEED (lg:col-span-5) ── */}
-            <div className="lg:col-span-5 flex flex-col gap-6 w-full animate-[fadeIn_0.6s_ease-out]">
+            <div className="lg:col-span-5 flex flex-col gap-6 w-full animate-[fadeIn_0.6s_ease-out] h-full">
               {/* GAUGE PANEL wrapped in DoubleBezel */}
               <DoubleBezel className="w-full">
                 <div className="p-8">
@@ -361,6 +373,7 @@ export default function Dashboard() {
                         <motion.line
                           x1="90"
                           y1="90"
+                          initial={{ x2: 90, y2: 38 }}
                           animate={{ x2: needleCoords.x, y2: needleCoords.y }}
                           transition={{ type: "spring", stiffness: 100, damping: 15, mass: 0.8 }}
                           stroke={
@@ -380,7 +393,7 @@ export default function Dashboard() {
 
                     {/* Right: The big, beautiful score metrics */}
                     <div className="flex flex-col items-center md:items-start text-center md:text-left justify-center font-mono">
-                      <span className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase">
+                      <span className="text-xs text-zinc-500 tracking-[0.2em] uppercase">
                         BLENDED SENTIMENT
                       </span>
                       <motion.span
@@ -394,16 +407,16 @@ export default function Dashboard() {
                         {data.sentiment.score}
                       </motion.span>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded bg-white/5 border border-white/5 ${sentimentColor}`}>
+                        <span className={`text-xs uppercase font-bold px-2.5 py-1 rounded bg-white/5 border border-white/5 ${sentimentColor}`}>
                           {data.sentiment.label}
                         </span>
-                        <span className="text-[9px] text-zinc-500">
+                        <span className="text-xs text-zinc-500">
                           COCKPIT GREEN
                         </span>
                       </div>
                       
                       {/* Short subtext breakdown */}
-                      <span className="text-[10px] text-zinc-500 mt-6 max-w-[200px] leading-relaxed border-t border-white/5 pt-3">
+                      <span className="text-xs text-zinc-500 mt-6 max-w-[200px] leading-relaxed border-t border-white/5 pt-3">
                         Blended components weighted: 40/30/15/15
                       </span>
                     </div>
@@ -412,17 +425,16 @@ export default function Dashboard() {
               </DoubleBezel>
 
               {/* INGESTION FEED PANEL wrapped in DoubleBezel */}
-              <DoubleBezel className="w-full">
-                <div className="p-6 flex flex-col h-[340px]">
+              <DoubleBezel className="w-full flex-grow flex flex-col">
+                <div className="p-6 flex flex-col flex-1 min-h-[400px]">
                   <div className="flex items-center justify-between mb-4 font-mono text-zinc-500 text-xs tracking-widest border-b border-white/5 pb-2">
                     <div className="flex items-center gap-2">
                       <Terminal size={14} className="text-emerald-500" />
                       <span>INGESTION LOG — LIVE TELEMETRY</span>
                     </div>
-                    <span className="text-[10px] text-emerald-500/80 uppercase animate-pulse">SYS_ON</span>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto font-mono text-[11px] space-y-1 pr-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
+                  <div className="flex-1 overflow-y-auto font-mono text-xs space-y-1 pr-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
                     {data.recentSignals.map((sig, i) => {
                       const isExpanded = expandedIndex === i;
                       const isBullish = sig.label === "bullish";
@@ -448,10 +460,10 @@ export default function Dashboard() {
                               >
                                 <CaretRight size={10} />
                               </motion.span>
-                              <span className="text-zinc-600 font-bold shrink-0 text-[10px] tracking-wider">
+                              <span className="text-zinc-600 font-bold shrink-0 text-xs tracking-wider">
                                 [{sig.source.toUpperCase().replace("_", " ")}]
                               </span>
-                              <span className="text-zinc-300 truncate text-[11px]">
+                              <span className="text-zinc-300 truncate text-xs">
                                 {sig.title}
                               </span>
                             </div>
@@ -483,7 +495,7 @@ export default function Dashboard() {
                                   <span className="text-zinc-600 font-bold font-mono">ANALYSIS:</span>{" "}
                                   {sig.reasoning || "No explanation provided."}
                                 </div>
-                                <div className="flex justify-between items-center text-[10px] text-zinc-600 pt-1 font-mono">
+                                <div className="flex justify-between items-center text-xs text-zinc-600 pt-1 font-mono">
                                   <span>
                                     Ingested:{" "}
                                     {new Date(sig.postedAt).toLocaleString([], {
@@ -516,7 +528,7 @@ export default function Dashboard() {
             </div>
 
             {/* ── RIGHT COLUMN: 4-LAYER BENTO + CHART (lg:col-span-7) ── */}
-            <div className="lg:col-span-7 flex flex-col gap-6 w-full animate-[fadeIn_0.6s_ease-out_delay-100ms]">
+            <div className="lg:col-span-7 flex flex-col gap-6 w-full animate-[fadeIn_0.6s_ease-out_delay-100ms] h-full">
               {/* Bento Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <GlowCard accent="emerald" className="p-6 flex flex-col justify-between min-h-[12rem] hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(16,185,129,0.08)] transition-all duration-300 cursor-pointer">
@@ -656,6 +668,70 @@ export default function Dashboard() {
                       <span className="uppercase text-zinc-400">
                         {data.sentiment.fearGreed.label}
                       </span>
+                    </div>
+                  </div>
+                </GlowCard>
+
+                {/* L5 Whale Movement Layer */}
+                <GlowCard accent="emerald" className="md:col-span-2 p-6 flex flex-col justify-between min-h-[14rem] hover:scale-[1.01] hover:-translate-y-0.5 transition-all duration-300">
+                  <div className="flex justify-between items-start border-b border-white/5 pb-3">
+                    <div>
+                      <span className="text-xs text-zinc-500 font-mono tracking-widest block">
+                        L5 — WHALE MOVEMENT LAYER (TELEMETRY)
+                      </span>
+                      <span className="text-sm text-zinc-300 flex items-center gap-1.5 mt-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                            data.sentiment.whaleNetFlowUsd >= 0 ? "bg-emerald-400" : "bg-rose-400"
+                          }`} />
+                          <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                            data.sentiment.whaleNetFlowUsd >= 0 ? "bg-emerald-500" : "bg-rose-500"
+                          }`} />
+                        </span>
+                        On-Chain Large Address Net Inflows
+                      </span>
+                    </div>
+                    <div className="text-right font-mono">
+                      <span className={`text-xl font-bold ${getSentimentColorClass(data.sentiment.whaleScore)}`}>
+                        {data.sentiment.whaleScore > 0 ? "+" : ""}{data.sentiment.whaleScore}
+                      </span>
+                      <span className="block text-xs text-zinc-500 mt-0.5">
+                        NET FLOW: {data.sentiment.whaleNetFlowUsd >= 0 ? "+" : ""}${(data.sentiment.whaleNetFlowUsd / 1e6).toFixed(2)}M
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* List of recent transactions */}
+                  <div className="mt-4 flex-1">
+                    <span className="text-xs text-zinc-500 font-bold uppercase font-mono tracking-wider block mb-2">RECENT BLOCKCHAIN MOVEMENT (1H)</span>
+                    <div className="max-h-24 overflow-y-auto space-y-1.5 font-mono text-xs pr-2 scrollbar-none select-text">
+                      {data.sentiment.whaleTransactions && data.sentiment.whaleTransactions.length > 0 ? (
+                        data.sentiment.whaleTransactions.map((tx: any, idx: number) => {
+                          const isAccum = tx.type === "outflow";
+                          const isSell = tx.type === "inflow";
+                          return (
+                            <div key={idx} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 hover:bg-white/[0.01] px-1 rounded">
+                              <span className="truncate text-zinc-400 max-w-[280px]">
+                                {tx.fromAddress} → {tx.toAddress}
+                              </span>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="text-zinc-500">
+                                  {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} {activeSymbol} (${(tx.amountUsd / 1e6).toFixed(2)}M)
+                                </span>
+                                <span className={`font-bold text-xs uppercase px-1.5 py-0.5 rounded ${
+                                  isAccum ? "bg-emerald-950/20 text-emerald-400 border border-emerald-500/20" :
+                                  isSell ? "bg-rose-950/20 text-rose-400 border border-rose-500/20" :
+                                  "bg-zinc-900 text-zinc-500"
+                                }`}>
+                                  {tx.type}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-4 text-zinc-650 text-xs">NO SIGNIFICANT WHALE ACTIVITY DETECTED IN THIS BLOCK</div>
+                      )}
                     </div>
                   </div>
                 </GlowCard>

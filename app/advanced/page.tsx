@@ -21,6 +21,8 @@ import {
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import SectionEyebrow from "../components/SectionEyebrow";
+import DoubleBezel from "../components/DoubleBezel";
+import GlowCard from "../components/GlowCard";
 
 // Define Types
 type TimeseriesPoint = {
@@ -91,6 +93,7 @@ export default function AdvancedToolsPage() {
     { id: "narrative_clustering", label: "3. Narrative Clouds", color: "from-purple-500/10 to-transparent" },
     { id: "event_playback", label: "4. Historical Playback", color: "from-amber-500/10 to-transparent" },
     { id: "whale_vs_retail", label: "5. Whale vs. Retail", color: "from-blue-500/10 to-transparent" },
+    { id: "narrative_trajectories", label: "6. Narrative Trajectories", color: "from-fuchsia-500/10 to-transparent" },
   ];
 
   const activeToolColor = TOOLS.find((t) => t.id === activeTab)?.color ?? "from-emerald-500/10 to-transparent";
@@ -188,14 +191,25 @@ export default function AdvancedToolsPage() {
                     {activeTab === "lag_correlation" && <LagCorrelationPanel data={data} />}
                     {activeTab === "anomaly_engine" && <AnomalyEnginePanel data={data} />}
                     {activeTab === "narrative_clustering" && <NarrativeClusteringPanel data={data} />}
-                    {activeTab === "event_playback" && <EventPlaybackPanel />}
+                    {activeTab === "event_playback" && <EventPlaybackPanel symbol={selectedCoin} />}
                     {activeTab === "whale_vs_retail" && <WhaleVsRetailPanel data={data} />}
+                    {activeTab === "narrative_trajectories" && <NarrativeTrajectoriesPanel symbol={selectedCoin} />}
                   </motion.div>
                 </AnimatePresence>
               )
             )}
           </main>
         </div>
+
+        {/* Dynamic, Tab-specific Reference Manual with Sticky TOC Sidebar */}
+        <DoubleBezel className="w-full mt-12 p-8 font-sans">
+          {activeTab === "lag_correlation" && <LagCorrelationDocs />}
+          {activeTab === "anomaly_engine" && <AnomalyEngineDocs />}
+          {activeTab === "narrative_clustering" && <NarrativeClusteringDocs />}
+          {activeTab === "event_playback" && <EventPlaybackDocs />}
+          {activeTab === "whale_vs_retail" && <WhaleVsRetailDocs />}
+          {activeTab === "narrative_trajectories" && <NarrativeTrajectoriesDocs />}
+        </DoubleBezel>
       </div>
     </div>
   );
@@ -289,14 +303,25 @@ function LagCorrelationPanel({ data }: { data: AdvancedData }) {
         </h2>
       </div>
 
-      {/* Text Documentation */}
-      <div className="text-zinc-400 text-xs font-sans leading-relaxed space-y-3 max-w-2xl">
-        <p>
-          <strong>What it is:</strong> Price trends in cryptocurrency are heavily influenced by shifts in public psychology, but these emotional narratives do not immediately impact order books. This tool measures the exact time delay (lead/lag hours) between sentiment indicators and actual asset pricing movements.
-        </p>
-        <p>
-          <strong>How to read it:</strong> Adjust the lag slider below. This shifts the blended sentiment curve backwards. The system computes a Pearson correlation coefficient ($R$). An $R$ value closer to $+1.0$ shows strong positive lag leading, telling you that a shift in sentiment at that hour successfully predicts pricing trends.
-        </p>
+      {/* Concept Explanation Card */}
+      <div className="border-l-2 border-emerald-500/40 bg-emerald-500/[0.015] rounded-r-2xl pl-6 pr-5 py-4 flex flex-col md:flex-row gap-4 items-start font-sans text-xs leading-relaxed max-w-4xl shadow-[0_2px_12px_-3px_rgba(16,185,129,0.01)]">
+        <div className="p-2.5 bg-emerald-500/5 border border-emerald-500/10 text-emerald-400 rounded-xl shrink-0">
+          <BookOpen size={16} />
+        </div>
+        <div className="space-y-3 text-zinc-400">
+          <div>
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">Concept & Mechanics</h3>
+            <p>
+              Price trends in cryptocurrency are heavily influenced by shifts in public psychology, but these emotional narratives do not immediately impact order books. This tool measures the exact time delay (lead/lag hours) between sentiment indicators and actual asset pricing movements.
+            </p>
+          </div>
+          <div className="border-t border-white/5 pt-2">
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How to read it</h3>
+            <p>
+              Adjust the lag slider below. This offsets the green sentiment line back in time. The engine continuously calculates the <strong>Pearson Correlation Coefficient (R)</strong>. An R closer to <span className="text-emerald-400 font-mono font-bold">+1.0</span> indicates strong positive correlation, signaling that sentiment changes at that specific offset reliably predict pricing trends.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Lag hours slider */}
@@ -316,7 +341,7 @@ function LagCorrelationPanel({ data }: { data: AdvancedData }) {
           </div>
         </div>
 
-        <div className="bg-[#050507] border border-white/5 p-4 rounded-xl text-center shrink-0 w-full sm:w-auto">
+        <div className="text-center shrink-0 w-full sm:w-auto sm:border-l sm:border-white/5 sm:pl-8">
           <span className="text-[8px] text-zinc-500 block uppercase tracking-wider">PEARSON COEFFICIENT</span>
           <span className={`text-xl font-bold ${Math.abs(correlation) > 0.4 ? "text-emerald-400" : "text-zinc-400"}`}>
             R = {correlation.toFixed(2)}
@@ -420,19 +445,33 @@ function AnomalyEnginePanel({ data }: { data: AdvancedData }) {
         </h2>
       </div>
 
-      {/* Text Documentation */}
-      <div className="text-zinc-400 text-xs font-sans leading-relaxed space-y-3 max-w-2xl">
-        <p>
-          <strong>What it is:</strong> Conflicting data streams represent market imbalances. When retail forums are hyperactive with FOMO posts but futures funding remains deeply negative, a directional squeeze is developing. This tool tracks layer discrepancies.
-        </p>
-        <p>
-          <strong>How to read it:</strong> High discrepancies generate severity alerts. A bearish divergence means retail chatter is unsustainably bullish while funding/institutions drop; a contrarian buy setups indicate retail panic while major news or whale metrics accumulate assets.
-        </p>
+      {/* Concept Explanation Card */}
+      <div className="border-l-2 border-rose-500/40 bg-rose-500/[0.015] rounded-r-2xl pl-6 pr-5 py-4 flex flex-col md:flex-row gap-4 items-start font-sans text-xs leading-relaxed max-w-4xl shadow-[0_2px_12px_-3px_rgba(244,63,94,0.01)]">
+        <div className="p-2.5 bg-rose-500/5 border border-rose-500/10 text-rose-400 rounded-xl shrink-0">
+          <Warning size={16} />
+        </div>
+        <div className="space-y-3 text-zinc-400">
+          <div>
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">Concept & Mechanics</h3>
+            <p>
+              Conflicting data streams represent market imbalances. When retail forums are hyperactive with FOMO posts but futures funding remains deeply negative, a directional squeeze is developing. This tool tracks layer discrepancies between social hype layers and derivative market realities.
+            </p>
+          </div>
+          <div className="border-t border-white/5 pt-2">
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How to read it</h3>
+            <p>
+              High discrepancies generate severity alerts. A <strong>bearish divergence</strong> means retail chatter is unsustainably bullish while funding/institutions drop. A <strong>contrarian buy setup</strong> indicates retail panic while major news or whale metrics accumulate assets. Adjust the slider to tune the scanner sensitivity deviation threshold.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Sensitivity config slider */}
       <div className="bg-[#0A0A0C]/50 border border-white/5 rounded-2xl p-6 flex flex-col gap-2 mb-8 font-mono text-xs">
-        <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">SCANNER SENSITIVITY DEVIATION</label>
+        <div className="flex justify-between items-baseline">
+          <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">SCANNER SENSITIVITY DEVIATION</label>
+          <span className="text-zinc-500 text-[8px] font-sans">Lower percentage = more strict deviation filters (critical only)</span>
+        </div>
         <div className="flex items-center gap-4">
           <input
             type="range"
@@ -456,12 +495,12 @@ function AnomalyEnginePanel({ data }: { data: AdvancedData }) {
           anomalies.map((anom) => (
             <div
               key={anom.id}
-              className={`p-6 rounded-2xl border bg-[#08080A] space-y-3 relative overflow-hidden transition-all duration-300 ${
+              className={`p-5 rounded-r-2xl border-l-4 bg-[#08080A] space-y-3 relative overflow-hidden transition-all duration-300 border-y-0 border-r-0 ${
                 anom.severity === "CRITICAL"
-                  ? "border-rose-500/20"
+                  ? "border-l-rose-500 bg-rose-950/[0.02]"
                   : anom.severity === "WARNING"
-                  ? "border-amber-500/20"
-                  : "border-zinc-850"
+                  ? "border-l-amber-500 bg-amber-950/[0.02]"
+                  : "border-l-zinc-700 bg-zinc-900/[0.02]"
               }`}
             >
               <div className="flex justify-between items-center text-[10px] border-b border-white/5 pb-2">
@@ -483,11 +522,10 @@ function AnomalyEnginePanel({ data }: { data: AdvancedData }) {
               </div>
 
               <h4 className="text-xs font-bold text-white font-sans">{anom.title}</h4>
-              <p className="text-[11px] text-zinc-500 leading-relaxed font-sans">{anom.desc}</p>
-
-              <div className="flex justify-between items-center text-[9px] text-zinc-500 pt-2 border-t border-white/5">
-                <span>{anom.metric}</span>
-                <span className="text-emerald-400 font-bold">DISPATCH TRIGGERED</span>
+              <p className="text-zinc-400 text-xs leading-relaxed font-sans">{anom.desc}</p>
+              <div className="flex justify-between items-center text-[10px] font-mono text-zinc-500 pt-2 border-t border-white/5">
+                <span>METRIC VALUE</span>
+                <span className="text-emerald-400 font-bold">{anom.metric}</span>
               </div>
             </div>
           ))
@@ -497,11 +535,10 @@ function AnomalyEnginePanel({ data }: { data: AdvancedData }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   3. AI NARRATIVE TOPIC CLUSTERING PANEL
-   ───────────────────────────────────────────────────────────────────────────── */
 function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
+  const [selectedPost, setSelectedPost] = useState<SentimentPost | null>(null);
+  const [hoveredPost, setHoveredPost] = useState<SentimentPost | null>(null);
   const { records } = data;
 
   const clusterData = () => {
@@ -574,6 +611,48 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
   const clusters = clusterData();
   const activeCluster = clusters.find((c) => c.id === selectedClusterId);
 
+  // Deterministic positioning based on post details to create "islands"
+  const getPostCoords = (post: SentimentPost, clusterId: string) => {
+    let hash = 0;
+    const idStr = post.id || "";
+    for (let i = 0; i < idStr.length; i++) {
+      hash = idStr.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const u1 = (Math.abs(hash) % 100) / 100;
+    const u2 = (Math.abs(hash >> 7) % 100) / 100;
+
+    let cx = 300;
+    let cy = 135;
+    if (clusterId === "etf") { cx = 150; cy = 70; }
+    else if (clusterId === "regulation") { cx = 450; cy = 70; }
+    else if (clusterId === "network") { cx = 140; cy = 200; }
+    else if (clusterId === "market_leverage") { cx = 460; cy = 200; }
+
+    // Shift X slightly based on sentiment score
+    const scoreFactor = post.score * 30;
+    const jitterX = (u1 - 0.5) * 45 + scoreFactor;
+    const jitterY = (u2 - 0.5) * 45;
+
+    return { x: cx + jitterX, y: cy + jitterY };
+  };
+
+  // Compile all posts with their coordinates
+  const plottedPosts = clusters.flatMap((cluster) =>
+    cluster.posts.map((post) => ({
+      post,
+      clusterId: cluster.id,
+      coords: getPostCoords(post, cluster.id),
+    }))
+  );
+
+  const displayPost = hoveredPost || selectedPost || (plottedPosts.length > 0 ? plottedPosts[0].post : null);
+
+  const getDotColor = (score: number) => {
+    if (score > 0.15) return "#10B981"; // Bullish green
+    if (score < -0.15) return "#F43F5E"; // Bearish red
+    return "#71717A"; // Neutral gray
+  };
+
   return (
     <div className="space-y-8 w-full">
       {/* Visual Header */}
@@ -586,18 +665,130 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
         </h2>
       </div>
 
-      {/* Text Documentation */}
-      <div className="text-zinc-400 text-xs font-sans leading-relaxed space-y-3 max-w-2xl">
-        <p>
-          <strong>What it is:</strong> Quantitative sentiment indexes are one-dimensional—they show sentiment intensity but omit context. This NLP clustering matrix parses Llama-reasoned metadata to categorize conversation topics into primary structural themes.
-        </p>
-        <p>
-          <strong>How to read it:</strong> Click on any theme card below. The score shows the average sentiment weight of the narrative. Selecting a card reveals the exact articles and comments assigned to that narrative segment, complete with AI reasoning summaries.
-        </p>
+      {/* Concept Explanation Card */}
+      <div className="border-l-2 border-purple-500/40 bg-purple-500/[0.015] rounded-r-2xl pl-6 pr-5 py-4 flex flex-col md:flex-row gap-4 items-start font-sans text-xs leading-relaxed max-w-4xl shadow-[0_2px_12px_-3px_rgba(168,85,247,0.01)]">
+        <div className="p-2.5 bg-purple-500/5 border border-purple-500/10 text-purple-400 rounded-xl shrink-0">
+          <Brain size={16} />
+        </div>
+        <div className="space-y-3 text-zinc-400">
+          <div>
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">Concept & Mechanics</h3>
+            <p>
+              Sentiment scores represent raw numeric intensity, but lack semantic topic grouping. This interactive projection parses Llama-reasoned metadata to classify and project incoming community posts into spatial "narrative islands" using keyword embeddings.
+            </p>
+          </div>
+          <div className="border-t border-white/5 pt-2">
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How to read it</h3>
+            <p>
+              Hover over any point in the scatter plot below to read the specific post details, Llama sentiment score, and extraction reasoning in the right-side detail cockpit. Click any of the narrative cards below the plot to filter and isolate records belonging to that narrative group.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2D Projection & Side Detail Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Scatter Plot SVG */}
+        <div className="lg:col-span-7 bg-[#08080A] border border-white/5 rounded-2xl p-4 relative overflow-hidden shadow-[0_0_40px_-10px_rgba(168,85,247,0.02)]">
+          <div className="flex justify-between items-baseline mb-4 font-mono text-[9px] text-zinc-500 uppercase tracking-widest">
+            <span>2D Narrative Sentiment Space</span>
+            <span className="flex gap-3">
+              <span className="text-emerald-400">● BULLISH</span>
+              <span className="text-zinc-500">● NEUTRAL</span>
+              <span className="text-rose-400">● BEARISH</span>
+            </span>
+          </div>
+
+          <div className="relative w-full h-[270px]">
+            <svg viewBox="0 0 600 270" className="w-full h-full">
+              {/* Grid crosshairs */}
+              <line x1={300} y1={0} x2={300} y2={270} stroke="rgba(255,255,255,0.02)" strokeDasharray="3 3" />
+              <line x1={0} y1={135} x2={600} y2={135} stroke="rgba(255,255,255,0.02)" strokeDasharray="3 3" />
+
+              {/* Cluster region titles */}
+              <text x={150} y={25} textAnchor="middle" className="font-mono text-[9px] fill-zinc-650 font-bold tracking-wider">L1: INSTITUTIONAL FLOWS</text>
+              <text x={450} y={25} textAnchor="middle" className="font-mono text-[9px] fill-zinc-650 font-bold tracking-wider">L2: REGULATORY FUD</text>
+              <text x={140} y={260} textAnchor="middle" className="font-mono text-[9px] fill-zinc-650 font-bold tracking-wider">L3: TECH & CONGESTION</text>
+              <text x={460} y={260} textAnchor="middle" className="font-mono text-[9px] fill-zinc-650 font-bold tracking-wider">L4: LIQUIDATION EXHAUSTION</text>
+
+              {/* Plotted Dots */}
+              {plottedPosts.map(({ post, clusterId, coords }) => {
+                const isClusterSelected = !selectedClusterId || selectedClusterId === clusterId;
+                const isSelected = selectedPost?.id === post.id;
+                const color = getDotColor(post.score);
+
+                return (
+                  <circle
+                    key={post.id}
+                    cx={coords.x}
+                    cy={coords.y}
+                    r={isSelected ? 6.5 : 4}
+                    fill={color}
+                    opacity={isClusterSelected ? (hoveredPost?.id === post.id ? 1 : 0.75) : 0.15}
+                    stroke={isSelected ? "#fff" : "rgba(255,255,255,0.1)"}
+                    strokeWidth={isSelected ? 1.5 : 0.5}
+                    className="transition-all duration-300 cursor-pointer"
+                    onMouseEnter={() => setHoveredPost(post)}
+                    onMouseLeave={() => setHoveredPost(null)}
+                    onClick={() => setSelectedPost(post)}
+                    style={{
+                      filter: isSelected ? "drop-shadow(0 0 6px #fff)" : hoveredPost?.id === post.id ? `drop-shadow(0 0 4px ${color})` : "none"
+                    }}
+                  />
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+
+        {/* Dynamic Detail Card */}
+        <div className="lg:col-span-5 h-[330px]">
+          {displayPost ? (
+            <div className="border border-white/5 bg-[#08080A]/60 rounded-2xl p-6 h-full flex flex-col justify-between font-mono text-[10px] space-y-4">
+              <div className="space-y-3">
+                <div className="flex justify-between items-baseline border-b border-white/5 pb-2 text-[9px] text-zinc-500">
+                  <span className="uppercase">[{displayPost.source.toUpperCase()}] • FEED</span>
+                  <span className="font-sans">
+                    {new Date(displayPost.postedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+
+                <h4 className="text-xs font-bold text-white font-sans line-clamp-2 leading-snug">
+                  {displayPost.title}
+                </h4>
+
+                <p className="text-zinc-500 font-sans leading-relaxed line-clamp-4 text-[10px]">
+                  {displayPost.content}
+                </p>
+              </div>
+
+              <div className="space-y-2.5 border-l border-purple-500/30 pl-4 py-1">
+                <div className="flex justify-between items-baseline text-[9px] border-b border-white/5 pb-1 text-zinc-500">
+                  <span>AI VERDICT ENGINE</span>
+                  <span>CONFIDENCE: {Math.round(displayPost.confidence * 100)}%</span>
+                </div>
+                <div className="flex justify-between items-baseline">
+                  <span className="text-zinc-400">Score Weight:</span>
+                  <span className={displayPost.score > 0.15 ? "text-emerald-400 font-bold" : displayPost.score < -0.15 ? "text-rose-400 font-bold" : "text-zinc-400 font-bold"}>
+                    {displayPost.score > 0 ? "+" : ""}{displayPost.score.toFixed(2)}
+                  </span>
+                </div>
+                <div className="text-[10px] text-emerald-400/80 font-sans leading-relaxed flex items-start gap-1">
+                  <span className="font-bold shrink-0">Reasoning:</span>
+                  <span className="italic line-clamp-2">{displayPost.reasoning}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="border border-dashed border-white/5 rounded-2xl h-full flex items-center justify-center text-center p-6 text-zinc-650 text-xs">
+              Hover over or click any point in the projection space to retrieve raw AI reasoning records.
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Interactive bubble grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
         {clusters.map((c) => {
           const score = c.avgScore;
           const isSelected = selectedClusterId === c.id;
@@ -605,10 +796,13 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
           return (
             <button
               key={c.id}
-              onClick={() => setSelectedClusterId(isSelected ? null : c.id)}
-              className={`p-6 rounded-2xl border text-left flex flex-col justify-between transition-all h-32 cursor-pointer ${
+              onClick={() => {
+                setSelectedClusterId(isSelected ? null : c.id);
+                setSelectedPost(null);
+              }}
+              className={`p-5 rounded-2xl border text-left flex flex-col justify-between transition-all h-28 cursor-pointer ${
                 isSelected
-                  ? "bg-purple-500/10 border-purple-500/40 text-white"
+                  ? "bg-purple-500/10 border-purple-500/40 text-white shadow-[0_0_15px_rgba(168,85,247,0.06)]"
                   : "bg-[#08080A] border-white/5 text-zinc-400 hover:border-white/10"
               }`}
             >
@@ -616,19 +810,19 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
                 <span className="text-[8px] text-zinc-500 uppercase tracking-widest block mb-1">
                   NARRATIVE GROUP
                 </span>
-                <span className="text-xs font-bold font-sans line-clamp-1 text-white">{c.name}</span>
+                <span className="text-[11px] font-bold font-sans line-clamp-1 text-white">{c.name}</span>
               </div>
 
-              <div className="flex justify-between items-baseline w-full mt-4">
-                <span className="text-[10px] text-zinc-500">
-                  {c.postsCount} POSTS INGESTED
+              <div className="flex justify-between items-baseline w-full mt-3">
+                <span className="text-[9px] text-zinc-500">
+                  {c.postsCount} RECORDS
                 </span>
 
                 <span
-                  className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
-                    score > 20
+                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
+                    score > 15
                       ? "bg-emerald-950/20 text-emerald-400 border border-emerald-500/20"
-                      : score < -20
+                      : score < -15
                       ? "bg-rose-950/20 text-rose-400 border border-rose-500/20"
                       : "bg-zinc-900 text-zinc-400 border border-white/5"
                   }`}
@@ -643,27 +837,30 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
       </div>
 
       {/* Matching Posts list details */}
-      {activeCluster ? (
+      {activeCluster && (
         <div className="border-t border-white/5 pt-6 space-y-4">
           <div className="flex justify-between items-center text-[10px] text-zinc-500">
             <span>SHOWING CLUSTERED RECORDS FOR: {activeCluster.name.toUpperCase()}</span>
             <button
-              onClick={() => setSelectedClusterId(null)}
+              onClick={() => {
+                setSelectedClusterId(null);
+                setSelectedPost(null);
+              }}
               className="underline text-zinc-400 hover:text-white"
             >
               CLOSE LIST
             </button>
           </div>
 
-          <div className="space-y-4 max-h-96 overflow-y-auto pr-2 scrollbar-none">
+          <div className="space-y-4 max-h-80 overflow-y-auto pr-2 scrollbar-none">
             {activeCluster.posts.map((post) => (
-              <div key={post.id} className="p-4 bg-[#08080A] border border-white/5 rounded-xl font-mono text-[11px] space-y-2">
-                <div className="flex justify-between text-[9px] text-zinc-600">
+              <div key={post.id} className="py-4 border-b border-white/5 last:border-b-0 font-mono text-[11px] space-y-2 hover:bg-white/[0.01] transition-all duration-200 px-4 rounded-xl">
+                <div className="flex justify-between text-[9px] text-zinc-650 font-mono">
                   <span className="uppercase">[{post.source}] • UPVOTES: {post.upvotes}</span>
                   <span>{new Date(post.postedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <h4 className="text-white font-bold font-sans">{post.title}</h4>
-                <p className="text-zinc-500 font-sans leading-relaxed line-clamp-3">{post.content}</p>
+                <p className="text-zinc-500 font-sans leading-relaxed line-clamp-2">{post.content}</p>
                 <div className="text-emerald-400/80 text-[10px] pt-2 border-t border-white/5 mt-2 font-sans flex items-start gap-1">
                   <span className="font-bold shrink-0">Llama Reasoning:</span>
                   <span className="italic">{post.reasoning}</span>
@@ -671,10 +868,6 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
               </div>
             ))}
           </div>
-        </div>
-      ) : (
-        <div className="text-center py-8 text-zinc-600 text-xs font-sans border border-dashed border-white/5 rounded-xl">
-          Click any narrative card above to review the individual AI records grouped inside that topic cluster.
         </div>
       )}
     </div>
@@ -752,17 +945,46 @@ const HISTORICAL_EVENTS = [
   },
 ];
 
-function EventPlaybackPanel() {
-  const [selectedEventId, setSelectedEventId] = useState<string>("ftx_crisis");
+function EventPlaybackPanel({ symbol }: { symbol: string }) {
+  const [selectedEventId, setSelectedEventId] = useState<string>("real_time_ingest");
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentHourIdx, setCurrentHourIdx] = useState<number>(0);
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const activeEvent = HISTORICAL_EVENTS.find((e) => e.id === selectedEventId) ?? HISTORICAL_EVENTS[0];
-  const logsCount = activeEvent.logs.length;
-  const currentLog = activeEvent.logs[currentHourIdx];
+  const [dbEvent, setDbEvent] = useState<any>(null);
+  const [isLoadingDb, setIsLoadingDb] = useState<boolean>(false);
+  const [dbError, setDbError] = useState<string | null>(null);
 
-  const dialScore = currentLog ? currentLog.score : activeEvent.startScore;
+  useEffect(() => {
+    if (selectedEventId === "real_time_ingest") {
+      setIsLoadingDb(true);
+      setDbError(null);
+      setDbEvent(null);
+      fetch(`/api/advanced/playback?symbol=${symbol}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to fetch database playback logs");
+          return res.json();
+        })
+        .then((json) => {
+          setDbEvent(json);
+          setIsLoadingDb(false);
+        })
+        .catch((err) => {
+          console.error(err);
+          setDbError(err.message || "Failed to load live database timeline");
+          setIsLoadingDb(false);
+        });
+    }
+  }, [selectedEventId, symbol]);
+
+  const activeEvent = selectedEventId === "real_time_ingest"
+    ? dbEvent
+    : HISTORICAL_EVENTS.find((e) => e.id === selectedEventId) ?? HISTORICAL_EVENTS[0];
+
+  const logsCount = activeEvent?.logs?.length ?? 0;
+  const currentLog = logsCount > 0 ? activeEvent.logs[currentHourIdx] : null;
+
+  const dialScore = currentLog ? currentLog.score : (activeEvent?.startScore ?? 0);
   const needleAngle = (dialScore / 100) * 90;
 
   useEffect(() => {
@@ -805,14 +1027,25 @@ function EventPlaybackPanel() {
         </h2>
       </div>
 
-      {/* Text Documentation */}
-      <div className="text-zinc-400 text-xs font-sans leading-relaxed space-y-3 max-w-2xl">
-        <p>
-          <strong>What it is:</strong> A quantitative time-machine. Crypto history is filled with dramatic liquidations and sudden regulatory shifts. This simulator loads database parameters during those specific events to let you study the exact chronology of sentiment cascades.
-        </p>
-        <p>
-          <strong>How to read it:</strong> Select one of the events (e.g. LUNA collapse, Black Thursday, ETF approval) and click play. The system steps hour-by-hour through the day, updating the central needle gauge and displaying chronological parsed headline entries.
-        </p>
+      {/* Concept Explanation Card */}
+      <div className="border border-white/5 bg-[#0C0C0E]/30 rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-start font-sans text-xs leading-relaxed max-w-4xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
+        <div className="p-3 bg-amber-500/5 border border-amber-500/10 text-amber-400 rounded-xl shrink-0">
+          <Clock size={16} />
+        </div>
+        <div className="space-y-3 text-zinc-400">
+          <div>
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">Concept & Mechanics</h3>
+            <p>
+              A quantitative time-machine. Crypto history is filled with dramatic liquidations and sudden regulatory shifts. This simulator loads real-time database logs or historical event data to study chronological sentiment cascades as they occurred.
+            </p>
+          </div>
+          <div className="border-t border-white/5 pt-2">
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How to read it</h3>
+            <p>
+              Select either the <strong>[LIVE INGESTION] Database Logs Feed</strong> (for real-time timeline playback of your current DB state) or choose one of the pre-coded presets (FTX Crash, LUNA algorithmic depeg, etc.). Click play to step hour-by-hour through the logs, watching the gauge rotate and the event list update.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Select Event */}
@@ -828,6 +1061,9 @@ function EventPlaybackPanel() {
             }}
             className="bg-black border border-white/10 rounded-lg px-4 py-3 text-xs text-zinc-300 focus:outline-none w-full font-mono cursor-pointer hover:bg-zinc-950"
           >
+            <option value="real_time_ingest">
+              [LIVE INGESTION] Database Logs Feed ({symbol})
+            </option>
             {HISTORICAL_EVENTS.map((ev) => (
               <option key={ev.id} value={ev.id}>
                 {ev.name} ({ev.date})
@@ -905,10 +1141,22 @@ function EventPlaybackPanel() {
           </div>
 
           <h4 className="text-xs font-bold text-white font-sans">
-            {currentLog ? currentLog.title : "Initializing playback feeds..."}
+            {isLoadingDb 
+              ? "Accessing database telemetry..." 
+              : currentLog 
+              ? currentLog.title 
+              : logsCount === 0 
+              ? "No ingestion records found in database. Run cron or scraper to generate logs."
+              : "Initializing playback feeds..."}
           </h4>
-          <p className="text-[10px] text-zinc-500 italic font-mono leading-relaxed bg-[#050507] p-4 rounded-xl border border-white/5">
-            Llama 3.1 Verdict reasoning: {currentLog ? currentLog.reason : "Loading historical DB indexes..."}
+          <p className="text-[10px] text-zinc-500 italic font-mono leading-relaxed border-l border-amber-500/30 pl-4 py-1.5 bg-amber-500/[0.005]">
+            {isLoadingDb 
+              ? "Querying Neon pg_stat logs..." 
+              : dbError 
+              ? `Telemetry Error: ${dbError}`
+              : currentLog 
+              ? `Llama 3.1 Verdict reasoning: ${currentLog.reason}` 
+              : "Waiting to initiate chronological timeline player..."}
           </p>
         </div>
       </div>
@@ -917,7 +1165,7 @@ function EventPlaybackPanel() {
       <div className="space-y-2">
         <span className="text-[9px] text-zinc-500 font-bold uppercase font-mono">PLAYBACK TRACK LOGS</span>
         <div className="space-y-1.5 font-mono text-[10px] bg-[#050507] border border-white/5 rounded-xl p-4 h-36 overflow-y-auto scrollbar-none select-text">
-          {activeEvent.logs.slice(0, currentHourIdx + 1).map((log, idx) => (
+          {activeEvent?.logs?.slice(0, currentHourIdx + 1).map((log: any, idx: number) => (
             <div key={idx} className="flex justify-between py-1 border-b border-white/5 last:border-0">
               <span className="text-zinc-500">[{log.h}] <span className="text-white font-sans">{log.title}</span></span>
               <span className={log.score > 0 ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
@@ -997,14 +1245,25 @@ function WhaleVsRetailPanel({ data }: { data: AdvancedData }) {
         </h2>
       </div>
 
-      {/* Text Documentation */}
-      <div className="text-zinc-400 text-xs font-sans leading-relaxed space-y-3 max-w-2xl">
-        <p>
-          <strong>What it is:</strong> Evaluates institutional vs community consensus. The Whale Index compiles news and high-consensus upvoted items; the Retail Index averages generic subreddit comments. Divergences highlight whale accumulation or retail exhaustion bubbles.
-        </p>
-        <p>
-          <strong>How to read it:</strong> When the green line (Whales) crosses above the red line (Retail), it signals a contrarian buy setups as smart-money absorbs panic dumps. When the red line crosses above the green line (Retail FOMO), it signals potential market tops as retail rushes in while institutions distribute.
-        </p>
+      {/* Concept Explanation Card */}
+      <div className="border border-white/5 bg-[#0C0C0E]/30 rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-start font-sans text-xs leading-relaxed max-w-4xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
+        <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 text-emerald-400 rounded-xl shrink-0">
+          <ChartLineUp size={16} />
+        </div>
+        <div className="space-y-3 text-zinc-400">
+          <div>
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">Concept & Mechanics</h3>
+            <p>
+              This index evaluates structural differences between institutional/smart money positioning and community chatter. The <strong>Whale Index</strong> compiles RSS news publications and high-consensus upvoted items; the <strong>Retail Index</strong> aggregates generic social chatter.
+            </p>
+          </div>
+          <div className="border-t border-white/5 pt-2">
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How to read it</h3>
+            <p>
+              When the green line (Whales) crosses above the red line (Retail), it signals a <strong>contrarian buy setup</strong> (smart money absorbing panic). Conversely, when the red line crosses above the green line (Retail FOMO), it signals potential market exhaustion, suggesting retail is buying local tops while whales distribute.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Key color indicators */}
@@ -1043,6 +1302,905 @@ function WhaleVsRetailPanel({ data }: { data: AdvancedData }) {
           </span>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   6. TEMPORAL NARRATIVE TRAJECTORY TRACKER PANEL
+   ───────────────────────────────────────────────────────────────────────────── */
+function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
+  const [data, setData] = useState<{ lanes: any[]; links: any[] } | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCluster, setSelectedCluster] = useState<any>(null);
+  const [hoveredClusterId, setHoveredClusterId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadTrajectories = async () => {
+      setIsLoading(true);
+      setError(null);
+      setSelectedCluster(null);
+      try {
+        const res = await fetch(`/api/advanced/trajectories?symbol=${symbol}`);
+        if (!res.ok) throw new Error("Failed to load trajectory telemetry");
+        const json = await res.json();
+        setData(json);
+        
+        // Auto select first cluster if exists
+        const allClusters = json.lanes?.flatMap((l: any) => l.clusters) ?? [];
+        if (allClusters.length > 0) {
+          setSelectedCluster(allClusters[0]);
+        }
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || "Failed to parse database vector lanes");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadTrajectories();
+  }, [symbol]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-96 items-center justify-center text-xs text-zinc-650 animate-pulse font-mono tracking-widest bg-[#08080A]/20 border border-white/5 rounded-2xl">
+        CALCULATING COSINE CENTROID DISTANCES...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-20 text-rose-500 border border-white/5 bg-rose-500/5 rounded-2xl font-mono text-xs">
+        VECTOR RESOLUTION ERROR: {error}
+      </div>
+    );
+  }
+
+  const lanes = data?.lanes ?? [];
+  const links = data?.links ?? [];
+  const allClusters = lanes.flatMap((l) => l.clusters);
+
+  // Compute node coordinates
+  const width = 800;
+  const height = 280;
+  const paddingX = 60;
+  const paddingY = 40;
+
+  const coordsMap: { [id: string]: { x: number; y: number } } = {};
+
+  lanes.forEach((lane, lIdx) => {
+    const K = lane.clusters.length;
+    const x = paddingX + (lIdx / (lanes.length - 1 || 1)) * (width - paddingX * 2);
+    
+    lane.clusters.forEach((c: any, cIdx: number) => {
+      const y = K === 1 
+        ? height / 2 
+        : paddingY + (cIdx / (K - 1)) * (height - paddingY * 2);
+      coordsMap[c.id] = { x, y };
+    });
+  });
+
+  const getDotColor = (score: number) => {
+    if (score > 15) return "#10B981"; // Bullish green
+    if (score < -15) return "#F43F5E"; // Bearish red
+    return "#71717A"; // Neutral gray
+  };
+
+  return (
+    <div className="space-y-8 w-full">
+      {/* Visual Header */}
+      <div className="space-y-2">
+        <SectionEyebrow icon={<Sparkle size={10} className="text-fuchsia-400" />}>
+          VECTOR TRAJECTORIES
+        </SectionEyebrow>
+        <h2 className="text-3xl font-extrabold text-white font-sans tracking-tight">
+          Temporal Narrative Trajectory Tracker
+        </h2>
+      </div>
+
+      {/* Concept Explanation Card */}
+      <div className="border border-white/5 bg-[#0C0C0E]/30 rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-start font-sans text-xs leading-relaxed max-w-4xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
+        <div className="p-3 bg-fuchsia-500/5 border border-fuchsia-500/10 text-fuchsia-400 rounded-xl shrink-0">
+          <Sparkle size={16} />
+        </div>
+        <div className="space-y-3 text-zinc-400">
+          <div>
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">Concept & Mechanics</h3>
+            <p>
+              Narratives in crypto are organic and shift shapes dynamically. By dividing records into chronological lanes, calculating vector embeddings, and running a Leader Clustering algorithm, this map identifies how topics split, persist, or merge together over time.
+            </p>
+          </div>
+          <div className="border-t border-white/5 pt-2">
+            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How to read it</h3>
+            <p>
+              Each column is a calendar date. Circular nodes represent cluster centroids (size represents record volume, color represents average sentiment). The curves connecting nodes are <strong>semantic filaments</strong>. A connection represents high cosine similarity ($&gt;0.81$) of centroids from day-to-day. Click any node to open the Detail Cockpit.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Interactive Visual Graph & Detail Card Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Filament Map */}
+        <div className="lg:col-span-8 bg-[#08080A] border border-white/5 rounded-2xl p-4 relative overflow-hidden shadow-[0_0_40px_-10px_rgba(217,70,239,0.015)]">
+          <div className="flex justify-between items-baseline mb-4 font-mono text-[9px] text-zinc-500 uppercase tracking-widest">
+            <span>Semantic Trajectory Map ({symbol})</span>
+            <span className="flex gap-3">
+              <span className="text-emerald-400">● BULLISH</span>
+              <span className="text-zinc-500">● NEUTRAL</span>
+              <span className="text-rose-400">● BEARISH</span>
+            </span>
+          </div>
+
+          {lanes.length === 0 ? (
+            <div className="h-[280px] flex items-center justify-center text-zinc-650 text-xs font-sans">
+              No trajectory filaments resolved in the database.
+            </div>
+          ) : (
+            <div className="relative w-full h-[280px] select-none">
+              <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+                <defs>
+                  <filter id="node-glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+
+                {/* Day Columns Labels Grid */}
+                {lanes.map((lane, lIdx) => {
+                  const x = paddingX + (lIdx / (lanes.length - 1 || 1)) * (width - paddingX * 2);
+                  return (
+                    <g key={lane.day}>
+                      <line x1={x} y1={20} x2={x} y2={height - 20} stroke="rgba(255,255,255,0.015)" strokeDasharray="3 3" />
+                      <text x={x} y={15} textAnchor="middle" className="font-mono text-[9px] fill-zinc-600 font-bold uppercase tracking-wider">
+                        {lane.day}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* Connection lines */}
+                {links.map((link, idx) => {
+                  const start = coordsMap[link.source];
+                  const end = coordsMap[link.target];
+                  if (!start || !end) return null;
+
+                  const isHovered = hoveredClusterId === link.source || hoveredClusterId === link.target;
+                  const isSelected = selectedCluster?.id === link.source || selectedCluster?.id === link.target;
+                  const cpX = (start.x + end.x) / 2;
+
+                  return (
+                    <path
+                      key={idx}
+                      d={`M ${start.x} ${start.y} C ${cpX} ${start.y}, ${cpX} ${end.y}, ${end.x} ${end.y}`}
+                      fill="none"
+                      stroke={isHovered ? "#f472b6" : isSelected ? "rgba(168,85,247,0.7)" : "rgba(168,85,247,0.15)"}
+                      strokeWidth={isHovered ? 2.5 : isSelected ? 2.0 : 1.2}
+                      className="transition-all duration-300"
+                    />
+                  );
+                })}
+
+                {/* Narrative Nodes */}
+                {Object.keys(coordsMap).map((id) => {
+                  const coords = coordsMap[id];
+                  const cluster = allClusters.find((c) => c.id === id);
+                  if (!cluster) return null;
+
+                  const color = getDotColor(cluster.score);
+                  const isSelected = selectedCluster?.id === id;
+                  const isHovered = hoveredClusterId === id;
+
+                  return (
+                    <g
+                      key={id}
+                      className="cursor-pointer"
+                      onClick={() => setSelectedCluster(cluster)}
+                      onMouseEnter={() => setHoveredClusterId(id)}
+                      onMouseLeave={() => setHoveredClusterId(null)}
+                    >
+                      <circle
+                        cx={coords.x}
+                        cy={coords.y}
+                        r={isSelected ? 7 + Math.min(cluster.volume, 8) : 5 + Math.min(cluster.volume, 6)}
+                        fill={color}
+                        stroke={isSelected ? "#fff" : isHovered ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.08)"}
+                        strokeWidth={isSelected ? 1.5 : 0.8}
+                        filter={isSelected ? "url(#node-glow)" : "none"}
+                        className="transition-all duration-300"
+                      />
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          )}
+        </div>
+
+        {/* Narrative Detail Cockpit */}
+        <div className="lg:col-span-4 h-[330px]">
+          {selectedCluster ? (
+            <div className="border border-white/5 bg-[#08080A]/60 rounded-2xl p-6 h-full flex flex-col justify-between font-mono text-[10px] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)] relative overflow-hidden">
+              <div className="space-y-3 overflow-y-auto max-h-[190px] pr-1 scrollbar-none">
+                <div className="flex justify-between items-baseline border-b border-white/5 pb-2 text-[9px] text-zinc-500">
+                  <span className="uppercase">NARRATIVE DETAIL COCKPIT</span>
+                  <span className="text-zinc-650 uppercase font-bold">{selectedCluster.volume} RECORDS</span>
+                </div>
+
+                <h4 className="text-xs font-bold text-white font-sans leading-snug">
+                  {selectedCluster.headlines[0] || "Thematic Narrative Cluster"}
+                </h4>
+
+                <div className="space-y-2 mt-2 pt-2 border-t border-white/5">
+                  <span className="text-[8px] text-zinc-500 font-bold block uppercase tracking-wider">REPRESENTATIVE CLUSTER THEMES</span>
+                  <ul className="list-disc list-inside space-y-1 text-zinc-400 font-sans leading-relaxed text-[9px]">
+                    {selectedCluster.headlines.slice(0, 3).map((hl: string, idx: number) => (
+                      <li key={idx} className="line-clamp-2">{hl}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                {selectedCluster.reasons.length > 0 && (
+                  <div className="space-y-1.5 mt-2.5 border-l border-fuchsia-500/30 pl-3 py-1 bg-fuchsia-500/[0.005]">
+                    <span className="text-[8px] text-zinc-500 font-bold block uppercase tracking-wider font-mono">LLAMA REASONING SYNTHESIS</span>
+                    <p className="text-zinc-400 font-sans italic leading-relaxed text-[9px] line-clamp-3">
+                      "{selectedCluster.reasons[0]}"
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 pt-3 border-t border-white/5 bg-[#08080A]/60 shrink-0">
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-zinc-500 uppercase tracking-widest">CLUSTER WEIGHT:</span>
+                  <span
+                    className={`font-mono font-bold px-2 py-0.5 rounded text-[9px] ${
+                      selectedCluster.score > 15
+                        ? "bg-emerald-950/20 text-emerald-400 border border-emerald-500/20"
+                        : selectedCluster.score < -15
+                        ? "bg-rose-950/20 text-rose-400 border border-rose-500/20"
+                        : "bg-zinc-900 text-zinc-400 border border-white/5"
+                    }`}
+                  >
+                    {selectedCluster.score > 0 ? "+" : ""}
+                    {selectedCluster.score}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="border border-dashed border-white/5 rounded-2xl h-full flex items-center justify-center text-center p-6 text-zinc-650 text-xs">
+              Click any node in the temporal filament map to retrieve granular AI vector narrative records.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DOCUMENTATION MANUALS FOR INDIVIDUAL ADVANCED TOOLS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+function LagCorrelationDocs() {
+  const [activeSec, setActiveSec] = useState("overview");
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const secs = ["overview", "math", "interpretation", "application"];
+      const scrollPos = window.scrollY + 250;
+      for (const s of secs) {
+        const el = document.getElementById(`lag-${s}`);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPos >= top && scrollPos < top + height) {
+            setActiveSec(s);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(`lag-${id}`);
+    if (el) {
+      window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" });
+      setActiveSec(id);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-650 font-bold uppercase tracking-widest">Outline</span>
+        <nav className="flex flex-col gap-2">
+          {[
+            { id: "overview", label: "1. Core Objectives" },
+            { id: "math", label: "2. Pearson Formula" },
+            { id: "interpretation", label: "3. Coefficient Ranges" },
+            { id: "application", label: "4. Strategic Plays" }
+          ].map((sec) => (
+            <button
+              key={sec.id}
+              onClick={() => scrollTo(sec.id)}
+              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
+                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {sec.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+      <main className="lg:col-span-9 text-zinc-300 text-sm leading-relaxed space-y-12 pl-4">
+        <section id="lag-overview" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            1. Core Concept & Objectives
+          </h3>
+          <p>
+            The Sentiment-Price Lag Correlation tool measures the temporal lead-lag relationship between community emotions and market valuations. Social narratives require processing time before translating into spot buying or selling orders.
+          </p>
+          <p>
+            By shifting sentiment series by progressive lag steps (H hours), this tool uncovers whether changes in public narrative act as a leading indicator of price action, or merely reflect price changes post-factum.
+          </p>
+        </section>
+        <section id="lag-math" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            2. Pearson Correlation Formula
+          </h3>
+          <p>
+            We calculate the Pearson product-moment correlation coefficient (<span className="font-mono text-zinc-200">r</span>) on rolling hourly intervals, introducing a temporal shift:
+          </p>
+          <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-xs my-3 max-w-xl">
+            r_lag(L) = Cov(Sentiment_t, Price_t+L) / (σ_sent * σ_price)
+          </div>
+          <p>
+            Where <span className="font-mono text-zinc-200">L</span> is the lag offset in hours, and <span className="font-mono text-zinc-200">σ</span> represents the standard deviation of each dataset.
+          </p>
+        </section>
+        <section id="lag-interpretation" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            3. Coefficient Ranges
+          </h3>
+          <ul className="list-disc pl-5 space-y-2">
+            <li><strong>r &gt; 0.5:</strong> Strong correlation. Sentiment changes are closely paired with price shifts at the specified lag.</li>
+            <li><strong>r &asymp; 0.0:</strong> Decoupled. Price shifts and community chatter operate independently.</li>
+            <li><strong>r &lt; -0.3:</strong> Inverse correlation. Spikes in retail sentiment correspond to price declines, indicating counter-trend capitulations.</li>
+          </ul>
+        </section>
+        <section id="lag-application" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            4. Strategic Applications
+          </h3>
+          <p>
+            Traders use the lag correlation peak to time execution. If correlation peaks at a 4-hour positive lag, sentiment spikes can be used as early execution signals for spot buying before the trend completes.
+          </p>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function AnomalyEngineDocs() {
+  const [activeSec, setActiveSec] = useState("overview");
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const secs = ["overview", "math", "interpretation", "application"];
+      const scrollPos = window.scrollY + 250;
+      for (const s of secs) {
+        const el = document.getElementById(`anomaly-${s}`);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPos >= top && scrollPos < top + height) {
+            setActiveSec(s);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(`anomaly-${id}`);
+    if (el) {
+      window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" });
+      setActiveSec(id);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-650 font-bold uppercase tracking-widest">Outline</span>
+        <nav className="flex flex-col gap-2">
+          {[
+            { id: "overview", label: "1. Core Objectives" },
+            { id: "math", label: "2. Z-Score Formula" },
+            { id: "interpretation", label: "3. Signal Triggers" },
+            { id: "application", label: "4. Exhaustion Playbook" }
+          ].map((sec) => (
+            <button
+              key={sec.id}
+              onClick={() => scrollTo(sec.id)}
+              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
+                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {sec.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+      <main className="lg:col-span-9 text-zinc-300 text-sm leading-relaxed space-y-12 pl-4">
+        <section id="anomaly-overview" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            1. Core Concept & Objectives
+          </h3>
+          <p>
+            The Anomaly Engine flags structural divergences between price velocity and community sentiment. Usually, price and sentiment are positively correlated. When they decouple, it signals underlying exhaustion or hidden distribution.
+          </p>
+        </section>
+        <section id="anomaly-math" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            2. Z-Score Divergence Formula
+          </h3>
+          <p>
+            The divergence indicator compares standard deviation changes using Z-Scores:
+          </p>
+          <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-xs my-3 max-w-xl">
+            Z_diff = Z_Price_Change - Z_Sentiment_Change
+          </div>
+          <p>
+            Where:
+          </p>
+          <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-xs text-zinc-400 font-mono space-y-1.5 max-w-xl">
+            <div>Z_Price = (P_t - μ_p) / σ_p</div>
+            <div>Z_Sentiment = (S_t - μ_s) / σ_s</div>
+          </div>
+        </section>
+        <section id="anomaly-interpretation" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            3. Signal Trigger Logic
+          </h3>
+          <ul className="list-disc pl-5 space-y-2">
+            <li><strong>Bullish Divergence (Z_diff &lt; -2.0):</strong> Price is declining sharply but sentiment is stable or rising. Often denotes high-conviction retail accumulation.</li>
+            <li><strong>Bearish Divergence (Z_diff &gt; 2.0):</strong> Price is rising on flat or dropping sentiment, denoting structural distribution.</li>
+          </ul>
+        </section>
+        <section id="anomaly-application" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            4. Market Exhaustion Playbook
+          </h3>
+          <p>
+            When a Bearish Divergence occurs during a breakout, it indicates that the rally is driven by thin liquidity and is not backed by broader sentiment, suggesting caution for long positions.
+          </p>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function NarrativeClusteringDocs() {
+  const [activeSec, setActiveSec] = useState("overview");
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const secs = ["overview", "math", "interpretation", "application"];
+      const scrollPos = window.scrollY + 250;
+      for (const s of secs) {
+        const el = document.getElementById(`cluster-${s}`);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPos >= top && scrollPos < top + height) {
+            setActiveSec(s);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(`cluster-${id}`);
+    if (el) {
+      window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" });
+      setActiveSec(id);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-650 font-bold uppercase tracking-widest">Outline</span>
+        <nav className="flex flex-col gap-2">
+          {[
+            { id: "overview", label: "1. Core Objectives" },
+            { id: "math", label: "2. Vectors & Clouds" },
+            { id: "interpretation", label: "3. Centroids" },
+            { id: "application", label: "4. Catalyst Shifts" }
+          ].map((sec) => (
+            <button
+              key={sec.id}
+              onClick={() => scrollTo(sec.id)}
+              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
+                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {sec.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+      <main className="lg:col-span-9 text-zinc-300 text-sm leading-relaxed space-y-12 pl-4">
+        <section id="cluster-overview" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            1. Core Concept & Objectives
+          </h3>
+          <p>
+            Narrative Clouds group unstructured raw posts and news stories into cohesive semantic categories using vector embeddings. This allows users to look past social media noise and focus on the main drivers of market psychology.
+          </p>
+        </section>
+        <section id="cluster-math" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            2. Embedding Vectors & Projections
+          </h3>
+          <p>
+            Articles are embedded using the Nvidia NIM Llama 3.1 8B Instruct model to generate 1536-dimensional semantic coordinates:
+          </p>
+          <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-xs my-3 max-w-xl">
+            V_post = Llama_3.1_Embed(Post_Content)
+          </div>
+          <p>
+            These high-dimensional vectors are projected into a readable 2D scatter cloud.
+          </p>
+        </section>
+        <section id="cluster-interpretation" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            3. Narrative Centroids
+          </h3>
+          <p>
+            Densely populated regions represent active market narratives. The engine groups them using leader-clustering algorithms to establish central centroids (representing topics like "Fed rate cuts", "ETF inflows", or "liquidation panics").
+          </p>
+        </section>
+        <section id="cluster-application" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            4. Identifying Catalyst Shifts
+          </h3>
+          <p>
+            Users can monitor the growth or decline of specific topic clusters over time to detect shifts in market attention before they manifest in price momentum.
+          </p>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function EventPlaybackDocs() {
+  const [activeSec, setActiveSec] = useState("overview");
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const secs = ["overview", "logic", "interpretation", "application"];
+      const scrollPos = window.scrollY + 250;
+      for (const s of secs) {
+        const el = document.getElementById(`playback-${s}`);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPos >= top && scrollPos < top + height) {
+            setActiveSec(s);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(`playback-${id}`);
+    if (el) {
+      window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" });
+      setActiveSec(id);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-650 font-bold uppercase tracking-widest">Outline</span>
+        <nav className="flex flex-col gap-2">
+          {[
+            { id: "overview", label: "1. Core Objectives" },
+            { id: "logic", label: "2. Sync Logic" },
+            { id: "interpretation", label: "3. Sentiment Shifts" },
+            { id: "application", label: "4. Velocity Backtesting" }
+          ].map((sec) => (
+            <button
+              key={sec.id}
+              onClick={() => scrollTo(sec.id)}
+              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
+                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {sec.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+      <main className="lg:col-span-9 text-zinc-300 text-sm leading-relaxed space-y-12 pl-4">
+        <section id="playback-overview" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            1. Machine Objectives
+          </h3>
+          <p>
+            The Historical Playback engine is an interactive tool that allows strategists to replay historical market cycles hour-by-hour to study how narratives react during key periods.
+          </p>
+        </section>
+        <section id="playback-logic" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            2. Timeline Synchronization Logic
+          </h3>
+          <p>
+            This engine queries historical database logs sequentially, syncing prices, funding rates, and AI post sentiment to reconstruct the market state at each time step.
+          </p>
+        </section>
+        <section id="playback-interpretation" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            3. Sentiment Phase Transitions
+          </h3>
+          <p>
+            Users can watch the transition from high-conviction optimism to extreme panic, charting how fast social boards capitulate during sudden deleveraging events.
+          </p>
+        </section>
+        <section id="playback-application" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            4. Velocity Backtesting
+          </h3>
+          <p>
+            Helps quantitative modelers map the speed at which news moves through different channels—from official feeds to social media amplification.
+          </p>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function WhaleVsRetailDocs() {
+  const [activeSec, setActiveSec] = useState("overview");
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const secs = ["overview", "math", "interpretation", "application"];
+      const scrollPos = window.scrollY + 250;
+      for (const s of secs) {
+        const el = document.getElementById(`whale-${s}`);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPos >= top && scrollPos < top + height) {
+            setActiveSec(s);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(`whale-${id}`);
+    if (el) {
+      window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" });
+      setActiveSec(id);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-650 font-bold uppercase tracking-widest">Outline</span>
+        <nav className="flex flex-col gap-2">
+          {[
+            { id: "overview", label: "1. Core Objectives" },
+            { id: "math", label: "2. Net Flow Logic" },
+            { id: "interpretation", label: "3. Divergence States" },
+            { id: "application", label: "4. Warning System" }
+          ].map((sec) => (
+            <button
+              key={sec.id}
+              onClick={() => scrollTo(sec.id)}
+              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
+                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {sec.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+      <main className="lg:col-span-9 text-zinc-300 text-sm leading-relaxed space-y-12 pl-4">
+        <section id="whale-overview" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            1. Core Concept & Objectives
+          </h3>
+          <p>
+            This layer compares institutional smart-money flows (on-chain transfers &gt; $100k USD) against retail social media activity to identify market participation structure.
+          </p>
+        </section>
+        <section id="whale-math" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            2. Net Flow Calculation
+          </h3>
+          <p>
+            Tracks the net balance of large wallet activity:
+          </p>
+          <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-xs my-3 max-w-xl">
+            Whale_Net_Flow = Inflows_to_Exchanges - Outflows_to_Cold_Storage
+          </div>
+          <p>
+            Positive net flow indicates whales are moving assets to exchanges to sell, while negative net flow indicates cold-storage accumulation.
+          </p>
+        </section>
+        <section id="whale-interpretation" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            3. Divergence States
+          </h3>
+          <ul className="list-disc pl-5 space-y-2">
+            <li><strong>Institutional Accumulation:</strong> Whale net flows are negative (cold storage withdrawals) while retail sentiment is low. This suggests a potential market bottom.</li>
+            <li><strong>Retail Exit Liquidity:</strong> High retail sentiment and post volume coupled with positive whale exchange inflows, indicating distribution to retail buyers.</li>
+          </ul>
+        </section>
+        <section id="whale-application" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            4. Exit Liquidity Warning System
+          </h3>
+          <p>
+            Helps traders identify when high social media optimism is being met with institutional selling, protecting against getting caught in distribution phases.
+          </p>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function NarrativeTrajectoriesDocs() {
+  const [activeSec, setActiveSec] = useState("overview");
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const secs = ["overview", "math", "interpretation", "application"];
+      const scrollPos = window.scrollY + 250;
+      for (const s of secs) {
+        const el = document.getElementById(`trajectory-${s}`);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPos >= top && scrollPos < top + height) {
+            setActiveSec(s);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(`trajectory-${id}`);
+    if (el) {
+      window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" });
+      setActiveSec(id);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
+        <span className="text-[10px] text-zinc-650 font-bold uppercase tracking-widest">Outline</span>
+        <nav className="flex flex-col gap-2">
+          {[
+            { id: "overview", label: "1. Core Objectives" },
+            { id: "math", label: "2. Cosine Similarity" },
+            { id: "interpretation", label: "3. Trajectory Paths" },
+            { id: "application", label: "4. Lifecycle Tracking" }
+          ].map((sec) => (
+            <button
+              key={sec.id}
+              onClick={() => scrollTo(sec.id)}
+              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
+                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {sec.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+      <main className="lg:col-span-9 text-zinc-300 text-sm leading-relaxed space-y-12 pl-4">
+        <section id="trajectory-overview" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            1. Core Concept & Objectives
+          </h3>
+          <p>
+            Narrative Trajectories (Vector Filaments) track the lifecycle of thematic categories, mapping how topics grow, merge, and decay across the vector space over time.
+          </p>
+        </section>
+        <section id="trajectory-math" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            2. Cosine Similarity Formula
+          </h3>
+          <p>
+            Traces connections between daily leader clustering centroids using Cosine Similarity thresholds:
+          </p>
+          <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-xs my-3 max-w-xl">
+            Cosine_Sim(A, B) = (A • B) / (||A|| * ||B||)
+          </div>
+          <p>
+            If the similarity between consecutive centroids exceeds the threshold, a filament is drawn to connect them.
+          </p>
+        </section>
+        <section id="trajectory-interpretation" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            3. Filament Trajectory Paths
+          </h3>
+          <p>
+            Stronger, wider filaments indicate high-density, persistent narrative trends, while thin, fading filaments show topics that are losing community interest.
+          </p>
+        </section>
+        <section id="trajectory-application" className="scroll-mt-28 space-y-4">
+          <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            4. Tracking Long-Term Sentiment Lifecycles
+          </h3>
+          <p>
+            Helps quantitative modelers visualize the evolution of narrative patterns, identifying which themes persist across cycles.
+          </p>
+        </section>
+      </main>
     </div>
   );
 }

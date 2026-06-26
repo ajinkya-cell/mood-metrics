@@ -88,8 +88,8 @@ export default function TerminalLoader({ symbol }: TerminalLoaderProps) {
           
           {/* Laser scanning sweep */}
           <motion.div
-            className="absolute inset-x-2 h-[1px] bg-emerald-400/70 shadow-[0_0_8px_#34d399] z-10 pointer-events-none"
-            animate={{ y: [6, 58, 6] }}
+            className="absolute top-0 inset-x-2 h-[1px] bg-emerald-400/70 shadow-[0_0_8px_#34d399] z-10 pointer-events-none"
+            animate={{ y: [4, 60, 4] }}
             transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
           />
 

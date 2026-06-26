@@ -127,7 +127,7 @@ export default function LandingPage() {
               <span className="text-emerald-400">SYNC_OK</span>
             </div>
 
-            <div className="space-y-4 font-mono">
+            <div className="divide-y divide-white/5 font-mono">
               {[
                 { name: "Bitcoin", sym: "BTC", score: 42, price: "$95,240", change: "+1.2%" },
                 { name: "Ethereum", sym: "ETH", score: 12, price: "$3,120", change: "-0.4%" },
@@ -136,7 +136,7 @@ export default function LandingPage() {
                 <Link
                   key={coin.sym}
                   href="/dashboard"
-                  className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-black/40 hover:border-white/15 transition-all duration-300 group"
+                  className="flex items-center justify-between py-4 px-2 hover:bg-white/[0.015] rounded-xl transition-all duration-300 group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center text-sm font-bold text-zinc-300">

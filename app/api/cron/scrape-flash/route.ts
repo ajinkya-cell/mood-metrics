@@ -22,6 +22,7 @@ import { scrapeCoinGecko } from "@/lib/scrapers/coingecko";
 import { scrapeNewsRSS } from "@/lib/scrapers/news";
 import { scrapeFearGreed } from "@/lib/scrapers/fear-greed";
 import { scrapeBinanceFundingRate } from "@/lib/scrapers/binance-funding";
+import { scrapeWhaleData } from "@/lib/scrapers/whale-tracker";
 
 export const maxDuration = 90; // increased from 60 to account for extra API calls
 
@@ -50,10 +51,11 @@ export async function POST(req: Request) {
     for (const ticker of activeTickers) {
       console.log(`[FlashCron] === ${ticker.symbol} ===`);
 
-      const [geckoCount, newsCount, fundingResult] = await Promise.allSettled([
+      const [geckoCount, newsCount, fundingResult, whaleResult] = await Promise.allSettled([
         scrapeCoinGecko(ticker, { force }),
         scrapeNewsRSS(ticker, { force }),
         scrapeBinanceFundingRate(ticker, { force }),
+        scrapeWhaleData(ticker, { force }),
       ]).then((r) =>
         r.map((result) => (result.status === "fulfilled" ? result.value : null))
       );
@@ -62,6 +64,7 @@ export async function POST(req: Request) {
         coingecko: geckoCount ?? 0,
         news: newsCount ?? 0,
         fundingRate: fundingResult ? "ok" : "failed",
+        whaleNetFlow: whaleResult ? "ok" : "failed",
       };
     }
 
