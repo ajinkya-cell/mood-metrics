@@ -304,7 +304,7 @@ export default function BacktesterPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-12 select-none overflow-hidden pb-20 font-mono">
+    <div className="w-full max-w-7xl mx-auto px-6 pt-25 py-12 select-none overflow-hidden pb-20 font-mono">
       {/* Header */}
       <div className="mb-10 border-b border-white/5 pb-8">
         <SectionEyebrow icon={<Sliders size={12} className="text-emerald-400" />}>
@@ -316,47 +316,6 @@ export default function BacktesterPage() {
         <p className="text-zinc-500 text-sm mt-1 max-w-2xl font-sans leading-relaxed">
           Simulate trading rules on historical sentiment data parameters. Set entry limits based on bullish sentiment surges and exit conditions to avoid capital drawdown.
         </p>
-      </div>
-
-      {/* Concept Explanation Card */}
-      <div className="border-l-2 border-emerald-500/40 bg-emerald-500/[0.015] rounded-r-2xl pl-6 pr-5 py-5 flex flex-col md:flex-row gap-4 items-start font-sans text-xs leading-relaxed max-w-7xl shadow-[0_2px_12px_-3px_rgba(16,185,129,0.01)] mb-8">
-        <div className="p-2.5 bg-emerald-500/5 border border-emerald-500/10 text-emerald-400 rounded-xl shrink-0">
-          <BookOpen size={16} />
-        </div>
-        <div className="space-y-3 text-zinc-400">
-          <div>
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">Concept & Mechanics</h3>
-            <p>
-              The Strategy Backtester allows quantitative evaluation of trading rules by simulating historical performance directly over real database assets pricing and sentiment logs. By tracking historical entry and exit timestamps, it evaluates whether psychology-driven signals can yield active market outperformance against passive holding strategies.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-white/5 pt-3">
-            <div>
-              <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How it is calculated</h3>
-              <p className="text-[11px] text-zinc-500">
-                The backtest scanner queries the daily timeseries table joining historical sentiment scores with asset spot prices. At each step:
-                <br />
-                • <strong>Trend Following</strong> opens a long trade when sentiment exceeds the entry limit, and exits when it falls below the exit threshold.
-                <br />
-                • <strong>Contrarian Reversion</strong> does the opposite, buying panic dips (highly negative sentiment) and distributing during euphoria.
-                <br />
-                Calculated metrics include Cumulative Yield %, Sharpe Ratio (risk-adjusted return against baseline volatility), and Max Drawdown % (worst peak-to-trough equity drop).
-              </p>
-            </div>
-            <div>
-              <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How to use it</h3>
-              <p className="text-[11px] text-zinc-500">
-                1. Select the target asset token (e.g. BTC, ETH, SOL).
-                <br />
-                2. Choose the trading strategy model (Trend vs. Contrarian).
-                <br />
-                3. Configure Entry/Exit threshold limits (e.g. buy at +20, sell at -10).
-                <br />
-                4. Define initial capital coordinates and execute. View trade count, win rate, and HODL benchmark comparison.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

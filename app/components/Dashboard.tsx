@@ -187,7 +187,7 @@ export default function Dashboard() {
   const needleCoords = data ? getNeedleCoordinates(data.sentiment.score) : { x: 80, y: 25 };
 
   return (
-    <div className="min-h-[100dvh] w-full bg-[#050505] text-zinc-100 font-sans antialiased overflow-x-hidden pb-16">
+    <div className="min-h-[100dvh] w-full pt-20 bg-[#050505] text-zinc-100 font-sans antialiased overflow-x-hidden pb-16">
       <main className="max-w-7xl mx-auto px-4 pt-6">
         {/* Minimal Dashboard Header */}
         <div className="mb-8 pb-6 border-b border-white/5">

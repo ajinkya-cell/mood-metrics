@@ -62,7 +62,7 @@ export default function MethodologyPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-12 pb-20">
+    <div className="w-full max-w-7xl mx-auto pt-25 px-6 py-12 pb-20">
       {/* Page Header */}
       <div className="mb-12 border-b border-white/5 pb-8">
         <SectionEyebrow icon={<BookOpen size={12} className="text-emerald-400" />}>

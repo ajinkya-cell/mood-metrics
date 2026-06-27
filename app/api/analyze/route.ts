@@ -207,8 +207,8 @@ export async function GET(req: NextRequest) {
   const whaleLabel = latestWhale?.label ?? "neutral";
   const whaleTransactions = whaleMetadata.transactions ?? [];
 
-  // ── Step 4: Calculate flash score from recent CoinGecko + News posts ──────
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  // ── Step 4: Calculate flash score from recent CoinGecko + News posts (last 24 hours) ──────
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const flashPosts = await db
     .select({
@@ -222,7 +222,7 @@ export async function GET(req: NextRequest) {
     .where(
       and(
         eq(rawPosts.tickerId, ticker.id),
-        gte(rawPosts.postedAt, twoHoursAgo),
+        gte(rawPosts.postedAt, twentyFourHoursAgo),
         // Flash layer: coingecko + news only
         // (reddit handled separately in timeseries)
       )

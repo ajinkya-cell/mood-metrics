@@ -259,7 +259,7 @@ export default function SentimentRecordsPage() {
     return (
       <div ref={chartContainerRef} className="w-full">
         {/* Scrub tooltip */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-4 font-mono text-xs text-zinc-400">
+        <div className="flex flex-col md:flex-row  justify-between items-start md:items-center gap-2 mb-4 font-mono text-xs text-zinc-400">
           <div>
             <span className="text-[10px] text-zinc-500 uppercase tracking-widest block">
               CHRONOLOGICAL AI SENTIMENT TIMELINE
@@ -591,7 +591,7 @@ export default function SentimentRecordsPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-8 py-16 select-none overflow-hidden pb-28 font-mono text-lg">
+    <div className="w-full max-w-7xl mx-auto px-8 py-16 pt-25 select-none overflow-hidden pb-28 font-mono text-lg">
       {/* Header section */}
       <div className="mb-12 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 border-b border-white/5 pb-10">
         <div className="space-y-4">
@@ -605,36 +605,29 @@ export default function SentimentRecordsPage() {
             Browse through exact AI-classified market telemetry. Deep dive into every scraped headline and Reddit post, inspect Nvidia Llama 3.1 confidence indicators, and study chronological volume spikes.
           </p>
 
-          {/* Asset component filter dropdown (Refined & Tasteful Pill) */}
-          <div className="mt-4 inline-flex items-center gap-3 bg-[#0C0C0E]/80 border border-white/10 rounded-xl px-4 py-2 shadow-lg hover:border-white/20 transition-all">
-            <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider font-mono shrink-0">
-              ACTIVE COIN:
-            </span>
-            <select
-              value={selectedSymbol}
-              onChange={(e) => {
-                setSelectedSymbol(e.target.value);
-                setPage(0);
-              }}
-              className="bg-transparent text-sm text-white font-extrabold focus:outline-none transition-colors font-sans cursor-pointer hover:text-emerald-400 pr-2 select-none"
-            >
-              <option value="ALL" className="bg-[#0C0C0E] text-zinc-300 font-sans">ALL TICKERS</option>
-              {tickersList.map((t) => (
-                <option key={t.symbol} value={t.symbol} className="bg-[#0C0C0E] text-white font-sans">
-                  {t.symbol} — {t.name}
-                </option>
-              ))}
-            </select>
+          {/* Minimal Ticker Selector */}
+          <div className="mt-4 flex items-center gap-3 md:gap-4 font-mono text-xs tracking-widest select-none">
+            <span className="text-zinc-500 font-bold">ACTIVE COIN:</span>
+            {["ALL", "BTC", "ETH", "SOL"].map((sym) => {
+              const isActive = selectedSymbol === sym;
+              return (
+                <button
+                  key={sym}
+                  onClick={() => {
+                    setSelectedSymbol(sym);
+                    setPage(0);
+                  }}
+                  className={`cursor-pointer py-0.5 transition-all duration-200 hover:text-white ${
+                    isActive
+                      ? "text-emerald-400 font-extrabold border-b-2 border-emerald-500/80 px-0.5"
+                      : "text-zinc-500"
+                  }`}
+                >
+                  {sym}
+                </button>
+              );
+            })}
           </div>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 px-6 py-4 border border-white/15 bg-[#0C0C0E] hover:bg-white/5 text-zinc-300 hover:text-white rounded-xl text-base md:text-lg transition-all font-extrabold tracking-wider"
-          >
-            <ArrowLeft size={18} /> BACK TO DASHBOARD
-          </Link>
         </div>
       </div>
 
