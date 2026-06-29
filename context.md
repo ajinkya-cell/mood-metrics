@@ -9,21 +9,21 @@ A **Next.js** web application that aggregates cryptocurrency market sentiment fr
 ## Architecture (Four-Layer Sentiment)
 
 ```
-  ┌── Flash (40%) ──┐ ┌─ Historic (30%) ┐ ┌─ Funding (15%) ─┐ ┌─ F&G (15%) ─┐
+  ┌── Flash (45%) ──┐ ┌─ Historic (35%) ┐ ┌─ Funding (15%) ─┐ ┌─ F&G (5%) ─┐
   │ CoinGecko + RSS  │ │    Reddit AI    │ │ Binance Futures │ │ alternative  │
   └────────┬─────────┘ └────────┬────────┘ └────────┬────────┘ └──────┬──────┘
            └────────────────────┼────────────────────┼────────────────┘
                                 ▼
                        ┌────────────────┐
                        │ /api/analyze   │
-                       │  40/30/15/15   │
+                       │   45/35/15/5   │
                        └────────────────┘
 ```
 
-1. **Flash Layer** (40% weight) — Combines CoinGecko news updates and crypto news RSS feeds. Refreshed dynamically on user request or every 30 minutes.
-2. **Historical Layer** (30% weight) — Reddit subreddit post scraping and AI sentiment analysis. Pre-aggregated into hourly buckets. Refreshed via cron every 6 hours.
+1. **Flash Layer** (45% weight) — Combines CoinGecko news updates and crypto news RSS feeds. Refreshed dynamically on user request or every 30 minutes.
+2. **Historical Layer** (35% weight) — Reddit subreddit post scraping and AI sentiment analysis. Pre-aggregated into hourly buckets. Refreshed via cron every 6 hours.
 3. **Funding Rates Layer** (15% weight) — Binance perpetual funding rates scraper. Reflects leveraged market positioning. Normalized on a `-1.0` (highly bearish leverage) to `+1.0` (highly bullish leverage) scale, capped at `±0.10%`. Refreshed every 30 minutes.
-4. **Fear & Greed Layer** (15% weight) — Global crypto Fear & Greed Index from alternative.me. Normalized from its `0..100` range to a `-1.0` to `+1.0` scale. Refreshed every 30 minutes.
+4. **Fear & Greed Layer** (5% weight) — Global crypto Fear & Greed Index from alternative.me. Normalized from its `0..100` range to a `-1.0` to `+1.0` scale. Refreshed every 30 minutes.
 
 The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/analyze/route.ts) endpoint pulls and combines these four components dynamically to output the final blended score.
 
@@ -151,7 +151,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | [app/advanced/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/advanced/page.tsx) | Advanced Tools page serving as an experimental sandbox for 5 quantitative features (Lag Correlation, AI Narratives 2D projection, Historical Playback, Whale vs. Retail crossovers, and Temporal Narrative Trajectories). |
 | [app/backtester/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/backtester/page.tsx) | Strategy Backtester page supporting entry/exit condition limits and plotting simulated strategy yields against passive hold benchmarks. |
 | [app/methodology/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/methodology/page.tsx) | Purpose page explaining the mission ("What"), value proposition ("Why"), and math configurations ("How") of the sentiment blends in a clean doc format. |
-| [app/support/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/support/page.tsx) | Page highlighting the developer story (lone developer context), disclaimers (not for trading), active project bottlenecks (lack of X API, demo CoinGecko keys, small model limits), and an interactive "Buy me a Coffee" widget. |
+| [app/support/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/support/page.tsx) | Page highlighting the developer story (lone developer context), disclaimers (experimental data aggregation disclaimer), active project bottlenecks, and multi-platform reach out options. |
 | [lib/utils.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/utils.ts) | Class name merger utility `cn()`. |
 | [frontend-implementation.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/frontend-implementation.md) | Frontend implementation plan outlining atmosphere, color tokens, visual dials, bento grid structures, and spring physics properties. |
 | [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/analyze/route.ts) | `GET /api/analyze?symbol=BTC` — Blends & returns 5-layer sentiment (including L5 Whale Net Flows). Refreshes stale data inline if cache expired. |

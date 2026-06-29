@@ -89,7 +89,7 @@ export async function scrapeWhaleData(
         const meta = existing.metadata as any;
         return {
           tickerSymbol: ticker.symbol,
-          netFlowUsd: parseFloat(existing.value),
+          netFlowUsd: parseFloat(existing.value) * 1e6,
           score: meta.score ?? 0,
           label: existing.label ?? "neutral",
           transactions: meta.transactions ?? [],
@@ -102,12 +102,7 @@ export async function scrapeWhaleData(
   console.log(`[WhaleTracker] Fetching/simulating whale data for ${ticker.symbol}...`);
 
   try {
-    // Generate deterministic transactions for this hour
     const now = new Date();
-    const dateHourStr = `${ticker.symbol}-${now.getUTCFullYear()}-${now.getUTCMonth()}-${now.getUTCDate()}-${now.getUTCHours()}`;
-    const rand = new SeededRandom(dateHourStr);
-
-    // Approximate current spot prices
     const prices: Record<string, number> = { BTC: 95000, ETH: 3100, SOL: 145 };
     const price = prices[ticker.symbol] ?? 100;
 
@@ -115,62 +110,72 @@ export async function scrapeWhaleData(
     const transactions: WhaleTransaction[] = [];
     let netFlowUsd = 0;
 
-    const txCount = rand.nextInt(4, 9);
-    for (let i = 0; i < txCount; i++) {
-      const type = rand.choose(["inflow", "outflow", "transfer"]) as "inflow" | "outflow" | "transfer";
-      
-      // Determine token amounts based on ticker
-      let amount = 0;
-      if (ticker.symbol === "BTC") {
-        amount = rand.nextInt(50, 450);
-      } else if (ticker.symbol === "ETH") {
-        amount = rand.nextInt(1500, 12000);
-      } else {
-        amount = rand.nextInt(35000, 250000);
+    // Loop through each of the last 24 hours to generate historical logs deterministically
+    for (let h = 0; h < 24; h++) {
+      const hourTime = new Date(now.getTime() - h * 60 * 60 * 1000);
+      const dateHourStr = `${ticker.symbol}-${hourTime.getUTCFullYear()}-${hourTime.getUTCMonth()}-${hourTime.getUTCDate()}-${hourTime.getUTCHours()}`;
+      const rand = new SeededRandom(dateHourStr);
+
+      // Generate 0 to 2 transactions per hour
+      const txCount = rand.nextInt(0, 3);
+      for (let i = 0; i < txCount; i++) {
+        const type = rand.choose(["inflow", "outflow", "transfer"]) as "inflow" | "outflow" | "transfer";
+
+        let amount = 0;
+        if (ticker.symbol === "BTC") {
+          amount = rand.nextInt(50, 450);
+        } else if (ticker.symbol === "ETH") {
+          amount = rand.nextInt(1500, 12000);
+        } else {
+          amount = rand.nextInt(35000, 250000);
+        }
+
+        const amountUsd = Math.round(amount * price);
+        const exchange = rand.choose(exchanges);
+        const whaleWallet = "Whale_" + makeAddress(rand, "Whale");
+        const exchangeWallet = makeAddress(rand, exchange);
+
+        let fromAddress = "";
+        let toAddress = "";
+
+        if (type === "inflow") {
+          fromAddress = whaleWallet;
+          toAddress = `${exchange} (${exchangeWallet})`;
+          if (h === 0) netFlowUsd -= amountUsd; // Only let the current hour affect current telemetry score
+        } else if (type === "outflow") {
+          fromAddress = `${exchange} (${exchangeWallet})`;
+          toAddress = whaleWallet;
+          if (h === 0) netFlowUsd += amountUsd; // Only let the current hour affect current telemetry score
+        } else {
+          fromAddress = whaleWallet;
+          toAddress = "Whale_" + makeAddress(rand, "Whale");
+        }
+
+        // Generate deterministic tx hash
+        let txHash = "0x";
+        const hex = "0123456789abcdef";
+        for (let j = 0; j < 32; j++) {
+          txHash += rand.choose(hex.split(""));
+        }
+
+        // Set timestamp within this hour
+        const txTime = new Date(hourTime);
+        txTime.setMinutes(rand.nextInt(0, 59));
+        txTime.setSeconds(rand.nextInt(0, 59));
+
+        // Avoid adding timestamps in the future
+        if (txTime.getTime() <= now.getTime()) {
+          transactions.push({
+            txHash,
+            amount,
+            amountUsd,
+            fromAddress,
+            toAddress,
+            timestamp: txTime.toISOString(),
+            type,
+          });
+        }
       }
-
-      const amountUsd = Math.round(amount * price);
-      const exchange = rand.choose(exchanges);
-      const whaleWallet = "Whale_" + makeAddress(rand, "Whale");
-      const exchangeWallet = makeAddress(rand, exchange);
-
-      let fromAddress = "";
-      let toAddress = "";
-
-      if (type === "inflow") {
-        fromAddress = whaleWallet;
-        toAddress = `${exchange} (${exchangeWallet})`;
-        netFlowUsd -= amountUsd; // Inflow to exchange is potential sell pressure (negative net flow)
-      } else if (type === "outflow") {
-        fromAddress = `${exchange} (${exchangeWallet})`;
-        toAddress = whaleWallet;
-        netFlowUsd += amountUsd; // Outflow to private wallet is accumulation (positive net flow)
-      } else {
-        fromAddress = whaleWallet;
-        toAddress = "Whale_" + makeAddress(rand, "Whale");
-      }
-
-      // Generate random tx hash
-      let txHash = "0x";
-      const hex = "0123456789abcdef";
-      for (let j = 0; j < 32; j++) {
-        txHash += rand.choose(hex.split(""));
-      }
-
-      // Set timestamp within this hour
-      const txTime = new Date(now);
-      txTime.setMinutes(rand.nextInt(0, 59));
-      txTime.setSeconds(rand.nextInt(0, 59));
-
-      transactions.push({
-        txHash,
-        amount,
-        amountUsd,
-        fromAddress,
-        toAddress,
-        timestamp: txTime.toISOString(),
-        type,
-      });
     }
 
     // Sort by timestamp desc
@@ -207,7 +212,7 @@ export async function scrapeWhaleData(
     const insertData = {
       tickerId: ticker.id,
       indicatorType: "whale_net_flow" as const,
-      value: netFlowUsd.toFixed(2),
+      value: (netFlowUsd / 1e6).toFixed(6),
       label,
       collectedAt: now,
       metadata: { score, transactions },

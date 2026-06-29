@@ -100,10 +100,10 @@ export default function MethodologyPage() {
         </aside>
 
         {/* RIGHT COLUMN: Document Article */}
-        <main className="lg:col-span-9 text-zinc-300 font-sans text-sm leading-relaxed max-w-3xl space-y-16">
+        <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16">
           {/* Section 1: Overview */}
           <section id="overview" className="scroll-mt-28 space-y-6">
-            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
               <Info size={20} className="text-emerald-400" />
               1. Overview & Mission
             </h2>
@@ -128,7 +128,7 @@ export default function MethodologyPage() {
 
           {/* Section 2: Why Sentiment Matters */}
           <section id="why-sentiment" className="scroll-mt-28 space-y-6">
-            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
               <CheckCircle size={20} className="text-emerald-400" />
               2. Why Sentiment Matters
             </h2>
@@ -150,7 +150,7 @@ export default function MethodologyPage() {
 
           {/* Section 3: The Ingestion Layers */}
           <section id="four-layers" className="scroll-mt-28 space-y-6">
-            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
               <Newspaper size={20} className="text-emerald-400" />
               3. The Ingestion Layers
             </h2>
@@ -161,7 +161,7 @@ export default function MethodologyPage() {
             <div className="space-y-6 pt-4 font-mono text-xs">
               {/* L1 */}
               <div className="border-l-2 border-emerald-500/50 pl-4 space-y-2">
-                <h3 className="text-white font-bold text-sm font-sans">L1 — The Flash Ingestion Layer (40% Weight)</h3>
+                <h3 className="text-white font-bold text-sm font-sans">L1 — The Flash Ingestion Layer (45% Weight)</h3>
                 <p className="text-zinc-400 font-sans text-xs">
                   This layer measures short-term sentiment momentum. It parses breaking headlines from RSS news syndications (including CoinDesk, Cointelegraph, Decrypt, and Cryptoslate) and integrates real-time community upvotes/downvotes from CoinGecko.
                 </p>
@@ -172,7 +172,7 @@ export default function MethodologyPage() {
 
               {/* L2 */}
               <div className="border-l-2 border-emerald-500/50 pl-4 space-y-2">
-                <h3 className="text-white font-bold text-sm font-sans">L2 — The Historic Community Layer (30% Weight)</h3>
+                <h3 className="text-white font-bold text-sm font-sans">L2 — The Historic Community Layer (35% Weight)</h3>
                 <p className="text-zinc-400 font-sans text-xs">
                   This layer monitors dedicated asset forums (e.g. r/bitcoin, r/ethereum, r/solana) using sequential, anti-blocking public scrapers. It captures retail consensus and long-term narrative baseline trends.
                 </p>
@@ -194,7 +194,7 @@ export default function MethodologyPage() {
 
               {/* L4 */}
               <div className="border-l-2 border-emerald-500/50 pl-4 space-y-2">
-                <h3 className="text-white font-bold text-sm font-sans">L4 — The Global Fear & Greed Index (15% Weight)</h3>
+                <h3 className="text-white font-bold text-sm font-sans">L4 — The Global Fear & Greed Index (5% Weight)</h3>
                 <p className="text-zinc-400 font-sans text-xs">
                   Pulls the global daily Fear & Greed index from alternative.me. It reflects macro market volatility, trading volume, search trend popularity, and social spikes.
                 </p>
@@ -207,7 +207,7 @@ export default function MethodologyPage() {
 
           {/* Section 4: Blended Calculations */}
           <section id="math-blending" className="scroll-mt-28 space-y-6">
-            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
               <MathOperations size={20} className="text-emerald-400" />
               4. Blended Score Logic
             </h2>
@@ -215,7 +215,7 @@ export default function MethodologyPage() {
               To create a unified sentiment metric, the system processes each layer into a normalized value between <strong>-1.0 (extremely bearish)</strong> and <strong>+1.0 (extremely bullish)</strong>, aggregates them using predefined weights, and multiplies the final result by 100.
             </p>
             <p className="font-mono bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white text-sm">
-              Blended Score = [(L1 × 0.40) + (L2 × 0.30) + (L3 × 0.15) + (L4 × 0.15)] × 100
+              Blended Score = [(L1 × 0.45) + (L2 × 0.35) + (L3 × 0.15) + (L4 × 0.05)] × 100
             </p>
             <p>
               Each component score is normalized as follows:
@@ -243,7 +243,7 @@ export default function MethodologyPage() {
 
           {/* Section 5: Recency & Virality Math */}
           <section id="fine-adjustments" className="scroll-mt-28 space-y-6">
-            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
               <Clock size={20} className="text-emerald-400" />
               5. Recency & Virality Math
             </h2>
@@ -294,7 +294,7 @@ export default function MethodologyPage() {
 
           {/* Section 6: Interpreting Verdicts */}
           <section id="verdicts" className="scroll-mt-28 space-y-6">
-            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
               <Gauge size={20} className="text-emerald-400" />
               6. Interpreting Verdicts
             </h2>
@@ -328,7 +328,7 @@ export default function MethodologyPage() {
 
           {/* Section 7: Metrics & Visualizations */}
           <section id="telemetry-metrics" className="scroll-mt-28 space-y-6">
-            <h2 className="text-2xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
               <CheckCircle size={20} className="text-emerald-400" />
               7. Metrics & Visualizations Reference
             </h2>

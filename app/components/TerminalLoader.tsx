@@ -44,21 +44,41 @@ export default function TerminalLoader({ symbol }: TerminalLoaderProps) {
     }
   };
 
-  // Dynamic coin character symbol
-  const getCoinGlyph = (sym: string) => {
+  // Load PNG asset logos for BTC, ETH, and SOL loading screens
+  const getCoinIcon = (sym: string) => {
     switch (sym.toUpperCase()) {
       case "BTC":
-        return "₿";
+        return (
+          <img
+            src="/bitcoin.png"
+            alt="Bitcoin"
+            className="w-11 h-11 object-contain filter drop-shadow-[0_0_8px_rgba(247,147,26,0.5)] select-none"
+          />
+        );
       case "ETH":
-        return "Ξ";
+        return (
+          <img
+            src="/ethereum.png"
+            alt="Ethereum"
+            className="w-11 h-11 object-contain filter drop-shadow-[0_0_8px_rgba(98,126,234,0.5)] select-none"
+          />
+        );
       case "SOL":
-        return "◎";
+        return (
+          <img
+            src="/solana.png"
+            alt="Solana"
+            className="w-11 h-11 object-contain filter drop-shadow-[0_0_8px_rgba(20,241,149,0.5)] select-none"
+          />
+        );
       default:
-        return "¤";
+        return (
+          <span className="text-emerald-400 font-bold text-lg select-none filter drop-shadow-[0_0_3px_rgba(16,185,129,0.2)]">
+            {sym}
+          </span>
+        );
     }
   };
-
-  const coinGlyph = getCoinGlyph(symbol);
 
   // Console logs (streamlined base)
   const logs = [
@@ -177,13 +197,13 @@ export default function TerminalLoader({ symbol }: TerminalLoaderProps) {
             title="Click to boost loader speed"
             className="absolute inset-4 border border-emerald-500/15 bg-emerald-950/[0.08] hover:bg-emerald-950/20 active:border-emerald-500/35 rounded-full flex items-center justify-center shadow-[inset_0_0_8px_rgba(16,185,129,0.05)] focus:outline-none z-20"
           >
-            <motion.span
+            <motion.div
               animate={{ opacity: [0.7, 1, 0.7] }}
               transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-              className="text-emerald-400/90 font-bold text-lg select-none filter drop-shadow-[0_0_3px_rgba(16,185,129,0.2)]"
+              className="flex items-center justify-center"
             >
-              {coinGlyph}
-            </motion.span>
+              {getCoinIcon(symbol)}
+            </motion.div>
           </motion.button>
         </div>
 

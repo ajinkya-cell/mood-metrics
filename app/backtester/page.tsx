@@ -533,16 +533,18 @@ export default function BacktesterPage() {
             <BookOpen size={20} />
           </div>
           <div>
-            <h2 className="text-xl md:text-2xl font-extrabold text-white tracking-tight font-sans">BACKTEST: USER MANUAL & MATHEMATICAL REFERENCE</h2>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight font-sans">BACKTEST: USER MANUAL & MATHEMATICAL REFERENCE</h2>
             <span className="text-xs text-zinc-500 font-mono">MOODMETRICS SIMULATION HANDBOOK • SPECIFICATION v2.0</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           {/* TOC Sidebar */}
-          <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
-            <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
-            <nav className="flex flex-col gap-2">
+          <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
+            <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
+              DOCUMENT OUTLINE
+            </span>
+            <nav className="flex flex-col gap-2 font-mono text-xs">
               {[
                 { id: "concept", label: "1. Core Philosophy" },
                 { id: "layers", label: "2. Ingestion Matrix" },
@@ -567,12 +569,12 @@ export default function BacktesterPage() {
           </aside>
 
           {/* Doc Articles */}
-          <main className="lg:col-span-9 text-zinc-300 text-sm leading-relaxed space-y-12 pl-4">
-            <section id="doc-concept" className="scroll-mt-28 space-y-4">
-              <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+          <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+            <section id="doc-concept" className="scroll-mt-28 space-y-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 1. Narrative Reflexivity
-              </h3>
+              </h2>
               <p>
                 Classical market hypothesis assumes asset prices adjust instantly to fundamental value. In reality, cryptocurrency markets exhibit extreme reflexivity. Public narrative and social sentiment influence trade flows, which in turn move prices, creating feedback loops of FOMO and panic.
               </p>
@@ -581,22 +583,22 @@ export default function BacktesterPage() {
               </p>
             </section>
 
-            <section id="doc-layers" className="scroll-mt-28 space-y-4">
-              <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <section id="doc-layers" className="scroll-mt-28 space-y-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 2. The 5-Layer Sentiment Formula
-              </h3>
+              </h2>
               <p>
                 Our blended sentiment score <span className="font-mono text-zinc-300">S_t</span> dynamically combines five orthogonal telemetry streams:
               </p>
               <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-5 text-xs text-zinc-400 font-mono space-y-2 max-w-xl">
                 <div className="flex justify-between">
                   <span className="text-emerald-400">L1 News Inflow</span>
-                  <span className="text-zinc-500">40% Weight</span>
+                  <span className="text-zinc-500">45% Weight</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-emerald-400">L2 Reddit Community</span>
-                  <span className="text-zinc-500">30% Weight</span>
+                  <span className="text-zinc-500">35% Weight</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-emerald-400">L3 Futures Funding</span>
@@ -604,7 +606,7 @@ export default function BacktesterPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-emerald-400">L4 Fear & Greed Index</span>
-                  <span className="text-zinc-500">15% Weight</span>
+                  <span className="text-zinc-500">5% Weight</span>
                 </div>
                 <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1">
                   <span className="text-white font-bold">L5 Whale Flow Telemetry</span>
@@ -613,11 +615,11 @@ export default function BacktesterPage() {
               </div>
             </section>
 
-            <section id="doc-trend" className="scroll-mt-28 space-y-4">
-              <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <section id="doc-trend" className="scroll-mt-28 space-y-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 3. Trend Following Archetype
-              </h3>
+              </h2>
               <p>
                 The <strong>Trend Following</strong> archetype assumes that sentiment drives strong directional momentum. A buy trigger opens a long trade when the sentiment exceeds a bullish threshold, capturing macro appreciation.
               </p>
@@ -628,11 +630,11 @@ export default function BacktesterPage() {
               </div>
             </section>
 
-            <section id="doc-contrarian" className="scroll-mt-28 space-y-4">
-              <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <section id="doc-contrarian" className="scroll-mt-28 space-y-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 4. Contrarian Mean Reversion
-              </h3>
+              </h2>
               <p>
                 The <strong>Contrarian</strong> archetype exploits overreactions. Markets tend to exhaust themselves at extremes of panic (extreme negative sentiment) and euphoria (extreme positive sentiment).
               </p>
@@ -643,11 +645,11 @@ export default function BacktesterPage() {
               </div>
             </section>
 
-            <section id="doc-sharpe" className="scroll-mt-28 space-y-4">
-              <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <section id="doc-sharpe" className="scroll-mt-28 space-y-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 5. Risk Adjusted Returns (Sharpe)
-              </h3>
+              </h2>
               <p>
                 Returns are meaningless without factoring the volatility risk endured to earn them. The Sharpe Ratio evaluates risk-adjusted yield:
               </p>
@@ -659,11 +661,11 @@ export default function BacktesterPage() {
               </p>
             </section>
 
-            <section id="doc-drawdown" className="scroll-mt-28 space-y-4">
-              <h3 className="text-lg font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+            <section id="doc-drawdown" className="scroll-mt-28 space-y-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 6. Max Drawdown (MDD) Control
-              </h3>
+              </h2>
               <p>
                 Maximum Drawdown measures the maximum percentage loss observed from a peak to a trough of portfolio equity before a new peak is attained.
               </p>

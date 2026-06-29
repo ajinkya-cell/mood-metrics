@@ -32,10 +32,10 @@ const generateBaselineTimeline = (): SimulatePoint[] => {
 export default function SimulatorPage() {
   const [baseline] = useState<SimulatePoint[]>(generateBaselineTimeline());
   const [weights, setWeights] = useState({
-    flash: 40,
-    historic: 30,
+    flash: 45,
+    historic: 35,
     funding: 15,
-    fearGreed: 15,
+    fearGreed: 5,
   });
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -160,7 +160,7 @@ export default function SimulatorPage() {
                 <code className="text-emerald-400 text-[10px] font-mono block my-1">
                   Blended = (L1 * W1 + L2 * W2 + L3 * W3 + L4 * W4) / 100
                 </code>
-                Where W represents the weight percentage (always summing to 100%), L1 is Flash News (40% default), L2 is Historic Reddit (30%), L3 is Perp Funding (15%), and L4 is Fear & Greed (15%). As you move any slider, the other sliders adjust proportionally to enforce the 100% total limit.
+                Where W represents the weight percentage (always summing to 100%), L1 is Flash News (45% default), L2 is Historic Reddit (35%), L3 is Perp Funding (15%), and L4 is Fear & Greed (5%). As you move any slider, the other sliders adjust proportionally to enforce the 100% total limit.
               </p>
             </div>
             <div>

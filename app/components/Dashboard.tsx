@@ -21,6 +21,17 @@ import GlowCard from "./GlowCard";
 import TerminalLoader from "./TerminalLoader";
 import DoubleBezel from "./DoubleBezel";
 
+function getRelativeTime(timestamp: string) {
+  const ms = Date.now() - new Date(timestamp).getTime();
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hrs = Math.floor(min / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 type AnalyzeResponse = {
   ticker: { symbol: string; name: string };
   price: {
@@ -404,7 +415,7 @@ export default function Dashboard() {
                       
                       {/* Short subtext breakdown */}
                       <span className="text-xs text-zinc-500 mt-6 max-w-[200px] leading-relaxed border-t border-white/5 pt-3">
-                        Blended components weighted: 40/30/15/15
+                        Blended components weighted: 45/35/15/5
                       </span>
                       <Link
                         href="/methodology"
@@ -528,7 +539,7 @@ export default function Dashboard() {
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-xs text-zinc-500 font-mono tracking-widest block">
-                        L1 — FLASH NEWS (40%)
+                        L1 — FLASH NEWS (45%)
                       </span>
                       <span className="text-sm text-zinc-300 flex items-center gap-1.5 mt-2">
                         <Newspaper size={14} className="text-zinc-500" />
@@ -554,7 +565,7 @@ export default function Dashboard() {
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-xs text-zinc-500 font-mono tracking-widest block">
-                        L2 — HISTORIC REDDIT (30%)
+                        L2 — HISTORIC REDDIT (35%)
                       </span>
                       <span className="text-sm text-zinc-300 flex items-center gap-1.5 mt-2">
                         <RedditLogo size={14} className="text-zinc-500" />
@@ -635,7 +646,7 @@ export default function Dashboard() {
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-xs text-zinc-500 font-mono tracking-widest block">
-                        L4 — GLOBAL FEAR & GREED (15%)
+                        L4 — GLOBAL FEAR & GREED (5%)
                       </span>
                       <span className="text-sm text-zinc-300 flex items-center gap-1.5 mt-2">
                         <ShieldCheck size={14} className="text-zinc-500" />
@@ -696,22 +707,27 @@ export default function Dashboard() {
                   
                   {/* List of recent transactions */}
                   <div className="mt-4 flex-1">
-                    <span className="text-xs text-zinc-500 font-bold uppercase font-mono tracking-wider block mb-2">RECENT BLOCKCHAIN MOVEMENT (1H)</span>
-                    <div className="max-h-24 overflow-y-auto space-y-1.5 font-mono text-xs pr-2 scrollbar-none select-text">
+                    <span className="text-xs text-zinc-500 font-bold uppercase font-mono tracking-wider block mb-2">RECENT BLOCKCHAIN MOVEMENT (24H)</span>
+                    <div className="max-h-40 overflow-y-auto space-y-1.5 font-mono text-xs pr-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent select-text">
                       {data.sentiment.whaleTransactions && data.sentiment.whaleTransactions.length > 0 ? (
                         data.sentiment.whaleTransactions.map((tx: any, idx: number) => {
                           const isAccum = tx.type === "outflow";
                           const isSell = tx.type === "inflow";
                           return (
-                            <div key={idx} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 hover:bg-white/[0.01] px-1 rounded">
-                              <span className="truncate text-zinc-400 max-w-[280px]">
-                                {tx.fromAddress} → {tx.toAddress}
-                              </span>
+                            <div key={idx} className="flex justify-between items-center py-1.5 border-b border-white/5 last:border-0 hover:bg-white/[0.01] px-1 rounded">
+                              <div className="flex flex-col min-w-0">
+                                <span className="truncate text-zinc-300 font-sans text-xs max-w-[160px] sm:max-w-[240px]">
+                                  {tx.fromAddress} → {tx.toAddress}
+                                </span>
+                                <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                                  {getRelativeTime(tx.timestamp)}
+                                </span>
+                              </div>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className="text-zinc-500">
                                   {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} {activeSymbol} (${(tx.amountUsd / 1e6).toFixed(2)}M)
                                 </span>
-                                <span className={`font-bold text-xs uppercase px-1.5 py-0.5 rounded ${
+                                <span className={`font-bold text-[10px] uppercase px-1.5 py-0.5 rounded ${
                                   isAccum ? "bg-emerald-950/20 text-emerald-400 border border-emerald-500/20" :
                                   isSell ? "bg-rose-950/20 text-rose-400 border border-rose-500/20" :
                                   "bg-zinc-900 text-zinc-500"

@@ -200,7 +200,7 @@ export default function AdvancedToolsPage() {
         </div>
 
         {/* Dynamic, Tab-specific Reference Manual with Sticky TOC Sidebar */}
-        <DoubleBezel className="w-full mt-12 p-10 font-sans text-base">
+        <DoubleBezel className="w-full mt-12 p-8 font-sans">
           {activeTab === "lag_correlation" && <LagCorrelationDocs />}
           {activeTab === "narrative_clustering" && <NarrativeClusteringDocs />}
           {activeTab === "event_playback" && <EventPlaybackDocs />}
@@ -1550,10 +1550,12 @@ function LagCorrelationDocs() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
-        <nav className="flex flex-col gap-2">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
+          DOCUMENT OUTLINE
+        </span>
+        <nav className="flex flex-col gap-2 font-mono text-xs">
           {[
             { id: "overview", label: "1. Core Objectives" },
             { id: "math", label: "2. Pearson Formula" },
@@ -1572,12 +1574,12 @@ function LagCorrelationDocs() {
           ))}
         </nav>
       </aside>
-      <main className="lg:col-span-9 text-zinc-200 text-base leading-relaxed space-y-12 pl-4">
-        <section id="lag-overview" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+      <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+        <section id="lag-overview" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             1. Core Concept & Objectives
-          </h3>
+          </h2>
           <p>
             The Sentiment-Price Lag Correlation tool measures the temporal lead-lag relationship between community emotions and market valuations. Social narratives require processing time before translating into spot buying or selling orders.
           </p>
@@ -1585,11 +1587,11 @@ function LagCorrelationDocs() {
             By shifting sentiment series by progressive lag steps (H hours), this tool uncovers whether changes in public narrative act as a leading indicator of price action, or merely reflect price changes post-factum.
           </p>
         </section>
-        <section id="lag-math" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="lag-math" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             2. Pearson Correlation Formula
-          </h3>
+          </h2>
           <p>
             We calculate the Pearson product-moment correlation coefficient (<span className="font-mono text-zinc-200">r</span>) on rolling hourly intervals, introducing a temporal shift:
           </p>
@@ -1600,22 +1602,22 @@ function LagCorrelationDocs() {
             Where <span className="font-mono text-zinc-200">L</span> is the lag offset in hours, and <span className="font-mono text-zinc-200">σ</span> represents the standard deviation of each dataset.
           </p>
         </section>
-        <section id="lag-interpretation" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="lag-interpretation" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             3. Coefficient Ranges
-          </h3>
+          </h2>
           <ul className="list-disc pl-5 space-y-2">
             <li><strong>r &gt; 0.5:</strong> Strong correlation. Sentiment changes are closely paired with price shifts at the specified lag.</li>
             <li><strong>r &asymp; 0.0:</strong> Decoupled. Price shifts and community chatter operate independently.</li>
             <li><strong>r &lt; -0.3:</strong> Inverse correlation. Spikes in retail sentiment correspond to price declines, indicating counter-trend capitulations.</li>
           </ul>
         </section>
-        <section id="lag-application" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="lag-application" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             4. Strategic Applications
-          </h3>
+          </h2>
           <p>
             Traders use the lag correlation peak to time execution. If correlation peaks at a 4-hour positive lag, sentiment spikes can be used as early execution signals for spot buying before the trend completes.
           </p>
@@ -1657,10 +1659,12 @@ function NarrativeClusteringDocs() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
-        <nav className="flex flex-col gap-2">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
+          DOCUMENT OUTLINE
+        </span>
+        <nav className="flex flex-col gap-2 font-mono text-xs">
           {[
             { id: "overview", label: "1. Core Objectives" },
             { id: "math", label: "2. Vectors & Clouds" },
@@ -1679,21 +1683,21 @@ function NarrativeClusteringDocs() {
           ))}
         </nav>
       </aside>
-      <main className="lg:col-span-9 text-zinc-200 text-base leading-relaxed space-y-12 pl-4">
-        <section id="cluster-overview" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+      <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+        <section id="cluster-overview" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             1. Core Concept & Objectives
-          </h3>
+          </h2>
           <p>
             Narrative Clouds group unstructured raw posts and news stories into cohesive semantic categories using vector embeddings. This allows users to look past social media noise and focus on the main drivers of market psychology.
           </p>
         </section>
-        <section id="cluster-math" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="cluster-math" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             2. Embedding Vectors & Projections
-          </h3>
+          </h2>
           <p>
             Articles are embedded using the Nvidia NIM Llama 3.1 8B Instruct model to generate 1536-dimensional semantic coordinates:
           </p>
@@ -1704,20 +1708,20 @@ function NarrativeClusteringDocs() {
             These high-dimensional vectors are projected into a readable 2D scatter cloud.
           </p>
         </section>
-        <section id="cluster-interpretation" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="cluster-interpretation" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             3. Narrative Centroids
-          </h3>
+          </h2>
           <p>
             Densely populated regions represent active market narratives. The engine groups them using leader-clustering algorithms to establish central centroids (representing topics like "Fed rate cuts", "ETF inflows", or "liquidation panics").
           </p>
         </section>
-        <section id="cluster-application" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="cluster-application" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             4. Identifying Catalyst Shifts
-          </h3>
+          </h2>
           <p>
             Users can monitor the growth or decline of specific topic clusters over time to detect shifts in market attention before they manifest in price momentum.
           </p>
@@ -1759,10 +1763,12 @@ function EventPlaybackDocs() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
-        <nav className="flex flex-col gap-2">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
+          DOCUMENT OUTLINE
+        </span>
+        <nav className="flex flex-col gap-2 font-mono text-xs">
           {[
             { id: "overview", label: "1. Core Objectives" },
             { id: "logic", label: "2. Sync Logic" },
@@ -1781,39 +1787,39 @@ function EventPlaybackDocs() {
           ))}
         </nav>
       </aside>
-      <main className="lg:col-span-9 text-zinc-200 text-base leading-relaxed space-y-12 pl-4">
-        <section id="playback-overview" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+      <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+        <section id="playback-overview" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             1. Machine Objectives
-          </h3>
+          </h2>
           <p>
             The Historical Playback engine is an interactive tool that allows strategists to replay historical market cycles hour-by-hour to study how narratives react during key periods.
           </p>
         </section>
-        <section id="playback-logic" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="playback-logic" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             2. Timeline Synchronization Logic
-          </h3>
+          </h2>
           <p>
             This engine queries historical database logs sequentially, syncing prices, funding rates, and AI post sentiment to reconstruct the market state at each time step.
           </p>
         </section>
-        <section id="playback-interpretation" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="playback-interpretation" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             3. Sentiment Phase Transitions
-          </h3>
+          </h2>
           <p>
             Users can watch the transition from high-conviction optimism to extreme panic, charting how fast social boards capitulate during sudden deleveraging events.
           </p>
         </section>
-        <section id="playback-application" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="playback-application" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             4. Velocity Backtesting
-          </h3>
+          </h2>
           <p>
             Helps quantitative modelers map the speed at which news moves through different channels—from official feeds to social media amplification.
           </p>
@@ -1855,10 +1861,12 @@ function WhaleVsRetailDocs() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
-        <nav className="flex flex-col gap-2">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
+          DOCUMENT OUTLINE
+        </span>
+        <nav className="flex flex-col gap-2 font-mono text-xs">
           {[
             { id: "overview", label: "1. Core Objectives" },
             { id: "math", label: "2. Net Flow Logic" },
@@ -1877,21 +1885,21 @@ function WhaleVsRetailDocs() {
           ))}
         </nav>
       </aside>
-      <main className="lg:col-span-9 text-zinc-200 text-base leading-relaxed space-y-12 pl-4">
-        <section id="whale-overview" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+      <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+        <section id="whale-overview" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             1. Core Concept & Objectives
-          </h3>
+          </h2>
           <p>
             This layer compares institutional smart-money flows (on-chain transfers &gt; $100k USD) against retail social media activity to identify market participation structure.
           </p>
         </section>
-        <section id="whale-math" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="whale-math" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             2. Net Flow Calculation
-          </h3>
+          </h2>
           <p>
             Tracks the net balance of large wallet activity:
           </p>
@@ -1902,21 +1910,21 @@ function WhaleVsRetailDocs() {
             Positive net flow indicates whales are moving assets to exchanges to sell, while negative net flow indicates cold-storage accumulation.
           </p>
         </section>
-        <section id="whale-interpretation" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="whale-interpretation" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             3. Divergence States
-          </h3>
+          </h2>
           <ul className="list-disc pl-5 space-y-2">
             <li><strong>Institutional Accumulation:</strong> Whale net flows are negative (cold storage withdrawals) while retail sentiment is low. This suggests a potential market bottom.</li>
             <li><strong>Retail Exit Liquidity:</strong> High retail sentiment and post volume coupled with positive whale exchange inflows, indicating distribution to retail buyers.</li>
           </ul>
         </section>
-        <section id="whale-application" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="whale-application" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             4. Exit Liquidity Warning System
-          </h3>
+          </h2>
           <p>
             Helps traders identify when high social media optimism is being met with institutional selling, protecting against getting caught in distribution phases.
           </p>
@@ -1958,10 +1966,12 @@ function NarrativeTrajectoriesDocs() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6 font-mono text-xs">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Outline</span>
-        <nav className="flex flex-col gap-2">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
+          DOCUMENT OUTLINE
+        </span>
+        <nav className="flex flex-col gap-2 font-mono text-xs">
           {[
             { id: "overview", label: "1. Core Objectives" },
             { id: "math", label: "2. Cosine Similarity" },
@@ -1980,21 +1990,21 @@ function NarrativeTrajectoriesDocs() {
           ))}
         </nav>
       </aside>
-      <main className="lg:col-span-9 text-zinc-200 text-base leading-relaxed space-y-12 pl-4">
-        <section id="trajectory-overview" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+      <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+        <section id="trajectory-overview" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             1. Core Concept & Objectives
-          </h3>
+          </h2>
           <p>
             Narrative Trajectories (Vector Filaments) track the lifecycle of thematic categories, mapping how topics grow, merge, and decay across the vector space over time.
           </p>
         </section>
-        <section id="trajectory-math" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="trajectory-math" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             2. Cosine Similarity Formula
-          </h3>
+          </h2>
           <p>
             Traces connections between daily leader clustering centroids using Cosine Similarity thresholds:
           </p>
@@ -2005,20 +2015,20 @@ function NarrativeTrajectoriesDocs() {
             If the similarity between consecutive centroids exceeds the threshold, a filament is drawn to connect them.
           </p>
         </section>
-        <section id="trajectory-interpretation" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="trajectory-interpretation" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             3. Filament Trajectory Paths
-          </h3>
+          </h2>
           <p>
             Stronger, wider filaments indicate high-density, persistent narrative trends, while thin, fading filaments show topics that are losing community interest.
           </p>
         </section>
-        <section id="trajectory-application" className="scroll-mt-28 space-y-4">
-          <h3 className="text-xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
+        <section id="trajectory-application" className="scroll-mt-28 space-y-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             4. Tracking Long-Term Sentiment Lifecycles
-          </h3>
+          </h2>
           <p>
             Helps quantitative modelers visualize the evolution of narrative patterns, identifying which themes persist across cycles.
           </p>

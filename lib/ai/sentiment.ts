@@ -14,10 +14,10 @@ import type { Ticker, RawPost } from "@/lib/db/schema";
 // ── Normalization helpers for new signal sources ──────────────────────────────
 
 export const BLEND_WEIGHTS = {
-  flash:     0.40,
-  historic:  0.30,
+  flash:     0.45,
+  historic:  0.35,
   funding:   0.15,
-  fearGreed: 0.15,
+  fearGreed: 0.05,
 } as const;
 
 /**
