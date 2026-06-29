@@ -167,6 +167,8 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | [lib/db/client.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/client.ts) | Neon client setup with Drizzle ORM (HTTP-based for serverless environments). |
 | [lib/scrapers/whale-tracker.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/whale-tracker.ts) | Whale transaction tracker module. Simulates/fetches large transaction metrics and net flow coordinates deterministically per hour, caching inside DB indicators. |
 | [scripts/enable-vector.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/scripts/enable-vector.ts) | Setup script to enable the pgvector extension on the Neon database server. |
+| [vercel.json](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/vercel.json) | Vercel deployment configuration file specifying scheduled crons for scrape-flash (every 30 mins) and scrape-reddit (every 6 hours). |
+| [implement-redis.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/implement-redis.md) | Redis integration proposal outlining Upstash caching and distributed scraper locks. |
 
 ---
 

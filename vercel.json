@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/scrape-flash",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/scrape-reddit",
+      "schedule": "0 */6 * * *"
+    }
+  ]
+}
