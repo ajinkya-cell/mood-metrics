@@ -231,7 +231,7 @@ const SOURCE_WEIGHT = {
 } as const;
 
 // ── Analyze all unanalyzed posts for a ticker ──────────────────────────────────
-export async function analyzePendingPosts(ticker: Ticker): Promise<number> {
+export async function analyzePendingPosts(ticker: Ticker, limit = 50): Promise<number> {
   // Find raw posts that don't have a sentiment record yet
   const pending = await db
     .select({ post: rawPosts })
@@ -243,7 +243,7 @@ export async function analyzePendingPosts(ticker: Ticker): Promise<number> {
         isNull(sentimentRecords.id) // no sentiment record = not analyzed yet
       )
     )
-    .limit(50); // process max 50 at a time to control API costs
+    .limit(limit); // process max 'limit' at a time to control API costs and response times
 
   if (pending.length === 0) {
     console.log(`[AI] No pending posts for ${ticker.symbol}`);

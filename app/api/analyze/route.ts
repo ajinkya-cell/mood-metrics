@@ -132,8 +132,8 @@ export async function GET(req: NextRequest) {
     .limit(1);
 
   if (unanalyzedCount.length > 0) {
-    console.log(`[Analyze] Found unanalyzed posts for ${symbol}, running AI...`);
-    await analyzePendingPosts(ticker);
+    console.log(`[Analyze] Found unanalyzed posts for ${symbol}, running AI (on-demand limit 3)...`);
+    await analyzePendingPosts(ticker, 3);
   }
 
   // ── Step 3: Pull historical Reddit score from timeseries ──────────────────
@@ -233,9 +233,12 @@ export async function GET(req: NextRequest) {
       )
     );
 
-  // Filter to non-reddit for the flash score
+  // Filter to non-reddit for the flash score, and enforce a strict 2-day (48h) freshness window for news_rss and coingecko
+  const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
   const flashOnly = flashPosts.filter(
-    (p) => p.sourceType === "coingecko" || p.sourceType === "news_rss"
+    (p) =>
+      (p.sourceType === "coingecko" || p.sourceType === "news_rss") &&
+      p.postedAt >= twoDaysAgo
   );
 
   const flashScore =

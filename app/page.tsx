@@ -213,7 +213,7 @@ export default function LandingPage() {
         </h2>
 
         <BentoGrid>
-          {/* Card 1: AI Records Matrix (Tall leftmost block, spans 2 rows, 1 col - Sword Illustration) */}
+          {/* Card 1: AI Records Matrix (Tall leftmost block, spans 2 rows, 1 col - Candlestick Chart) */}
           <motion.div
             {...staggerItem}
             className="col-span-1 md:col-span-1 md:row-span-2 flex flex-col justify-between h-full"
@@ -223,15 +223,15 @@ export default function LandingPage() {
                 accent="zinc"
                 className="p-0 flex items-center justify-center min-h-[30rem] hover:-translate-y-0.5 transition-all duration-300 h-full group relative overflow-hidden"
               >
-                {/* Background ambient glow behind the sword */}
+                {/* Background ambient glow behind the chart */}
                 <div className="absolute w-44 h-44 rounded-full bg-zinc-800/10 blur-[80px] pointer-events-none z-0" />
                 
-                {/* Sword Image with radial mask */}
+                {/* Chart Image with radial mask */}
                 <div className="relative z-10 w-full h-full flex items-center justify-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src="/sword.png"
-                    alt="Sword Illustration"
+                    src="/candlestick-chart.jpg"
+                    alt="Candlestick chart illustration"
                     className="w-full h-full object-cover select-none transition-all duration-500 group-hover:scale-[1.03] group-hover:brightness-110"
                     style={{
                       maskImage: "radial-gradient(circle, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 100%)",

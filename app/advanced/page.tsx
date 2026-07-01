@@ -106,8 +106,8 @@ export default function AdvancedToolsPage() {
 
       <div className="relative z-10 space-y-16">
         {/* ── EXPERIMENTAL HEADER BANNER (UNBOXED BORDERLESS) ── */}
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-8 border-b border-white/5 pb-10">
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-center justify-center text-amber-400 shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.05)]">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-8 pt-20 border-b border-white/5 pb-10">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/5 border  border-amber-500/10 flex items-center justify-center text-amber-400 shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.05)]">
             <Warning size={26} />
           </div>
           <div className="space-y-2">

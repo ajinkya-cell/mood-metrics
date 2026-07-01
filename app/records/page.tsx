@@ -657,9 +657,15 @@ export default function SentimentRecordsPage() {
                     : "text-zinc-500"
                 }`}
               >
-                {blendedScore !== null ? (blendedScore > 0 ? `+${blendedScore}` : blendedScore) : "N/A"}
+                {isLoading ? (
+                  <span className="text-2xl text-zinc-500 animate-pulse font-mono">LOADING...</span>
+                ) : blendedScore !== null ? (
+                  blendedScore > 0 ? `+${blendedScore}` : blendedScore
+                ) : (
+                  "N/A"
+                )}
               </span>
-              <span className="text-sm text-zinc-500">(-100 to +100)</span>
+              {!isLoading && blendedScore !== null && <span className="text-sm text-zinc-500">(-100 to +100)</span>}
             </div>
           </div>
           <div className="mt-5 text-sm text-zinc-300 font-sans border-t border-white/5 pt-4 flex flex-col gap-2">
@@ -782,16 +788,24 @@ export default function SentimentRecordsPage() {
             <div className="flex items-baseline justify-between mb-2">
               <div className="flex items-baseline gap-2">
                 <span className="text-6xl font-extrabold font-sans text-white">
-                  {fearGreed !== null ? fearGreed.value : "N/A"}
+                  {isLoading ? (
+                    <span className="text-2xl text-zinc-500 animate-pulse font-mono">LOADING...</span>
+                  ) : fearGreed !== null ? (
+                    fearGreed.value
+                  ) : (
+                    "N/A"
+                  )}
                 </span>
-                <span className="text-sm text-zinc-500">/ 100</span>
+                {!isLoading && fearGreed !== null && <span className="text-sm text-zinc-500">/ 100</span>}
               </div>
               <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded bg-white/5 border border-white/10 ${
-                fearGreed !== null 
+                isLoading 
+                  ? "text-zinc-500 border-white/5"
+                  : fearGreed !== null 
                   ? (fearGreed.value >= 76 ? "text-emerald-400 border-emerald-500/20" : fearGreed.value >= 56 ? "text-emerald-500 border-emerald-500/10" : fearGreed.value >= 46 ? "text-zinc-300 border-white/5" : fearGreed.value >= 26 ? "text-rose-400 border-rose-500/10" : "text-rose-600 border-rose-500/20")
                   : "text-zinc-500 border-white/5"
               }`}>
-                {fearGreed !== null ? fearGreed.label : "LOADING"}
+                {isLoading ? "LOADING" : fearGreed !== null ? fearGreed.label : "N/A"}
               </span>
             </div>
 

@@ -60,7 +60,7 @@ export default function GlobalNav() {
 
         <div className="flex items-center gap-3">
           <a
-            href="https://github.com"
+            href="https://github.com/ajinkya-cell/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-zinc-400 hover:text-white transition-colors duration-200 p-2 hover:bg-white/5 rounded-full"
@@ -71,7 +71,7 @@ export default function GlobalNav() {
             </svg>
           </a>
           <a
-            href="https://x.com"
+            href="https://x.com/ajinkyacell"
             target="_blank"
             rel="noopener noreferrer"
             className="text-zinc-400 hover:text-white transition-colors duration-200 p-2 hover:bg-white/5 rounded-full flex items-center justify-center"
