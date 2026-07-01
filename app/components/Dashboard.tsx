@@ -582,7 +582,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div className="border-t border-white/5 pt-3 font-mono text-xs text-zinc-500 flex justify-between">
-                    <span>Subscribers: {data.price?.redditSubscribers.toLocaleString() || "N/A"}</span>
+                    <span>Via: Arctic Shift mirror</span>
                     <span>Total analyzed: {data.sentiment.totalPostsAnalyzed}</span>
                   </div>
                 </GlowCard>

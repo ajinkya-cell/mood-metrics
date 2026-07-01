@@ -181,17 +181,39 @@ export async function scrapeCoinGecko(
   console.log(`[CoinGecko] Fetching news for ${ticker.symbol}...`);
 
   try {
-    const newsData = await geckoFetch<{ news?: CoinGeckoNewsItem[] }>(
-      `/coins/${ticker.coingeckoId}/news?count=50`
-    );
+    // /coins/{id}/news is a CoinGecko Pro endpoint (returns 404 on free tier).
+    // Use /news (global feed, free tier) and filter client-side by ticker name/symbol.
+    // We fetch page 1 (50 articles) which covers the last ~24h of major crypto news.
+    type GlobalNewsResponse = { data: CoinGeckoNewsItem[] };
+    const newsData = await geckoFetch<GlobalNewsResponse>(`/news?per_page=50&page=1`);
 
-    const newsItems = newsData.news ?? [];
+    const allItems = newsData.data ?? [];
+
+    // Filter to articles mentioning this coin
+    const keyword = ticker.name.toLowerCase();    // e.g. "solana"
+    const symbol  = `$${ticker.symbol.toLowerCase()}`; // e.g. "$sol"
+    const coingeckoKeyword = ticker.coingeckoId?.toLowerCase() ?? ""; // e.g. "solana"
+
+    // Special handling for SOL: "sol" is too generic (solution, solar, resolve…)
+    const isSol = ticker.symbol.toUpperCase() === "SOL";
+    const newsItems = allItems.filter((item) => {
+      const text = `${item.title} ${item.description ?? ""}`.toLowerCase();
+      if (isSol) {
+        return text.includes("solana") || text.includes("$sol");
+      }
+      return (
+        text.includes(keyword) ||
+        text.includes(symbol) ||
+        (coingeckoKeyword && text.includes(coingeckoKeyword))
+      );
+    });
+
     let inserted = 0;
 
     for (const item of newsItems) {
       const pubDate = new Date(item.updated_at * 1000);
       const ageMs = Date.now() - pubDate.getTime();
-      if (ageMs > 5 * 24 * 60 * 60 * 1000) continue;
+      if (ageMs > 7 * 24 * 60 * 60 * 1000) continue; // skip articles older than 7 days
 
       const content = [item.title, item.description].filter(Boolean).join("\n\n");
       if (content.length < 20) continue;
@@ -237,7 +259,7 @@ export async function scrapeCoinGecko(
         },
       });
 
-    console.log(`[CoinGecko] ${ticker.symbol}: inserted ${inserted} articles`);
+    console.log(`[CoinGecko] ${ticker.symbol}: ${allItems.length} global articles → ${newsItems.length} matching → ${inserted} inserted`);
 
     await sleep(2000);
     return inserted;

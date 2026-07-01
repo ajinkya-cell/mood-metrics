@@ -368,3 +368,8 @@ b2d636f  2026-06-15  added : reddit scraper
 - Disabled client and server caching for guestbook notes:
   - Added `{ cache: "no-store" }` to client-side guestbook fetch calls in [[ObsidianDotGrid.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/ObsidianDotGrid.tsx)].
   - Appended `"Cache-Control": "no-store, max-age=0, must-revalidate"` headers to the GET handler response in [[route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/guestbook/route.ts)] to guarantee live database data loading on every page load.
+- Replaced the L2 Historic Reddit GlowCard in [[Dashboard.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/Dashboard.tsx)] with a styled "Reddit API Offline" notice:
+  - Reddit revoked public API access in 2025; self-service OAuth app creation is no longer available.
+  - The card now displays an amber-tinted degraded state with an `OFFLINE` badge, a scanline texture overlay, a pulsing amber dot with "LAYER WEIGHT REDISTRIBUTED" status, and a short human-readable explanation of why the layer is down.
+  - The GlowCard component was removed from this slot; replaced with a plain `div` using `border-amber-500/15` and `bg-amber-950/5` to visually distinguish it from active layers.
+

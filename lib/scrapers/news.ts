@@ -15,11 +15,19 @@ const parser = new Parser();
 const CACHE_DURATION_MS = 30 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 15_000;
 
+// All feeds verified live as of July 2026.
+// solanafloor.com/feed removed — returns 404.
 const CRYPTO_RSS_FEEDS = [
+  // Broad crypto news (covers BTC / ETH / SOL)
   "https://www.coindesk.com/arc/outboundfeeds/rss/",
-  "https://cryptoslate.com/feed/",
-  "https://decrypt.co/feed",
   "https://cointelegraph.com/rss",
+  "https://decrypt.co/feed",
+  "https://www.theblock.co/rss.xml",
+  "https://blockworks.co/feed",        // strong SOL coverage
+  "https://beincrypto.com/feed/",
+  "https://cryptobriefing.com/feed/",
+  "https://cryptoslate.com/feed/",
+  "https://bitcoinmagazine.com/feed",  // BTC-focused but cross-posts SOL/ETH
 ];
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -120,6 +128,13 @@ async function extractArticleText(url: string): Promise<{
 
 function isAboutCoin(ticker: Ticker, text: string): boolean {
   const lower = text.toLowerCase();
+
+  // Special case: "sol" is too common a word (solution, resolve, solar...).
+  // For Solana we require the full name or the cashtag $SOL.
+  if (ticker.symbol.toUpperCase() === "SOL") {
+    return lower.includes("solana") || lower.includes("$sol");
+  }
+
   return (
     lower.includes(ticker.symbol.toLowerCase()) ||
     lower.includes(ticker.name.toLowerCase()) ||
@@ -176,7 +191,7 @@ export async function scrapeNewsRSS(ticker: Ticker, opts?: ScrapeOptions): Promi
       try {
         const feed = await parser.parseURL(feedUrl);
 
-        for (const item of feed.items.slice(0, 20)) {
+        for (const item of feed.items.slice(0, 30)) {
           const pubDate = item.pubDate ? new Date(item.pubDate) : null;
           if (!pubDate) continue;
 
@@ -208,7 +223,8 @@ export async function scrapeNewsRSS(ticker: Ticker, opts?: ScrapeOptions): Promi
 
     // Extract full text from each article
     // Limited to 8 articles per run to avoid timeout (Vercel 30s limit)
-    for (const article of relevantArticles.slice(0, 8)) {
+    // Limit to 15 articles per run (up from 8) — more feeds means more SOL hits
+    for (const article of relevantArticles.slice(0, 15)) {
       const extracted = await extractArticleText(article.url);
       if (!extracted) continue;
 

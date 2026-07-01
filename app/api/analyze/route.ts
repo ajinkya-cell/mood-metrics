@@ -138,19 +138,21 @@ export async function GET(req: NextRequest) {
 
   // ── Step 3: Pull historical Reddit score from timeseries ──────────────────
   // This is pre-computed by the 6h cron — instant DB read, no AI needed
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  // Use 7-day window: articles/posts from the past week are still relevant signals
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const timeseriesData = await db.query.sentimentTimeseries.findMany({
     where: and(
       eq(sentimentTimeseries.tickerId, ticker.id),
       eq(sentimentTimeseries.interval, "1h"),
-      gte(sentimentTimeseries.bucketStart, oneDayAgo)
+      gte(sentimentTimeseries.bucketStart, sevenDaysAgo)
     ),
     orderBy: [desc(sentimentTimeseries.bucketStart)],
   });
 
-  // Average the last 4 buckets (last 4 hours) for a stable Reddit baseline
-  const recentBuckets = timeseriesData.slice(0, 4);
+  // Average the last 24 buckets (last 24 hours) for a stable Reddit baseline
+  // Fall back to all available buckets if fewer than 24 exist
+  const recentBuckets = timeseriesData.slice(0, 24);
   const historicScore =
     recentBuckets.length > 0
       ? recentBuckets.reduce(
@@ -207,8 +209,11 @@ export async function GET(req: NextRequest) {
   const whaleLabel = latestWhale?.label ?? "neutral";
   const whaleTransactions = whaleMetadata.transactions ?? [];
 
-  // ── Step 4: Calculate flash score from recent CoinGecko + News posts (last 24 hours) ──────
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  // ── Step 4: Calculate flash score from CoinGecko + News posts (last 7 days) ──────
+  // We use 7 days instead of 24h: news articles from the past week are still
+  // actionable signals, and the recency-decay weighting in rollupTimeseries
+  // already down-weights older posts naturally.
+  const sevenDaysAgoFlash = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const flashPosts = await db
     .select({
@@ -222,7 +227,7 @@ export async function GET(req: NextRequest) {
     .where(
       and(
         eq(rawPosts.tickerId, ticker.id),
-        gte(rawPosts.postedAt, twentyFourHoursAgo),
+        gte(rawPosts.postedAt, sevenDaysAgoFlash),
         // Flash layer: coingecko + news only
         // (reddit handled separately in timeseries)
       )
