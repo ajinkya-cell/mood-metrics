@@ -7,14 +7,12 @@ import {
   Warning,
   Coins,
   Cpu,
-  TwitterLogo,
-  GithubLogo,
-  Envelope,
-  TelegramLogo,
   Chats,
   CheckCircle,
   ArrowUpRight,
 } from "@phosphor-icons/react";
+import { FaGithub, FaEnvelope, FaGlobe } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 import SectionEyebrow from "../components/SectionEyebrow";
 import GlowCard from "../components/GlowCard";
 
@@ -174,7 +172,7 @@ export default function SupportPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <GlowCard accent="rose" className="p-5 space-y-3">
                 <div className="flex items-center gap-2 text-rose-400 font-semibold text-sm">
-                  <TwitterLogo size={18} />
+                  <FaXTwitter size={18} />
                   <span>No X/Twitter Developer Feed</span>
                 </div>
                 <p className="text-zinc-400 text-xs leading-relaxed">
@@ -230,13 +228,13 @@ export default function SupportPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                 <a
-                  href="https://github.com/ajinkya-cell"
+                  href="https://github.com/ajinkya-cell/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group block"
                 >
                   <GlowCard className="p-4 flex items-start gap-3 hover:bg-zinc-950 transition-colors">
-                    <GithubLogo size={24} className="text-zinc-400 group-hover:text-white transition-colors" />
+                    <FaGithub size={24} className="text-zinc-400 group-hover:text-white transition-colors" />
                     <div className="space-y-1">
                       <div className="flex items-center gap-1 text-xs font-bold text-white font-mono">
                         GitHub <ArrowUpRight size={10} className="opacity-50 group-hover:opacity-100 transition-opacity" />
@@ -249,16 +247,16 @@ export default function SupportPage() {
                 </a>
 
                 <a
-                  href="https://x.com/ajinkya"
+                  href="https://x.com/ajinkyacell"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group block"
                 >
                   <GlowCard className="p-4 flex items-start gap-3 hover:bg-zinc-950 transition-colors">
-                    <TwitterLogo size={24} className="text-sky-400 group-hover:text-sky-300 transition-colors" />
+                    <FaXTwitter size={24} className="text-sky-400 group-hover:text-sky-300 transition-colors" />
                     <div className="space-y-1">
                       <div className="flex items-center gap-1 text-xs font-bold text-white font-mono">
-                        Twitter / X <ArrowUpRight size={10} className="opacity-50 group-hover:opacity-100 transition-opacity" />
+                        X / Twitter <ArrowUpRight size={10} className="opacity-50 group-hover:opacity-100 transition-opacity" />
                       </div>
                       <p className="text-zinc-500 text-[11px] leading-snug">
                         Follow updates, join crypto-sentiment threads, or send a DM for fast communication.
@@ -268,30 +266,30 @@ export default function SupportPage() {
                 </a>
 
                 <a
-                  href="https://t.me/ajinkya"
+                  href="https://ajinkya-cell.vercel.app/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group block"
                 >
                   <GlowCard className="p-4 flex items-start gap-3 hover:bg-zinc-950 transition-colors">
-                    <TelegramLogo size={24} className="text-blue-400 group-hover:text-blue-300 transition-colors" />
+                    <FaGlobe size={24} className="text-emerald-400 group-hover:text-emerald-300 transition-colors" />
                     <div className="space-y-1">
                       <div className="flex items-center gap-1 text-xs font-bold text-white font-mono">
-                        Telegram <ArrowUpRight size={10} className="opacity-50 group-hover:opacity-100 transition-opacity" />
+                        Portfolio <ArrowUpRight size={10} className="opacity-50 group-hover:opacity-100 transition-opacity" />
                       </div>
                       <p className="text-zinc-500 text-[11px] leading-snug">
-                        Reach out for direct, real-time developer support or to brainstorm features.
+                        Explore more of my projects, writings, and experiments.
                       </p>
                     </div>
                   </GlowCard>
                 </a>
 
                 <a
-                  href="mailto:ajinkya@example.com"
+                  href="mailto:ajinkyadharkar88@gmail.com"
                   className="group block"
                 >
                   <GlowCard className="p-4 flex items-start gap-3 hover:bg-zinc-950 transition-colors">
-                    <Envelope size={24} className="text-emerald-400 group-hover:text-emerald-300 transition-colors" />
+                    <FaEnvelope size={24} className="text-emerald-400 group-hover:text-emerald-300 transition-colors" />
                     <div className="space-y-1">
                       <div className="flex items-center gap-1 text-xs font-bold text-white font-mono">
                         Email Inquiry <ArrowUpRight size={10} className="opacity-50 group-hover:opacity-100 transition-opacity" />
