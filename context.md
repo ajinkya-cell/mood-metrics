@@ -162,12 +162,13 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | [app/api/backtest/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/backtest/route.ts) | `GET /api/backtest` — Runs strategy backtesting over real database spot prices and sentiment scores, returning performance metrics. |
 | [app/api/cron/scrape-flash/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-flash/route.ts) | `POST` — Triggers parallel updates for CoinGecko + News RSS + Binance Funding + Fear & Greed + Whale Net Flow (30-min cron). Bypasses cache if `?force=true`. |
 | [app/api/cron/scrape-reddit/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-reddit/route.ts) | `POST` — Reddit scrape + AI analysis + timeseries rollup. Cleans up raw posts and sentiment records older than 5 days (6-hour cron). |
+| [scripts/setup-cron-jobs.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/setup-cron-jobs.ts) | Setup script to create/update cron jobs on cron-job.org via REST API. Replaces Vercel crons. |
 | [app/api/search/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/search/route.ts) | `GET /api/search?q=bit` — Ticker lookup (checks symbols and names). |
 | [lib/db/schema.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/schema.ts) | Full Drizzle schema definitions. |
 | [lib/db/client.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/client.ts) | Neon client setup with Drizzle ORM (HTTP-based for serverless environments). |
 | [lib/scrapers/whale-tracker.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/whale-tracker.ts) | Whale transaction tracker module. Simulates/fetches large transaction metrics and net flow coordinates deterministically per hour, caching inside DB indicators. |
 | [scripts/enable-vector.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/scripts/enable-vector.ts) | Setup script to enable the pgvector extension on the Neon database server. |
-| [vercel.json](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/vercel.json) | Vercel deployment configuration file specifying scheduled crons for scrape-flash (every 30 mins) and scrape-reddit (every 6 hours). |
+| ~~vercel.json~~ | Removed. Cron scheduling moved to cron-job.org (see [scripts/setup-cron-jobs.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/setup-cron-jobs.ts)). |
 | [implement-redis.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/implement-redis.md) | Redis integration proposal outlining Upstash caching and distributed scraper locks. |
 
 ---
@@ -201,6 +202,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | `COINGECKO_API_KEY` | CoinGecko API key (used on demo tier) |
 | `SCRAPEGRAPH_API_KEY` | Legacy scrapegraph scraper key (Unused) |
 | `CRON_SECRET` | Shared secret header checking for secure cron endpoints |
+| `CRON_JOB_ORG_API_KEY` | API key for cron-job.org REST API (generated in cron-job.org console → Settings → API Keys) |
 | `NEXTAUTH_SECRET` | (Unused) |
 | `NEXT_PUBLIC_APP_URL` | The application URL (defaults to `http://localhost:3000`) |
 | `NODE_ENV` | Environment context (`development` / `production`) |
@@ -219,6 +221,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | `npx tsx scripts/check-routes.ts` | Runs integration route checks against local dev server |
 | `npx tsx --env-file=.env scripts/db-inspect.ts` | Utility to inspect the current count and status of database tables |
 | `npx tsx --env-file=.env scripts/run-reddit-ingestion.ts` | Utility to manually trigger Reddit scraping, AI analysis, and timeseries rollup |
+| `npx tsx --env-file=.env scripts/setup-cron-jobs.ts` | Creates/updates cron-job.org jobs (scrape-flash every 30m, scrape-reddit every 6h) |
 
 ---
 
