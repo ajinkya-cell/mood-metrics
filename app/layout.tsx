@@ -60,7 +60,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className="min-h-full flex flex-col bg-[#050505] text-zinc-100">
+      <body className="min-h-full flex flex-col bg-[#050505] text-zinc-100" suppressHydrationWarning>
         <GrainOverlay />
         <GlobalNav />
         <div className="flex-1 flex flex-col">{children}</div>

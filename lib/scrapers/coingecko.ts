@@ -181,6 +181,33 @@ export async function scrapeCoinGecko(
   console.log(`[CoinGecko] Fetching news for ${ticker.symbol}...`);
 
   try {
+    const apiKey = process.env.COINGECKO_API_KEY;
+    const isDemoOrMissing = !apiKey || apiKey.startsWith("CG-");
+    
+    if (isDemoOrMissing) {
+      console.log(`[CoinGecko] Skipping /news fetch for ${ticker.symbol} (requires CoinGecko Pro-tier key; Demo keys are not authorized).`);
+      // Update cache to success with 0 posts so it doesn't query again immediately
+      await db
+        .insert(scrapeCache)
+        .values({
+          tickerId: ticker.id,
+          sourceType: "coingecko",
+          lastFetchedAt: new Date(),
+          postCount: 0,
+          status: "success",
+        })
+        .onConflictDoUpdate({
+          target: [scrapeCache.tickerId, scrapeCache.sourceType],
+          set: {
+            lastFetchedAt: new Date(),
+            postCount: 0,
+            status: "success",
+            errorMessage: null,
+          },
+        });
+      return 0;
+    }
+
     // /coins/{id}/news is a CoinGecko Pro endpoint (returns 404 on free tier).
     // Use /news (global feed, free tier) and filter client-side by ticker name/symbol.
     // We fetch page 1 (50 articles) which covers the last ~24h of major crypto news.

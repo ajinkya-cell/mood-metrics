@@ -27,7 +27,7 @@ interface CronJobPayload {
     title: string;
     enabled: boolean;
     saveResponses: boolean;
-    requestMethod: "POST";
+    requestMethod: number; // 0 = GET, 1 = POST
     schedule: {
       timezone: string;
       hours: number[];
@@ -53,7 +53,46 @@ const JOBS: { title: string; path: string; schedule: { minutes: number[]; hours:
   },
 ];
 
-async function createJob(payload: CronJobPayload): Promise<number> {
+async function deleteJob(jobId: number, attempt = 1): Promise<void> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+    },
+  });
+
+  if (res.status === 429) {
+    if (attempt > 3) throw new Error("Too many attempts due to rate limiting on delete");
+    const retryAfter = res.headers.get("Retry-After");
+    const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : 5000 * attempt;
+    console.warn(`[cron-job.org] Rate limited on deleteJob — waiting ${waitMs / 1000}s...`);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    return deleteJob(jobId, attempt + 1);
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to delete job ${jobId}: ${res.status} ${res.statusText} — ${text}`);
+  }
+}
+
+async function listJobs(): Promise<{ jobId: number; title: string }[]> {
+  const res = await fetch(`${API_BASE}/jobs`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list jobs: ${res.status} ${res.statusText} — ${text}`);
+  }
+
+  const data = (await res.json()) as { jobs: { jobId: number; title: string }[] };
+  return data.jobs || [];
+}
+
+async function createJob(payload: CronJobPayload, attempt = 1): Promise<number> {
   const res = await fetch(`${API_BASE}/jobs`, {
     method: "PUT",
     headers: {
@@ -62,6 +101,15 @@ async function createJob(payload: CronJobPayload): Promise<number> {
     },
     body: JSON.stringify(payload),
   });
+
+  if (res.status === 429) {
+    if (attempt > 3) throw new Error("Too many attempts due to rate limiting on create");
+    const retryAfter = res.headers.get("Retry-After");
+    const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : 5000 * attempt;
+    console.warn(`[cron-job.org] Rate limited on createJob — waiting ${waitMs / 1000}s...`);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    return createJob(payload, attempt + 1);
+  }
 
   if (!res.ok) {
     const text = await res.text();
@@ -88,6 +136,27 @@ async function run() {
     process.exit(1);
   }
 
+  try {
+    console.log("Fetching existing jobs to clean up...");
+    const existingJobs = await listJobs();
+    const matchingJobs = existingJobs.filter((job) =>
+      JOBS.some((j) => j.title === job.title)
+    );
+
+    if (matchingJobs.length > 0) {
+      console.log(`Found ${matchingJobs.length} matching job(s). Deleting to avoid duplicates...`);
+      for (const job of matchingJobs) {
+        await deleteJob(job.jobId);
+        console.log(`  🗑️ Deleted old job: "${job.title}" (ID: ${job.jobId})`);
+      }
+    } else {
+      console.log("No existing matching jobs found.");
+    }
+    console.log();
+  } catch (e) {
+    console.warn("⚠️ Failed to clean up old jobs (will try to continue):", e);
+  }
+
   for (const job of JOBS) {
     const url = `${APP_URL.replace(/\/$/, "")}${job.path}`;
     console.log(`Creating: ${job.title}`);
@@ -99,7 +168,7 @@ async function run() {
         title: job.title,
         enabled: true,
         saveResponses: false,
-        requestMethod: "POST",
+        requestMethod: 1, // POST
         schedule: {
           timezone: "UTC",
           hours: job.schedule.hours,
@@ -118,7 +187,7 @@ async function run() {
       const jobId = await createJob(payload);
       console.log(`  ✅ Created — Job ID: ${jobId}`);
     } catch (e) {
-      console.error(`  ❌ Failed:`, e);
+      console.error(`  ❌ Failed to create:`, e);
     }
 
     console.log();
