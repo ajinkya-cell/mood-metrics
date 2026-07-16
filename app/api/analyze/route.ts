@@ -35,6 +35,7 @@ const FLASH_CACHE_MS = 30 * 60 * 1000;  // 30 minutes
 
 export async function GET(req: NextRequest) {
   const symbol = req.nextUrl.searchParams.get("symbol")?.toUpperCase();
+  const force = req.nextUrl.searchParams.get("force") === "true";
 
   if (!symbol) {
     return NextResponse.json({ error: "symbol is required" }, { status: 400 });
@@ -102,38 +103,45 @@ export async function GET(req: NextRequest) {
   const isWhaleFresh = latestWhaleCheck &&
     latestWhaleCheck.collectedAt > flashCutoff;
 
-  // ── Step 1: Refresh stale flash sources ───────────────────────────────────
-  const flashRefreshTasks = [];
-  if (!isFlashFresh("coingecko")) flashRefreshTasks.push(scrapeCoinGecko(ticker));
-  if (!isFlashFresh("news_rss"))  flashRefreshTasks.push(scrapeNewsRSS(ticker));
-  if (!isFundingFresh)            flashRefreshTasks.push(scrapeBinanceFundingRate(ticker));
-  if (!isFngFresh)                flashRefreshTasks.push(scrapeFearGreed()); // global, but idempotent
-  if (!isWhaleFresh)              flashRefreshTasks.push(scrapeWhaleData(ticker));
+  // Check if cache exists (first run check)
+  const hasCache = flashCacheEntries.length > 0;
 
-  if (flashRefreshTasks.length > 0) {
-    console.log(`[Analyze] Refreshing flash data for ${symbol}...`);
-    await Promise.allSettled(flashRefreshTasks);
+  // ── Step 1: Refresh stale flash sources ───────────────────────────────────
+  // We only scrape inline if the user clicked refresh (force=true) or if there is no cache at all.
+  // Otherwise, we serve the pre-scraped cache instantly (under 100ms) to avoid page-load lag.
+  if (force || !hasCache) {
+    const flashRefreshTasks = [];
+    if (!isFlashFresh("coingecko")) flashRefreshTasks.push(scrapeCoinGecko(ticker));
+    if (!isFlashFresh("news_rss"))  flashRefreshTasks.push(scrapeNewsRSS(ticker));
+    if (!isFundingFresh)            flashRefreshTasks.push(scrapeBinanceFundingRate(ticker));
+    if (!isFngFresh)                flashRefreshTasks.push(scrapeFearGreed());
+    if (!isWhaleFresh)              flashRefreshTasks.push(scrapeWhaleData(ticker));
+
+    if (flashRefreshTasks.length > 0) {
+      console.log(`[Analyze] Refreshing flash data inline for ${symbol} (force: ${force}, hasCache: ${hasCache})...`);
+      await Promise.allSettled(flashRefreshTasks);
+    }
   }
 
   // ── Step 2: Analyze any unanalyzed flash posts (CoinGecko + News only) ────
-  // Check if there are raw posts without sentiment records
-  const unanalyzedCount = await db
-    .select({ post: rawPosts })
-    .from(rawPosts)
-    .leftJoin(sentimentRecords, eq(rawPosts.id, sentimentRecords.postId))
-    .where(
-      and(
-        eq(rawPosts.tickerId, ticker.id),
-        isNull(sentimentRecords.id),
-        // Only analyze flash sources here — reddit is analyzed by cron
-        // We use a workaround: analyze all pending, reddit cron handles reddit
+  // We only run AI analysis inline during user request if force=true or no cache exists.
+  if (force || !hasCache) {
+    const unanalyzedCount = await db
+      .select({ post: rawPosts })
+      .from(rawPosts)
+      .leftJoin(sentimentRecords, eq(rawPosts.id, sentimentRecords.postId))
+      .where(
+        and(
+          eq(rawPosts.tickerId, ticker.id),
+          isNull(sentimentRecords.id),
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
 
-  if (unanalyzedCount.length > 0) {
-    console.log(`[Analyze] Found unanalyzed posts for ${symbol}, running AI (on-demand limit 3)...`);
-    await analyzePendingPosts(ticker, 3);
+    if (unanalyzedCount.length > 0) {
+      console.log(`[Analyze] Running on-demand AI analysis inline (limit 3)...`);
+      await analyzePendingPosts(ticker, 3);
+    }
   }
 
   // ── Step 3: Pull historical Reddit score from timeseries ──────────────────

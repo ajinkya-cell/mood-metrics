@@ -36,7 +36,10 @@ interface CronJobPayload {
       months: number[];
       wdays: number[];
     };
-    headers?: Record<string, string>;
+    extendedData?: {
+      headers?: Record<string, string>;
+      body?: string;
+    };
   };
 }
 
