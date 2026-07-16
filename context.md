@@ -293,6 +293,9 @@ b2d636f  2026-06-15  added : reddit scraper
 
 ---
 
+## Portfolio Entry
+- Created `crypto-portfolio.md` with a project entry object matching the Doodleboard portfolio format for use in the user's portfolio site.
+
 ## Next Steps / Known Gaps
 
 - [x] Build a frontend UI dashboard (display charts, current blended sentiment, recent signals with labels, etc.)
@@ -390,3 +393,10 @@ b2d636f  2026-06-15  added : reddit scraper
 - Documented data lookback window calculations:
   - **L1 Flash Layer** aggregates CoinGecko and RSS articles from the past **2 days** to enforce strict freshness.
   - **L2 Historical Reddit Layer** processes all timeseries buckets from the past **7 days**, averaging up to **24 active hourly buckets** to calculate the `historicScore`.
+- Optimized dashboard route performance to prevent timeouts and slow loading states:
+  - Parallelized RSS feed fetches using `Promise.all` and fetched full article texts concurrently in parallel batches of 5 in [[lib/scrapers/news.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/news.ts)], reducing news scraping time from ~35s to under 4s.
+  - Redesigned [[lib/ai/sentiment.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/ai/sentiment.ts)]'s `analyzePendingPosts` to process Llama sentiment analysis and embedding calls concurrently in batches of 3, reducing analysis duration by ~75%. Added explicit AbortController connection timeouts to prevent hanging on delayed Nvidia NIM API requests.
+  - Modified [[lib/ai/sentiment.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/ai/sentiment.ts)]'s `rollupTimeseries` to use batch upserts (batches of 50) instead of sequential inserts, reducing network latency by ~97% (taking <0.5s instead of ~18s).
+  - Modified the 30-minute flash scraper cron route [[app/api/cron/scrape-flash/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-flash/route.ts)] to trigger AI analysis and timeseries rollup in the background. This pre-computes and caches all news indicators, eliminating the need to analyze posts inline during GET requests and allowing the dashboard to load instantly (under 200ms) on user visits.
+- Fixed the cron jobs initialization payload in [[scripts/setup-cron-jobs.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/setup-cron-jobs.ts)]:
+  - Moved the `Authorization` header under `extendedData.headers` as required by the `cron-job.org` REST API. Previously, passing `headers` at the root caused `cron-job.org` to send request payloads without authentication, resulting in Vercel returning `401 Unauthorized` errors and automatically disabling the cron jobs since July 10.

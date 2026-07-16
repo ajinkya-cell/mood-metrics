@@ -177,8 +177,11 @@ async function run() {
           months: [-1],
           wdays: [-1],
         },
-        headers: {
-          Authorization: `Bearer ${CRON_SECRET}`,
+        extendedData: {
+          headers: {
+            Authorization: `Bearer ${CRON_SECRET}`,
+          },
+          body: "",
         },
       },
     };

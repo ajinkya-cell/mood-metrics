@@ -23,6 +23,7 @@ import { scrapeNewsRSS } from "@/lib/scrapers/news";
 import { scrapeFearGreed } from "@/lib/scrapers/fear-greed";
 import { scrapeBinanceFundingRate } from "@/lib/scrapers/binance-funding";
 import { scrapeWhaleData } from "@/lib/scrapers/whale-tracker";
+import { analyzePendingPosts, rollupTimeseries } from "@/lib/ai/sentiment";
 
 export const maxDuration = 90; // increased from 60 to account for extra API calls
 
@@ -60,11 +61,17 @@ export async function POST(req: Request) {
         r.map((result) => (result.status === "fulfilled" ? result.value : null))
       );
 
+      // Run AI analysis & rollup in the background so the user doesn't wait inline
+      console.log(`[FlashCron] Running AI analysis & rollup for ${ticker.symbol}...`);
+      const analyzedCount = await analyzePendingPosts(ticker);
+      await rollupTimeseries(ticker);
+
       results[ticker.symbol] = {
         coingecko: geckoCount ?? 0,
         news: newsCount ?? 0,
         fundingRate: fundingResult ? "ok" : "failed",
         whaleNetFlow: whaleResult ? "ok" : "failed",
+        analyzed: analyzedCount,
       };
     }
 
@@ -72,10 +79,6 @@ export async function POST(req: Request) {
     results._global = {
       fearGreed: "fetched",
     };
-
-    // Note: we do NOT call analyzePendingPosts() here.
-    // Flash posts get analyzed inline in /api/analyze when a user
-    // actually requests that coin — no wasted AI tokens on unseen data.
 
     return NextResponse.json({
       success: true,

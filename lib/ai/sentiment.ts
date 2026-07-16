@@ -7,7 +7,7 @@ import { generateText, embed } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { db } from "@/lib/db/client";
 import { rawPosts, sentimentRecords, sentimentTimeseries } from "@/lib/db/schema";
-import { eq, isNull, and, desc } from "drizzle-orm";
+import { eq, isNull, and, desc, sql } from "drizzle-orm";
 import { fetchCoinPrice } from "@/lib/scrapers/coingecko";
 import type { Ticker, RawPost } from "@/lib/db/schema";
 
@@ -100,6 +100,9 @@ export async function getEmbedding(text: string, inputType: "passage" | "query" 
   const apiKey = process.env.NVIDIA_API_KEY;
   if (!apiKey) return null;
   
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+
   try {
     const res = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
       method: "POST",
@@ -113,8 +116,11 @@ export async function getEmbedding(text: string, inputType: "passage" | "query" 
         encoding_format: "float",
         input_type: inputType,
       }),
+      signal: controller.signal,
     });
     
+    clearTimeout(timer);
+
     if (!res.ok) {
       const errText = await res.text();
       console.warn(`[AI] Nvidia Embeddings API error: ${res.status} ${res.statusText}. Response: ${errText}`);
@@ -128,6 +134,7 @@ export async function getEmbedding(text: string, inputType: "passage" | "query" 
     }
     return null;
   } catch (err) {
+    clearTimeout(timer);
     console.error("[AI] Error getting embedding:", err);
     return null;
   }
@@ -147,9 +154,14 @@ async function analyzePost(post: RawPost, coinName: string): Promise<SentimentRe
     .join("\n")
     .slice(0, 2000);
 
-  const { text } = await generateText({
-    model: nim.chatModel("meta/llama-3.1-8b-instruct"),
-    prompt: `You are a crypto market sentiment analyst. Analyze this content about ${coinName} and determine the market sentiment.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000); // 12-second timeout
+
+  try {
+    const { text } = await generateText({
+      model: nim.chatModel("meta/llama-3.1-8b-instruct"),
+      abortSignal: controller.signal,
+      prompt: `You are a crypto market sentiment analyst. Analyze this content about ${coinName} and determine the market sentiment.
 
 Content:
 ${textToAnalyze}
@@ -163,9 +175,14 @@ Rules:
 - confidence: 0.0 to 1.0
 - reasoning: one short sentence explaining your analysis
 - Focus on market sentiment, not general news value`,
-  });
+    });
 
-  return parseSentiment(text);
+    clearTimeout(timer);
+    return parseSentiment(text);
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
 }
 
 function parseSentiment(raw: string): SentimentResult {
@@ -253,40 +270,61 @@ export async function analyzePendingPosts(ticker: Ticker, limit = 50): Promise<n
   console.log(`[AI] Analyzing ${pending.length} posts for ${ticker.symbol}...`);
   let analyzed = 0;
 
-  for (const { post } of pending) {
-    try {
-      const result = await analyzePost(post, ticker.name);
+  // Process posts concurrently in batches of 3 to speed up execution while respecting Nvidia limits
+  const batchSize = 3;
+  for (let i = 0; i < pending.length; i += batchSize) {
+    const batch = pending.slice(i, i + batchSize);
+    
+    const batchResults = await Promise.all(
+      batch.map(async ({ post }) => {
+        try {
+          const result = await analyzePost(post, ticker.name);
 
-      // Generate embedding using Nvidia NIM
-      const textToAnalyze = [post.title, post.content]
-        .filter(Boolean)
-        .join("\n")
-        .slice(0, 1000);
-      
-      let vector: number[] | null = null;
+          // Generate embedding using Nvidia NIM
+          const textToAnalyze = [post.title, post.content]
+            .filter(Boolean)
+            .join("\n")
+            .slice(0, 1000);
+          
+          let vector: number[] | null = null;
+          try {
+            vector = await getEmbedding(textToAnalyze, "passage");
+          } catch (embedError) {
+            console.warn(`[AI] Embedding generation failed for post ${post.id}:`, embedError);
+          }
+
+          return { post, result, vector };
+        } catch (error) {
+          console.warn(`[AI] Failed to analyze post ${post.id}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Save batch results to database
+    for (const res of batchResults) {
+      if (!res) continue;
       try {
-        vector = await getEmbedding(textToAnalyze, "passage");
-      } catch (embedError) {
-        console.warn(`[AI] Embedding generation failed for post ${post.id}:`, embedError);
+        await db.insert(sentimentRecords).values({
+          postId: res.post.id,
+          tickerId: ticker.id,
+          label: res.result.label,
+          score: res.result.score.toFixed(3),
+          confidence: res.result.confidence.toFixed(3),
+          reasoning: res.result.reasoning,
+          embedding: res.vector,
+        });
+
+        analyzed++;
+      } catch (dbError) {
+        console.warn(`[AI] Database insertion failed for post ${res.post.id}:`, dbError);
       }
-
-      await db.insert(sentimentRecords).values({
-        postId: post.id,
-        tickerId: ticker.id,
-        label: result.label,
-        score: result.score.toFixed(3),
-        confidence: result.confidence.toFixed(3),
-        reasoning: result.reasoning,
-        embedding: vector,
-      });
-
-      analyzed++;
-    } catch (error) {
-      console.warn(`[AI] Failed to analyze post ${post.id}:`, error);
     }
 
-    // Small delay to avoid hitting rate limits
-    await new Promise((r) => setTimeout(r, 200));
+    // Small delay between batches
+    if (i + batchSize < pending.length) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
   }
 
   console.log(`[AI] ${ticker.symbol}: analyzed ${analyzed} posts`);
@@ -367,7 +405,8 @@ export async function rollupTimeseries(ticker: Ticker): Promise<void> {
     bucket.totalUpvotes += upvotes;
   }
 
-  // Insert/update each bucket
+  // Insert/update buckets in batch (combines 200+ inserts into a single query to eliminate HTTP roundtrips)
+  const valuesToInsert = [];
   for (const [bucketKey, bucket] of buckets) {
     const avgScore =
       bucket.scores.reduce((a, b) => a + b, 0) / bucket.scores.length;
@@ -378,37 +417,47 @@ export async function rollupTimeseries(ticker: Ticker): Promise<void> {
     const bearishCount = bucket.labels.filter((l) => l === "bearish").length;
     const neutralCount = bucket.labels.filter((l) => l === "neutral").length;
 
-    await db
-      .insert(sentimentTimeseries)
-      .values({
-        tickerId: ticker.id,
-        sourceType: null, // null = all sources combined
-        bucketStart: new Date(bucketKey),
-        interval: "1h",
-        avgScore: avgScore.toFixed(4),
-        totalPosts: bucket.scores.length,
-        bullishCount,
-        bearishCount,
-        neutralCount,
-        volumeWeightedScore: avgWeighted.toFixed(4),
-        spotPrice: currentPrice,
-      })
-      .onConflictDoUpdate({
-        target: [
-          sentimentTimeseries.tickerId,
-          sentimentTimeseries.bucketStart,
-          sentimentTimeseries.interval,
-          sentimentTimeseries.sourceType,
-        ],
-        set: {
-          avgScore: avgScore.toFixed(4),
-          totalPosts: bucket.scores.length,
-          bullishCount,
-          bearishCount,
-          neutralCount,
-          volumeWeightedScore: avgWeighted.toFixed(4),
-        },
-      });
+    valuesToInsert.push({
+      tickerId: ticker.id,
+      sourceType: null, // null = all sources combined
+      bucketStart: new Date(bucketKey),
+      interval: "1h" as const,
+      avgScore: avgScore.toFixed(4),
+      totalPosts: bucket.scores.length,
+      bullishCount,
+      bearishCount,
+      neutralCount,
+      volumeWeightedScore: avgWeighted.toFixed(4),
+      spotPrice: currentPrice,
+    });
+  }
+
+  if (valuesToInsert.length > 0) {
+    // Write in batches of 50 to prevent maximum SQL statement parameter limitations
+    const batchSize = 50;
+    for (let i = 0; i < valuesToInsert.length; i += batchSize) {
+      const batch = valuesToInsert.slice(i, i + batchSize);
+      await db
+        .insert(sentimentTimeseries)
+        .values(batch)
+        .onConflictDoUpdate({
+          target: [
+            sentimentTimeseries.tickerId,
+            sentimentTimeseries.bucketStart,
+            sentimentTimeseries.interval,
+            sentimentTimeseries.sourceType,
+          ],
+          set: {
+            avgScore: sql`EXCLUDED.avg_score`,
+            totalPosts: sql`EXCLUDED.total_posts`,
+            bullishCount: sql`EXCLUDED.bullish_count`,
+            bearishCount: sql`EXCLUDED.bearish_count`,
+            neutralCount: sql`EXCLUDED.neutral_count`,
+            volumeWeightedScore: sql`EXCLUDED.volume_weighted_score`,
+            spotPrice: sql`EXCLUDED.spot_price`,
+          },
+        });
+    }
   }
 
   console.log(`[Rollup] ${ticker.symbol}: updated ${buckets.size} hourly buckets`);

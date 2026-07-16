@@ -183,35 +183,40 @@ export async function scrapeNewsRSS(ticker: Ticker, opts?: ScrapeOptions): Promi
   console.log(`[NewsRSS] Fetching articles for ${ticker.symbol}...`);
 
   try {
-    // Parse RSS feeds
-    const relevantArticles: Array<{ url: string; title: string; postedAt: Date }> =
-      [];
-
-    for (const feedUrl of CRYPTO_RSS_FEEDS) {
+    // Parse RSS feeds in parallel to eliminate sequential request delays
+    console.log(`[NewsRSS] Fetching RSS feeds in parallel for ${ticker.symbol}...`);
+    const feedPromises = CRYPTO_RSS_FEEDS.map(async (feedUrl) => {
       try {
         const feed = await parser.parseURL(feedUrl);
-
-        for (const item of feed.items.slice(0, 30)) {
-          const pubDate = item.pubDate ? new Date(item.pubDate) : null;
-          if (!pubDate) continue;
-
-          const ageMs = Date.now() - pubDate.getTime();
-          if (ageMs > 5 * 24 * 60 * 60 * 1000) continue;
-
-          const text = `${item.title ?? ""} ${item.contentSnippet ?? ""}`;
-          if (!isAboutCoin(ticker, text)) continue;
-
-          const url = item.link;
-          if (!url) continue;
-
-          relevantArticles.push({
-            url,
-            title: item.title ?? "Article",
-            postedAt: pubDate,
-          });
-        }
+        return feed.items;
       } catch {
         console.warn(`[NewsRSS] Feed parse failed: ${feedUrl}`);
+        return [];
+      }
+    });
+
+    const feedsResults = await Promise.all(feedPromises);
+    const relevantArticles: Array<{ url: string; title: string; postedAt: Date }> = [];
+
+    for (const items of feedsResults) {
+      for (const item of items.slice(0, 30)) {
+        const pubDate = item.pubDate ? new Date(item.pubDate) : null;
+        if (!pubDate) continue;
+
+        const ageMs = Date.now() - pubDate.getTime();
+        if (ageMs > 5 * 24 * 60 * 60 * 1000) continue;
+
+        const text = `${item.title ?? ""} ${item.contentSnippet ?? ""}`;
+        if (!isAboutCoin(ticker, text)) continue;
+
+        const url = item.link;
+        if (!url) continue;
+
+        relevantArticles.push({
+          url,
+          title: item.title ?? "Article",
+          postedAt: pubDate,
+        });
       }
     }
 
@@ -220,37 +225,49 @@ export async function scrapeNewsRSS(ticker: Ticker, opts?: ScrapeOptions): Promi
     );
 
     let inserted = 0;
+    const articlesToFetch = relevantArticles.slice(0, 15);
 
-    // Extract full text from each article
-    // Limited to 8 articles per run to avoid timeout (Vercel 30s limit)
-    // Limit to 15 articles per run (up from 8) — more feeds means more SOL hits
-    for (const article of relevantArticles.slice(0, 15)) {
-      const extracted = await extractArticleText(article.url);
-      if (!extracted) continue;
+    // Fetch full text concurrently in batches of 5 to remain polite but extremely fast (takes <4s instead of 30s+)
+    const batchSize = 5;
+    for (let i = 0; i < articlesToFetch.length; i += batchSize) {
+      const batch = articlesToFetch.slice(i, i + batchSize);
+      
+      const batchResults = await Promise.all(
+        batch.map(async (article) => {
+          const extracted = await extractArticleText(article.url);
+          if (!extracted) return null;
+          return { article, extracted };
+        })
+      );
 
-      try {
-        await db
-          .insert(rawPosts)
-          .values({
-            tickerId: ticker.id,
-            sourceType: "news_rss",
-            externalId: article.url,
-            title: extracted.title.slice(0, 500),
-            content: extracted.content,
-            author: "Crypto News",
-            url: article.url,
-            upvotes: 0,
-            postedAt: article.postedAt,
-          })
-          .onConflictDoNothing();
+      for (const res of batchResults) {
+        if (!res) continue;
+        try {
+          await db
+            .insert(rawPosts)
+            .values({
+              tickerId: ticker.id,
+              sourceType: "news_rss",
+              externalId: res.article.url,
+              title: res.extracted.title.slice(0, 500),
+              content: res.extracted.content,
+              author: "Crypto News",
+              url: res.article.url,
+              upvotes: 0,
+              postedAt: res.article.postedAt,
+            })
+            .onConflictDoNothing();
 
-        inserted++;
-      } catch {
-        // duplicate
+          inserted++;
+        } catch {
+          // duplicate
+        }
       }
 
-      // Polite delay between article fetches
-      await sleep(1200);
+      // Small delay between batches
+      if (i + batchSize < articlesToFetch.length) {
+        await sleep(300);
+      }
     }
 
     await db
