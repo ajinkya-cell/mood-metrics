@@ -48,7 +48,15 @@ export async function GET(req: NextRequest) {
       )
       .orderBy(asc(sentimentTimeseries.bucketStart));
 
-    const validPts = timeseriesData
+    const seenTimes = new Set<string>();
+    const deduplicatedTimeseries = timeseriesData.filter((pt) => {
+      const timeStr = new Date(pt.bucketStart).toISOString();
+      if (seenTimes.has(timeStr)) return false;
+      seenTimes.add(timeStr);
+      return true;
+    });
+
+    const validPts = deduplicatedTimeseries
       .filter((pt) => pt.spotPrice !== null && parseFloat(pt.spotPrice) > 0)
       .map((pt) => ({
         time: pt.bucketStart,

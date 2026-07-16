@@ -95,16 +95,26 @@ export async function GET(req: NextRequest) {
         name: targetTicker.name,
       },
       tickers: activeTickers.map((t) => ({ symbol: t.symbol, name: t.name })),
-      timeseries: timeseriesData.map((t) => ({
-        time: t.time,
-        score: Math.round(parseFloat(t.score ?? "0") * 100),
-        avgScore: Math.round(parseFloat(t.avgScore ?? "0") * 100),
-        posts: t.posts,
-        bullish: t.bullish,
-        bearish: t.bearish,
-        neutral: t.neutral,
-        spotPrice: t.spotPrice ? parseFloat(t.spotPrice) : null,
-      })),
+      timeseries: (() => {
+        const seenTimes = new Set<string>();
+        return timeseriesData
+          .filter((t) => {
+            const timeStr = new Date(t.time).toISOString();
+            if (seenTimes.has(timeStr)) return false;
+            seenTimes.add(timeStr);
+            return true;
+          })
+          .map((t) => ({
+            time: t.time,
+            score: Math.round(parseFloat(t.score ?? "0") * 100),
+            avgScore: Math.round(parseFloat(t.avgScore ?? "0") * 100),
+            posts: t.posts,
+            bullish: t.bullish,
+            bearish: t.bearish,
+            neutral: t.neutral,
+            spotPrice: t.spotPrice ? parseFloat(t.spotPrice) : null,
+          }));
+      })(),
       indicators: indicatorsData.map((ind) => ({
         type: ind.type,
         value: parseFloat(ind.value),

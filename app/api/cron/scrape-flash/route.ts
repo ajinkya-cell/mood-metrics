@@ -23,7 +23,7 @@ import { scrapeNewsRSS } from "@/lib/scrapers/news";
 import { scrapeFearGreed } from "@/lib/scrapers/fear-greed";
 import { scrapeBinanceFundingRate } from "@/lib/scrapers/binance-funding";
 import { scrapeWhaleData } from "@/lib/scrapers/whale-tracker";
-import { analyzePendingPosts, rollupTimeseries } from "@/lib/ai/sentiment";
+import { analyzePendingPosts, rollupTimeseries, recordBlendedSentiment } from "@/lib/ai/sentiment";
 
 export const maxDuration = 90; // increased from 60 to account for extra API calls
 
@@ -65,6 +65,10 @@ export async function POST(req: Request) {
       console.log(`[FlashCron] Running AI analysis & rollup for ${ticker.symbol}...`);
       const analyzedCount = await analyzePendingPosts(ticker);
       await rollupTimeseries(ticker);
+
+      // Record the computed blended sentiment score for history tracking
+      console.log(`[FlashCron] Recording blended sentiment for ${ticker.symbol}...`);
+      await recordBlendedSentiment(ticker);
 
       results[ticker.symbol] = {
         coingecko: geckoCount ?? 0,

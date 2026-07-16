@@ -161,14 +161,25 @@ export async function GET(req: NextRequest) {
         similarity: r.similarity ? parseFloat(r.similarity.toString()) : null,
       })),
       stats,
-      timeseries: timeseriesData.map((t) => ({
-        time: t.time,
-        score: Math.round(parseFloat(t.score ?? "0") * 100),
-        posts: t.posts,
-        bullish: t.bullish,
-        bearish: t.bearish,
-        neutral: t.neutral,
-      })),
+      // Deduplicate timeseries points by bucketStart in memory to ensure clean timelines
+      timeseries: (() => {
+        const seenTimes = new Set<string>();
+        return timeseriesData
+          .filter((t) => {
+            const timeStr = new Date(t.time).toISOString();
+            if (seenTimes.has(timeStr)) return false;
+            seenTimes.add(timeStr);
+            return true;
+          })
+          .map((t) => ({
+            time: t.time,
+            score: Math.round(parseFloat(t.score ?? "0") * 100),
+            posts: t.posts,
+            bullish: t.bullish,
+            bearish: t.bearish,
+            neutral: t.neutral,
+          }));
+      })(),
       tickers: activeTickers.map((t) => ({ symbol: t.symbol, name: t.name })),
       meta: {
         symbol,

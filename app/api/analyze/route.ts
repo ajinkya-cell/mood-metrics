@@ -149,13 +149,21 @@ export async function GET(req: NextRequest) {
   // Use 7-day window: articles/posts from the past week are still relevant signals
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const timeseriesData = await db.query.sentimentTimeseries.findMany({
+  const timeseriesDataRaw = await db.query.sentimentTimeseries.findMany({
     where: and(
       eq(sentimentTimeseries.tickerId, ticker.id),
       eq(sentimentTimeseries.interval, "1h"),
       gte(sentimentTimeseries.bucketStart, sevenDaysAgo)
     ),
     orderBy: [desc(sentimentTimeseries.bucketStart)],
+  });
+
+  const seenTimes = new Set<string>();
+  const timeseriesData = timeseriesDataRaw.filter((b) => {
+    const timeStr = new Date(b.bucketStart).toISOString();
+    if (seenTimes.has(timeStr)) return false;
+    seenTimes.add(timeStr);
+    return true;
   });
 
   // Average the last 24 buckets (last 24 hours) for a stable Reddit baseline

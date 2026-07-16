@@ -750,6 +750,47 @@ export default function Dashboard() {
               <DoubleBezel className="w-full">
                 <div className="p-8">
                   <SentimentChart data={data.timeseries} />
+                  
+                  {/* Detailed In-Depth Calculation Dropdown */}
+                  <details className="group mt-6 border border-white/5 rounded-xl bg-black/20 overflow-hidden transition-all duration-300">
+                    <summary className="flex justify-between items-center px-5 py-3.5 text-xs font-mono font-bold text-zinc-400 hover:text-white cursor-pointer select-none transition-colors border-b border-transparent group-open:border-white/5 bg-white/[0.01]">
+                      <span className="flex items-center gap-2">HOW IS THIS CALCULATED?</span>
+                      <span className="text-[10px] text-zinc-500 transition-transform duration-300 group-open:rotate-180">▼</span>
+                    </summary>
+                    <div className="p-5 text-xs text-zinc-400 leading-relaxed font-mono space-y-4">
+                      <div>
+                        <h4 className="font-bold text-white mb-2 text-[11px] uppercase tracking-wider text-emerald-400">1. What the Graph Suggests</h4>
+                        <p className="mb-3">The graph tells you two main things about the coin's community conversation:</p>
+                        <ul className="list-disc pl-5 space-y-2">
+                          <li><strong>The Sentiment Trend (The Line):</strong> Plots the overall mood of the discussion hour-by-hour. A line rising toward +100 indicates that the conversation has become highly optimistic (bullish), while a drop toward -100 suggests panic or bearishness.</li>
+                          <li><strong>The Activity Volume (The Bottom Bars):</strong> The height of the bars at the bottom represents the volume of posts/news articles analyzed in that specific hour. The color segments show the exact mix of posts: <span className="text-emerald-400 font-bold">Green</span> (bullish), <span className="text-rose-400 font-bold">Red</span> (bearish), and <span className="text-zinc-500 font-bold">Gray</span> (neutral). This helps you see if a sentiment shift was backed by high volume or just a few posts.</li>
+                        </ul>
+                      </div>
+                      
+                      <div className="border-t border-white/5 pt-4">
+                        <h4 className="font-bold text-white mb-2 text-[11px] uppercase tracking-wider text-emerald-400">2. How the Score is Calculated</h4>
+                        <p className="mb-3">The timeline pulls data from the <code>sentiment_timeseries</code> table. For each 1-hour bucket, the sentiment score is a volume-weighted average of all posts and news articles that were published in that hour, defined by this formula:</p>
+                        <div className="my-4 p-3 bg-black/40 border border-white/5 rounded-lg text-center font-bold text-zinc-300 text-[10px] overflow-x-auto whitespace-pre">
+{`                 ∑ (Post Score × Source Weight × Upvote Boost × Recency Weight)
+  Hourly Score = ─────────────────────────────────────────────────────────────
+                                      Total Posts in Hour`}
+                        </div>
+                        <p className="mb-3">Here is how each component of the weight is determined (as coded in <code>sentiment.ts</code>):</p>
+                        <ol className="list-decimal pl-5 space-y-2.5">
+                          <li><strong>AI Post Score:</strong> Each post is analyzed by Llama 3.1 8B, which returns a score from -1.0 (extremely bearish) to +1.0 (extremely bullish).</li>
+                          <li><strong>Source Weight:</strong> Not all sources are treated equal. Professional news is given higher credibility weights than forum posts:
+                            <ul className="list-disc pl-5 mt-1.5 space-y-1">
+                              <li>RSS News Articles: 1.0 weight (highest credibility)</li>
+                              <li>CoinGecko News: 0.9 weight</li>
+                              <li>Reddit Posts: 0.7 weight</li>
+                            </ul>
+                          </li>
+                          <li><strong>Upvote Boost:</strong> To prevent random low-quality posts from swaying the score, posts with high engagement get a logarithmic boost: <code>Boost = 1 + (log₁₀(Upvotes) × 0.1)</code>. This ensures that viral community posts have a stronger influence.</li>
+                          <li><strong>Recency Weight:</strong> Decays the weight of a post exponentially depending on how close it was to the boundary of the hour, emphasizing the newest information in that block.</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </details>
                 </div>
               </DoubleBezel>
             </div>

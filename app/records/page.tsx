@@ -855,27 +855,8 @@ export default function SentimentRecordsPage() {
             <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
               <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-3">
                 <ChartLineUp size={22} className="text-emerald-400" />
-                HISTORICAL SENTIMENT TIMELINE
+                HISTORICAL SENTIMENT TIMELINE (7D)
               </h2>
-
-              <div className="flex items-center gap-2.5 bg-black/40 border border-white/5 p-2 rounded-xl">
-                {["24h", "7d", "30d"].map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => {
-                      setTimeframe(t);
-                      setPage(0);
-                    }}
-                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${
-                      timeframe === t
-                        ? "bg-white/10 text-white"
-                        : "text-zinc-450 hover:text-zinc-200"
-                    }`}
-                  >
-                    {t.toUpperCase()}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {isLoading ? (

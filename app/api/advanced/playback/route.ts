@@ -84,8 +84,16 @@ export async function GET(req: NextRequest) {
       )
       .orderBy(desc(rawPosts.upvotes));
 
+    const seenTimes = new Set<string>();
+    const deduplicatedTimeseries = timeseriesData.filter((t) => {
+      const timeStr = new Date(t.bucketStart).toISOString();
+      if (seenTimes.has(timeStr)) return false;
+      seenTimes.add(timeStr);
+      return true;
+    });
+
     // Associate posts to hourly timeseries buckets
-    const logs = timeseriesData.map((t) => {
+    const logs = deduplicatedTimeseries.map((t) => {
       const bucketHour = t.bucketStart.getHours();
       const bucketDay = t.bucketStart.getDate();
 

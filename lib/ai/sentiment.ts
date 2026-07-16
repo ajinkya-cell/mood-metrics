@@ -6,8 +6,8 @@
 import { generateText, embed } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { db } from "@/lib/db/client";
-import { rawPosts, sentimentRecords, sentimentTimeseries } from "@/lib/db/schema";
-import { eq, isNull, and, desc, sql } from "drizzle-orm";
+import { rawPosts, sentimentRecords, sentimentTimeseries, marketIndicators } from "@/lib/db/schema";
+import { eq, isNull, and, desc, sql, inArray, gte } from "drizzle-orm";
 import { fetchCoinPrice } from "@/lib/scrapers/coingecko";
 import type { Ticker, RawPost } from "@/lib/db/schema";
 
@@ -433,6 +433,24 @@ export async function rollupTimeseries(ticker: Ticker): Promise<void> {
   }
 
   if (valuesToInsert.length > 0) {
+    // Before batch inserting, explicitly delete any existing entries for these bucket starts.
+    // This prevents duplicates caused by PostgreSQL treating NULL values as distinct in unique indexes.
+    const datesToDelete = valuesToInsert.map(v => v.bucketStart);
+    const deleteBatchSize = 50;
+    for (let i = 0; i < datesToDelete.length; i += deleteBatchSize) {
+      const batchDates = datesToDelete.slice(i, i + deleteBatchSize);
+      await db
+        .delete(sentimentTimeseries)
+        .where(
+          and(
+            eq(sentimentTimeseries.tickerId, ticker.id),
+            eq(sentimentTimeseries.interval, "1h"),
+            isNull(sentimentTimeseries.sourceType),
+            inArray(sentimentTimeseries.bucketStart, batchDates)
+          )
+        );
+    }
+
     // Write in batches of 50 to prevent maximum SQL statement parameter limitations
     const batchSize = 50;
     for (let i = 0; i < valuesToInsert.length; i += batchSize) {
@@ -462,3 +480,106 @@ export async function rollupTimeseries(ticker: Ticker): Promise<void> {
 
   console.log(`[Rollup] ${ticker.symbol}: updated ${buckets.size} hourly buckets`);
 }
+
+// ── Record Blended Sentiment ──────────────────────────────────────────────────
+// Call this during the 30-minute flash cron job to permanently log the blended score
+export async function recordBlendedSentiment(ticker: Ticker): Promise<number> {
+  console.log(`[BlendedRecord] Recording blended sentiment for ${ticker.symbol}...`);
+  
+  // 1. Get average historical Reddit score (last 24 hours)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const timeseriesData = await db.query.sentimentTimeseries.findMany({
+    where: and(
+      eq(sentimentTimeseries.tickerId, ticker.id),
+      eq(sentimentTimeseries.interval, "1h"),
+      gte(sentimentTimeseries.bucketStart, sevenDaysAgo)
+    ),
+    orderBy: [desc(sentimentTimeseries.bucketStart)],
+  });
+
+  const seenTimes = new Set<string>();
+  const uniqueTimeseries = timeseriesData.filter((b) => {
+    const timeStr = new Date(b.bucketStart).toISOString();
+    if (seenTimes.has(timeStr)) return false;
+    seenTimes.add(timeStr);
+    return true;
+  });
+
+  const recentBuckets = uniqueTimeseries.slice(0, 24);
+  const historicScore =
+    recentBuckets.length > 0
+      ? recentBuckets.reduce(
+          (sum, b) => sum + parseFloat(b.volumeWeightedScore ?? "0"),
+          0
+        ) / recentBuckets.length
+      : 0;
+
+  // 2. Get latest Funding Rate
+  const latestFunding = await db.query.marketIndicators.findFirst({
+    where: and(
+      eq(marketIndicators.tickerId, ticker.id),
+      eq(marketIndicators.indicatorType, "funding_rate"),
+    ),
+    orderBy: [desc(marketIndicators.collectedAt)],
+  });
+  const rawFundingRate = latestFunding ? parseFloat(latestFunding.value as string) : 0;
+  const fundingScore = normalizeFundingRate(rawFundingRate);
+
+  // 3. Get latest Fear & Greed
+  const latestFng = await db.query.marketIndicators.findFirst({
+    where: and(
+      isNull(marketIndicators.tickerId),
+      eq(marketIndicators.indicatorType, "fear_greed"),
+    ),
+    orderBy: [desc(marketIndicators.collectedAt)],
+  });
+  const rawFng = latestFng ? parseFloat(latestFng.value as string) : 50;
+  const fearGreedScore = normalizeFearGreed(rawFng);
+
+  // 4. Get latest Flash Score (news/coingecko, last 2 days)
+  const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+  const flashPosts = await db
+    .select({
+      score: sentimentRecords.score,
+      sourceType: rawPosts.sourceType,
+      postedAt: rawPosts.postedAt,
+    })
+    .from(sentimentRecords)
+    .innerJoin(rawPosts, eq(sentimentRecords.postId, rawPosts.id))
+    .where(
+      and(
+        eq(rawPosts.tickerId, ticker.id),
+        gte(rawPosts.postedAt, twoDaysAgo)
+      )
+    );
+
+  const flashOnly = flashPosts.filter(
+    (p) => p.sourceType === "coingecko" || p.sourceType === "news_rss"
+  );
+
+  const flashScore =
+    flashOnly.length > 0
+      ? flashOnly.reduce((sum, p) => sum + parseFloat(p.score ?? "0"), 0) /
+        flashOnly.length
+      : historicScore;
+
+  // 5. Calculate blended score (returns between -100 and +100)
+  const blended = calculateBlendedScore({
+    flashScore,
+    historicScore,
+    fundingScore,
+    fearGreedScore,
+  });
+
+  // 6. Record to market_indicators table
+  await db.insert(marketIndicators).values({
+    tickerId: ticker.id,
+    indicatorType: "blended_sentiment",
+    value: blended.score.toString(),
+    label: blended.label,
+    collectedAt: new Date(),
+  });
+
+  console.log(`[BlendedRecord] ${ticker.symbol}: recorded blended score ${blended.score}`);
+  return blended.score;
+}
