@@ -166,7 +166,7 @@ export default function MethodologyPage() {
                   This layer measures short-term sentiment momentum. It parses breaking headlines from RSS news syndications (including CoinDesk, Cointelegraph, Decrypt, and Cryptoslate) and integrates real-time community upvotes/downvotes from CoinGecko.
                 </p>
                 <div className="text-[10px] text-zinc-500 font-mono">
-                  REFRESH CADENCE: 30 MINUTES | RETENTION HISTORY: 5 DAYS
+                  REFRESH CADENCE: 30 MINUTES | RETENTION HISTORY: 14 DAYS
                 </div>
               </div>
 
@@ -177,7 +177,7 @@ export default function MethodologyPage() {
                   This layer monitors dedicated asset forums (e.g. r/bitcoin, r/ethereum, r/solana) using sequential, anti-blocking public scrapers. It captures retail consensus and long-term narrative baseline trends.
                 </p>
                 <div className="text-[10px] text-zinc-500 font-mono">
-                  REFRESH CADENCE: 6 HOURS | RETENTION HISTORY: 5 DAYS
+                  REFRESH CADENCE: 6 HOURS | RETENTION HISTORY: 14 DAYS
                 </div>
               </div>
 

@@ -5,7 +5,7 @@
 //   1. Fetches Reddit posts for every active ticker
 //   2. Runs AI sentiment analysis on every new post
 //   3. Rolls up hourly buckets into sentiment_timeseries
-//   4. Cleans up posts older than 5 days
+//   4. Cleans up posts older than 14 days
 //
 // Why 6 hours only: Reddit's public JSON is rate-sensitive.
 // Running 4x/day keeps our IP footprint predictable and safe.
@@ -30,12 +30,12 @@ export async function POST(req: Request) {
   const results: Record<string, unknown> = {};
 
   try {
-    // ── Step 1: Cleanup posts older than 5 days ──────────────────────────────
+    // ── Step 1: Cleanup posts older than 14 days ─────────────────────────────
     // Delete sentiment_records first (FK references raw_posts)
-    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
-    await db.delete(sentimentRecords).where(lt(sentimentRecords.analyzedAt, fiveDaysAgo));
-    await db.delete(rawPosts).where(lt(rawPosts.scrapedAt, fiveDaysAgo));
+    await db.delete(sentimentRecords).where(lt(sentimentRecords.analyzedAt, fourteenDaysAgo));
+    await db.delete(rawPosts).where(lt(rawPosts.scrapedAt, fourteenDaysAgo));
 
     console.log("[RedditCron] Cleanup done");
 
