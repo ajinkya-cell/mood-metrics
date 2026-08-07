@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, RefObject } from "react";
+import { useEffect, useState, useId, RefObject } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +36,8 @@ export const AnimatedBeam = ({
   delay = 0,
 }: AnimatedBeamProps) => {
   const [pathD, setPathD] = useState("");
+  const rawId = useId();
+  const id = `beam-grad-${rawId.replace(/:/g, "")}`;
 
   useEffect(() => {
     const updatePath = () => {
@@ -72,10 +74,9 @@ export const AnimatedBeam = ({
     };
   }, [containerRef, fromRef, toRef, curvature]);
 
-  const id = `beam-grad-${Math.random().toString(36).substring(2, 9)}`;
-
   return (
     <svg
+      suppressHydrationWarning
       className={cn("pointer-events-none absolute inset-0 size-full stroke-2", className)}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

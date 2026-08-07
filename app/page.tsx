@@ -3,7 +3,12 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Albert_Sans, Source_Serif_4, Instrument_Serif } from "next/font/google";
+import { Albert_Sans, Source_Serif_4, Instrument_Serif, Kalam } from "next/font/google";
+
+const kalam = Kalam({
+  weight: ["300", "400", "700"],
+  subsets: ["latin"],
+});
 import {
   ArrowRight,
   Gauge,
@@ -25,6 +30,7 @@ import { AnimatedBeam } from "./components/magicui/animated-beam";
 import { AvatarCircles } from "./components/magicui/avatar-circles";
 import { DottedMap } from "./components/magicui/dotted-map";
 import { BentoGrid } from "./components/magicui/bento-grid";
+import { Particles } from "./components/magicui/particles";
 
 const MOCK_SCAN_EVENTS = [
   { ticker: "BTC", source: "Reddit AI", label: "BULLISH", score: "+0.82", time: "1s ago", color: "text-emerald-400 border-emerald-950/40 bg-emerald-950/20" },
@@ -147,51 +153,104 @@ export default function LandingPage() {
   return (
     <div className="w-full flex flex-col items-center select-none overflow-hidden pb-20 bg-[#050505]">
       {/* ── HERO SECTION WITH DOME HORIZON ── */}
-      <section className="relative w-full min-h-screen flex flex-col justify-center items-center pt-36 pb-24 px-6 md:px-12 -mt-[120px]">
-        {/* Dome Horizon Background Glow */}
-        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-20">
-          <Gradient />
-          <Arc />
+      <section className="relative w-full min-h-screen flex flex-col justify-center items-center pt-36 pb-24 px-6 md:px-12 -mt-[120px] overflow-hidden">
+        {/* Ambient Stardust Particles */}
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
+          <Particles quantity={50} color="#10b981" />
         </div>
 
-        <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center justify-center text-center mt-[120px]">
+        {/* Dynamic Celestial Horizon Arc Background */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <HorizonGradient />
+          <GlowingArc />
+        </div>
+
+        <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center justify-center text-center mt-[250px] md:mt-[270px]">
           <h1
             className={cn(
-              "text-[8vw] sm:text-6xl md:text-7xl lg:text-8xl tracking-tight py-4 text-white leading-[1.08] font-extrabold max-w-5xl mt-3 text-center whitespace-nowrap",
+              "text-[8vw] sm:text-6xl md:text-7xl lg:text-8xl tracking-tight py-4 text-white leading-[1.08] font-extrabold max-w-5xl mt-1 text-center whitespace-nowrap drop-shadow-[0_4px_30px_rgba(0,0,0,0.8)]",
               albert.className
             )}
           >
             Map the{" "}
-            <span className="relative inline-block pr-8 sm:pr-10 md:pr-12">
+            <motion.span
+              whileHover="hover"
+              initial="initial"
+              animate="animate"
+              className="relative inline-block pr-8 sm:pr-10 md:pr-12 cursor-default select-none"
+            >
               {feelAnimWord()}
-              <span className="absolute -top-3 sm:-top-5 -right-3 sm:-right-4 text-[5vw] sm:text-3xl md:text-4xl select-none transform rotate-[-35deg] text-zinc-500 font-normal">
-                ☜
-              </span>
-            </span>
+
+              {/* Curved White Arrow */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/arrow.png"
+                alt="Arrow pointing to Mood"
+                className="absolute -top-8 sm:-top-10 -right-7 sm:-right-9 w-9 sm:w-14 h-9 sm:h-14 select-none transform rotate-[-65deg] scale-x-[-1] filter brightness-0 invert opacity-90 pointer-events-none drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]"
+              />
+
+              {/* Smooth 3D Y-Axis Spinning Bitcoin Coin SVG at the Arrow Tail */}
+              <motion.div
+                variants={{
+                  initial: { scale: 0, opacity: 0, rotateY: 0 },
+                  animate: {
+                    scale: 1,
+                    opacity: 1,
+                    rotateY: 0,
+                    transition: {
+                      type: "spring",
+                      stiffness: 220,
+                      damping: 18,
+                      delay: 0.25,
+                    },
+                  },
+                  hover: {
+                    rotateY: 360,
+                    scale: 1.2,
+                    transition: {
+                      duration: 0.75,
+                      ease: [0.16, 1, 0.3, 1],
+                    },
+                  },
+                }}
+                style={{ perspective: 1000 }}
+                className="absolute -top-6 sm:-top-8 -right-14 sm:-right-18 w-6 sm:w-8 h-6 sm:h-8 pointer-events-none select-none text-white drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-full h-full"
+                >
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                  <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                  <path d="M9 8h4.09c1.055 0 1.91 .895 1.91 2s-.855 2 -1.91 2c1.055 0 1.91 .895 1.91 2s-.855 2 -1.91 2h-4.09" />
+                  <path d="M10 12h4" />
+                  <path d="M10 7v10v-9" />
+                  <path d="M13 7v1" />
+                  <path d="M13 16v1" />
+                </svg>
+              </motion.div>
+            </motion.span>
           </h1>
 
-          <p
-            className={cn(
-              "max-w-md mx-auto mt-8 text-zinc-400 text-sm md:text-base font-mono leading-relaxed px-4 text-center",
-              albert.className
-            )}
-          >
-            MoodMetrics surfaces what&apos;s next, what&apos;s real, and what the crowd is missing. We parse social consensus, whale flows, and news records into simple visual indexes.
-          </p>
-
-          <Link href="/dashboard" className="mt-12 group inline-block">
+          <Link href="/dashboard" className="mt-10 group inline-block">
             <button
               className={cn(
-                "relative px-8 py-4 bg-gradient-to-b from-zinc-850 to-zinc-900 hover:from-zinc-750 hover:to-zinc-850 text-zinc-200 hover:text-white border-t border-white/10 border-x border-zinc-700/40 border-b-[5px] border-zinc-950 rounded-[12px] active:border-b-[1px] active:translate-y-[4px] transition-all duration-150 ease-out font-mono text-xs font-bold tracking-widest flex items-center gap-3 cursor-pointer select-none shadow-[0_4px_10px_rgba(0,0,0,0.5)] active:shadow-none",
+                "relative px-8 py-4 bg-gradient-to-b from-zinc-850 to-zinc-900 hover:from-zinc-750 hover:to-zinc-850 text-zinc-200 hover:text-white border-t border-emerald-400/20 border-x border-zinc-700/40 border-b-[5px] border-zinc-950 rounded-[12px] active:border-b-[1px] active:translate-y-[4px] transition-all duration-150 ease-out font-mono text-xs font-bold tracking-widest flex items-center gap-3 cursor-pointer select-none shadow-[0_4px_20px_rgba(16,185,129,0.15)] hover:shadow-[0_4px_35px_rgba(16,185,129,0.35)] active:shadow-none",
                 albert.className
               )}
             >
               {/* Mechanical Switch LED Indicator */}
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover:bg-emerald-400 transition-colors duration-300 shadow-[0_0_4px_rgba(52,211,153,0.4)]" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] group-hover:bg-emerald-300 transition-colors duration-300" />
               
               LAUNCH DASHBOARD
               
-              <ArrowRight size={12} className="text-zinc-500 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+              <ArrowRight size={12} className="text-zinc-400 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
             </button>
           </Link>
         </div>
@@ -199,6 +258,21 @@ export default function LandingPage() {
 
       {/* ── HORIZONTAL DIVIDER ── */}
       <HorizontalScale />
+
+      {/* ── KALAM FONT STATEMENT BANNER WITH GLOW ── */}
+      <motion.div
+        {...fadeUp}
+        className="w-full max-w-4xl px-6 pt-16 pb-4 mx-auto text-center z-10"
+      >
+        <p
+          className={cn(
+            "text-xl sm:text-2xl md:text-3xl text-white font-normal leading-relaxed tracking-wide drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] select-text",
+            kalam.className
+          )}
+        >
+          “MoodMetrics is an AI-powered sentiment aggregation engine that parses social consensus, whale flows, and news records into simple visual indexes.”
+        </p>
+      </motion.div>
 
       {/* ── FEATURES BENTO GRID (8 TOOLS WITH MICROINTERACTIONS & PREVIEWS) ── */}
       <motion.section
@@ -556,20 +630,36 @@ export default function LandingPage() {
   );
 }
 
-const Arc = () => {
+const GlowingArc = () => {
   return (
-    <div className="absolute top-[296px] left-1/2 aspect-square -translate-x-1/2 rounded-full bg-[#050505] w-[150vmax]" />
+    <div className="absolute top-[280px] left-1/2 aspect-square -translate-x-1/2 rounded-full bg-[#050505] w-[150vmax] border-t border-emerald-400/50 shadow-[inset_0_50px_120px_rgba(0,0,0,0.98),inset_0_15px_45px_rgba(16,185,129,0.35),0_-20px_70px_rgba(16,185,129,0.4),0_-2px_18px_rgba(52,211,153,0.7)] relative overflow-hidden pointer-events-none select-none">
+      {/* Deep Inner Emerald Refraction Ring */}
+      <div className="absolute inset-x-0 top-0 h-[100px] bg-gradient-to-b from-emerald-500/20 via-emerald-950/5 to-transparent pointer-events-none" />
+      {/* Animated Rim Laser Scanning Beam */}
+      <div className="absolute inset-x-0 top-0 h-[2.5px] bg-gradient-to-r from-transparent via-emerald-300 to-transparent animate-pulse opacity-95 shadow-[0_0_16px_#34d399]" />
+    </div>
   );
 };
 
-const Gradient = () => {
+const HorizonGradient = () => {
   return (
-    <div
-      className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[1.02] top-[calc(60vmax+296px)] w-[200vmax] h-[200vmax] blur-[40px] opacity-35 pointer-events-none select-none"
-      style={{
-        background:
-          "radial-gradient(100vmax, rgba(0,0,0,0) 54.81%, rgb(255,172,227) 60.098%, rgba(255,241,172,0.5) 62.983%, rgb(121,201,255) 68.5%, rgb(74,96,209) 80%, rgb(80,146,199) 90%, rgb(60,106,255) 93%, rgb(86,86,86) 97%, rgba(0,0,0,0) 100%)",
-      }}
-    />
+    <div className="absolute top-[220px] left-1/2 -translate-x-1/2 pointer-events-none select-none w-full flex justify-center">
+      {/* Primary Cyber Emerald & Indigo Deep Halo */}
+      <div
+        className="w-[140vmax] h-[650px] rounded-full blur-[80px] opacity-75"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 10%, rgba(16, 185, 129, 0.45) 0%, rgba(79, 70, 229, 0.25) 35%, rgba(14, 165, 233, 0.12) 55%, rgba(5, 5, 5, 0) 80%)",
+        }}
+      />
+      {/* Accent Ambient Glow Core */}
+      <div
+        className="absolute top-[30px] w-[90vmax] h-[350px] rounded-full blur-[60px] opacity-80"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 0%, rgba(52, 211, 153, 0.35) 0%, rgba(16, 185, 129, 0.15) 50%, transparent 80%)",
+        }}
+      />
+    </div>
   );
 };

@@ -1,6 +1,6 @@
 # MoodMetrics — Video Script
 
-**Duration:** ~5:00  
+**Duration:** ~6:00  
 **Visual Tone:** Dark, terminal-inspired UI. Monochrome with emerald accents. Grain overlay. Laser scan animations. Clean cuts.
 
 ---
@@ -17,7 +17,7 @@ This is MoodMetrics. A quantitative sentiment aggregator that ingests thousands 
 
 ---
 
-## 0:30 — DASHBOARD: THE BLENDED SCORE (1m 15s)
+## 0:30 — DASHBOARD: THE BLENDED SCORE (1m 30s)
 
 **[Cut to /dashboard page. Gauge dial visible, score animated springing into place.]**
 
@@ -27,9 +27,9 @@ This is the cockpit. The main gauge shows the Blended Sentiment Score. Right now
 
 But that single number is the result of a weighted blend of four distinct layers:
 
-**Flash Layer — 45% weight.** CoinGecko news and crypto RSS feeds like CoinDesk, Cointelegraph, Decrypt. Breaking headlines analyzed by Llama 3.1 — refreshed every 30 minutes. Fast-moving, short-term momentum.
+**Flash Layer — 45% weight.** CoinGecko news and crypto RSS feeds from CoinDesk, Cointelegraph, Decrypt, The Block, Blockworks, and more. Breaking headlines analyzed by Llama 3.1 — refreshed every 30 minutes. Fast-moving, short-term momentum.
 
-**Historic Layer — 35% weight.** Reddit community posts scraped from asset-specific subreddits. Each post gets AI-classified with a score, confidence, and reasoning. Pre-aggregated into hourly buckets with a 12-hour recency half-life decay. Refreshed every 6 hours.
+**Historic Layer — 35% weight.** Reddit community posts from asset-specific subreddits. Each post gets AI-classified with a score, confidence, and reasoning. Pre-aggregated into hourly buckets with a 12-hour recency half-life decay. Refreshed every 6 hours.
 
 **Funding Rates Layer — 15% weight.** Binance perpetual futures funding rates. Positive means longs are paying shorts — bullish leverage. Negative means shorts dominate. Normalized to a -1 to +1 scale, capped at ±0.10%.
 
@@ -43,9 +43,31 @@ The math: each layer is normalized to -1 to +1, multiplied by its weight, summed
 
 Below the gauge, the timeline plots hourly sentiment against the coin's spot price. The engine also applies logarithmic upvote scaling to prevent single viral posts from skewing the curve — log₁₀ of upvotes times 0.1, added to the source credibility weight.
 
+**[Cut to a "Behind the Scenes" break with scraper architecture overlay.]**
+
+But building this pipeline meant solving a hard problem: scraping crypto data at scale for free. Let me walk you through how each scraper was built.
+
+**[Quick cuts through scraper illustrations.]**
+
+**CoinGecko** — Free demo tier. The paid news endpoint was locked behind a 401, so we skip it entirely and let the RSS layer handle breaking news. Demo keys are rotated through HTTP headers.
+
+**Crypto RSS Feeds** — Originally used ScrapeGraphAI, a paid LLM-based scraping service. Replaced entirely with Cheerio, a lightweight HTML parser. Nine RSS feeds are fetched in parallel — Coindesk, Cointelegraph, Decrypt, The Block, Blockworks, BeInCrypto, CryptoBriefing, CryptoSlate, BitcoinMagazine. Each article's full text is extracted by probing common selectors like article, main, .post-content — stripping scripts, footers, and ads. Total time: under 4 seconds for all feeds.
+
+**Reddit** — This was the hardest. Reddit's public JSON API is 403-blocked on every cloud IP thanks to Cloudflare, and Reddit shut down self-service OAuth app creation in 2025. The solution: Arctic Shift, a public Reddit archive mirror with a 1-6 hour delay — good enough for a 35% historic layer. Eight anti-blocking defenses were needed: AbortController timeouts, exponential backoff on 429s, sequential subreddit scraping with randomized jitter, Retry-After header respect, rotating realistic browser User-Agents, content noise filtering, DB cache lock guarding against concurrent runs, and the Arctic Shift fallback itself.
+
+**Binance Funding Rates** — Public API, straightforward. Fetched every 30 minutes.
+
+**Fear & Greed Index** — alternative.me API, also public and free.
+
+The result: zero paid data subscriptions. Everything runs on free tiers.
+
+**[Cut back to the dashboard. Camera pulls out to show the full layout.]**
+
+On top of that, the entire pipeline is optimized for speed. A 30-minute cron job pre-computes and caches all news indicators, funding rates, and the fear-greed index. AI analysis runs in batches of 3 with parallel embedding calls. Timeseries rollups use batch upserts of 50 rows at a time. The result: the dashboard loads in under 200 milliseconds on a cold visit.
+
 ---
 
-## 1:45 — AI RECORDS PAGE (1m 15s)
+## 2:00 — AI RECORDS PAGE (1m 15s)
 
 **[Cut to /records page. Full page with filters, summary stats, record cards.]**
 
@@ -67,9 +89,13 @@ Each record card shows the post title, truncated content, the AI label with colo
 
 The timeline chart stacks volume bars with a sentiment line — hover-scrubbable. And the AI Verdict Scatter Matrix plots every post on an X-Y grid: score vs confidence. Rose dots for bearish, emerald for bullish, zinc for neutral. Instantly reveals where the conviction is.
 
+**[Cut to the "How is this calculated?" expandable dropdown on the main dashboard.]**
+
+The entire system is documented inline — every chart, every card, every blend weight has an expandable explanation so you never have to wonder *why* the score reads what it does.
+
 ---
 
-## 3:00 — BACKTESTER (1m)
+## 3:15 — BACKTESTER (45s)
 
 **[Cut to /backtester page. Parameter controls and results chart.]**
 
@@ -87,7 +113,7 @@ The engine calculates total return vs a passive hold benchmark, annualized Sharp
 
 If historical spot prices are flat — which happens if the database only has recent data — the engine falls back to a Monte Carlo simulation: a random walk with sentiment-drift bias, so you still get meaningful results.
 
-**[Cut to empty or "under development" state for the notes section.]**
+**[Fade to "testing" badge.]**
 
 The backtester is a live feature, actively being refined with more strategy presets, position sizing controls, and multi-parameter optimization coming soon.
 
