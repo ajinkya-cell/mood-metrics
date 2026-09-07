@@ -96,20 +96,40 @@ function isUsablePost(d: RedditPostData): boolean {
   return true;
 }
 
+// ── Subreddit mappings per ticker ─────────────────────────────────────────────
+export const SUBREDDITS_BY_TICKER: Record<string, string[]> = {
+  BTC: ["bitcoin", "BitcoinMarkets", "btc", "CryptoCurrency", "CryptoMarkets"],
+  ETH: ["ethereum", "ethtrader", "ethfinance", "CryptoCurrency", "CryptoMarkets"],
+  SOL: ["solana", "SolanaTrading", "CryptoCurrency", "CryptoMarkets"],
+};
+
 // ── Primary source: Arctic Shift ─────────────────────────────────────────────
 // Arctic Shift is a public Reddit archive (~1–6h delay).
 // API docs: https://github.com/ArthurHeitmann/arctic_shift/blob/master/api/README.md
 //   sort must be "asc" | "desc" (sorts by created_utc). "score" is NOT valid.
 
+type ArcticPost = {
+  id: string;
+  title: string;
+  selftext: string;
+  author: string;
+  permalink: string;
+  score: number;
+  num_comments: number;
+  created_utc: number;
+};
+
 async function fetchFromArcticShift(
   subreddit: string,
-  limit = 50
+  limit = 100,
+  before?: number
 ): Promise<RedditPost[]> {
-  console.log(`[ArcticShift] Fetching r/${subreddit} (limit=${limit})`);
-
-  const url =
+  let url =
     `https://arctic-shift.photon-reddit.com/api/posts/search` +
     `?subreddit=${subreddit}&limit=${limit}&sort=desc`;
+  if (before) {
+    url += `&before=${before}`;
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -126,12 +146,6 @@ async function fetchFromArcticShift(
       console.warn(`[ArcticShift] Failed: HTTP ${res.status} for r/${subreddit}`);
       return [];
     }
-
-    type ArcticPost = {
-      id: string; title: string; selftext: string;
-      author: string; permalink: string;
-      score: number; num_comments: number; created_utc: number;
-    };
 
     const data = (await res.json()) as { data: ArcticPost[] };
     const posts = data?.data ?? [];
@@ -159,47 +173,100 @@ async function fetchFromArcticShift(
   }
 }
 
+async function fetchArcticShiftPaginated(
+  subreddit: string,
+  maxPages = 5,
+  minCreatedUtc?: number
+): Promise<RedditPost[]> {
+  const allPosts: RedditPost[] = [];
+  const seenIds = new Set<string>();
+  let currentBefore: number | undefined = undefined;
+
+  console.log(
+    `[ArcticShift] Paginated fetch for r/${subreddit} (maxPages=${maxPages}${
+      minCreatedUtc ? `, minDate=${new Date(minCreatedUtc * 1000).toISOString()}` : ""
+    })`
+  );
+
+  for (let page = 0; page < maxPages; page++) {
+    const posts = await fetchFromArcticShift(subreddit, 100, currentBefore);
+    if (posts.length === 0) break;
+
+    let newPostsInPage = 0;
+    let reachedMinTime = false;
+
+    for (const post of posts) {
+      if (seenIds.has(post.data.id)) continue;
+      seenIds.add(post.data.id);
+
+      if (minCreatedUtc && post.data.created_utc < minCreatedUtc) {
+        reachedMinTime = true;
+        break;
+      }
+
+      allPosts.push(post);
+      newPostsInPage++;
+    }
+
+    const oldest = posts[posts.length - 1];
+    if (!oldest || newPostsInPage === 0 || reachedMinTime) {
+      break;
+    }
+
+    currentBefore = oldest.data.created_utc;
+    await sleep(jitter(350));
+  }
+
+  return allPosts;
+}
+
 // ── Public export ─────────────────────────────────────────────────────────────
 
-export async function scrapeReddit(ticker: Ticker): Promise<number> {
+type ScrapeRedditOptions = {
+  force?: boolean;
+  lookbackDays?: number;
+  maxPagesPerSub?: number;
+};
+
+export async function scrapeReddit(ticker: Ticker, opts?: ScrapeRedditOptions): Promise<number> {
   if (!ticker.redditName) {
     console.log(`[Reddit] No subreddit configured for ${ticker.symbol}`);
     return 0;
   }
 
   // ── Cache check ──────────────────────────────────────────────────────────
-  const existing = await db.query.scrapeCache.findFirst({
-    where: and(
-      eq(scrapeCache.tickerId, ticker.id),
-      eq(scrapeCache.sourceType, "reddit")
-    ),
-  });
+  if (!opts?.force) {
+    const existing = await db.query.scrapeCache.findFirst({
+      where: and(
+        eq(scrapeCache.tickerId, ticker.id),
+        eq(scrapeCache.sourceType, "reddit")
+      ),
+    });
 
-  if (existing) {
-    const age = Date.now() - existing.lastFetchedAt.getTime();
-    const isFresh = age < CACHE_DURATION_MS;
-    const isFailed = existing.status === "error" || (existing.postCount ?? 0) === 0;
+    if (existing) {
+      const age = Date.now() - existing.lastFetchedAt.getTime();
+      const isFresh = age < CACHE_DURATION_MS;
+      const isFailed = existing.status === "error" || (existing.postCount ?? 0) === 0;
 
-    // Retry if previous attempt errored OR returned 0 posts (likely blocked)
-    if (isFresh && !isFailed) {
-      console.log(`[Reddit] ${ticker.symbol} cache fresh (${Math.round(age / 60000)}m old), skipping`);
-      return 0;
-    }
+      // Retry if previous attempt errored OR returned 0 posts (likely blocked)
+      if (isFresh && !isFailed) {
+        console.log(`[Reddit] ${ticker.symbol} cache fresh (${Math.round(age / 60000)}m old), skipping`);
+        return 0;
+      }
 
-    if (isFailed) {
-      console.log(`[Reddit] ${ticker.symbol} previous attempt ${existing.status} (${existing.postCount} posts) — retrying`);
+      if (isFailed) {
+        console.log(`[Reddit] ${ticker.symbol} previous attempt ${existing.status} (${existing.postCount} posts) — retrying`);
+      }
     }
   }
 
   // ── Defense G: Mark as "in progress" immediately ─────────────────────────
-  // If two cron jobs fire at the same time (Vercel cold start overlap),
-  // the second one will see a recent lastFetchedAt and skip itself.
   await db
     .insert(scrapeCache)
     .values({
       tickerId: ticker.id,
       sourceType: "reddit",
-      lastFetchedAt: new Date(),   // claim the slot NOW
+      lastFetchedAt: new Date(),
       status: "in_progress",
     })
     .onConflictDoUpdate({
@@ -207,113 +274,116 @@ export async function scrapeReddit(ticker: Ticker): Promise<number> {
       set: { lastFetchedAt: new Date(), status: "in_progress" },
     });
 
-  console.log(`[Reddit] Fetching r/${ticker.redditName}...`);
+  const targetSubreddits = SUBREDDITS_BY_TICKER[ticker.symbol.toUpperCase()] ?? [ticker.redditName];
+  console.log(`[Reddit] Fetching subreddits for ${ticker.symbol}: ${targetSubreddits.join(", ")}...`);
 
   try {
-    // Go straight to Arctic Shift — skip reddit.com entirely
-    // (reddit.com 403s on all server IPs; Arctic Shift is our primary source)
-    let allPosts = await fetchFromArcticShift(ticker.redditName, 25);
+    const allPosts: RedditPost[] = [];
+    const lookbackDays = opts?.lookbackDays ?? 14;
+    const maxPages = opts?.maxPagesPerSub ?? 6;
+    const minCreatedUtc = Math.floor(Date.now() / 1000) - lookbackDays * 24 * 60 * 60;
 
-    // Fallback: if the subreddit isn't indexed by Arctic Shift (e.g. r/solana),
-    // fetch r/CryptoCurrency (well-indexed) and filter client-side by ticker name.
-    // NOTE: Arctic Shift's /api/posts/search does NOT support a `q` keyword param —
-    // it returns 400. We fetch broadly and filter here instead.
-    if (allPosts.length === 0) {
-      console.log(`[ArcticShift] r/${ticker.redditName} empty — falling back to r/CryptoCurrency for ${ticker.symbol}`);
-      const fallbackUrl =
-        `https://arctic-shift.photon-reddit.com/api/posts/search` +
-        `?subreddit=CryptoCurrency&limit=100&sort=desc`;
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-      try {
-        const res = await fetch(fallbackUrl, {
-          signal: controller.signal,
-          headers: { "User-Agent": randomAgent() },
-        });
-        clearTimeout(timer);
-        if (res.ok) {
-          type ArcticPost = {
-            id: string; title: string; selftext: string;
-            author: string; permalink: string;
-            score: number; num_comments: number; created_utc: number;
-          };
-          const data = (await res.json()) as { data: ArcticPost[] };
-          const raw = data?.data ?? [];
-
-          // Client-side keyword filter — keep only posts mentioning this ticker
-          const keyword = ticker.name.toLowerCase(); // e.g. "solana"
-          const symbol  = ticker.symbol.toLowerCase(); // e.g. "sol"
-          const filtered = raw.filter((p) => {
-            const text = `${p.title} ${p.selftext ?? ""}`.toLowerCase();
-            return text.includes(keyword) || text.includes(`$${symbol}`);
-          });
-
-          allPosts = filtered.map((p) => ({
-            data: {
-              id: p.id, title: p.title, selftext: p.selftext ?? "",
-              author: p.author,
-              permalink: p.permalink ?? `/r/CryptoCurrency/comments/${p.id}`,
-              score: p.score ?? 0, num_comments: p.num_comments ?? 0,
-              created_utc: p.created_utc, is_self: true,
-              stickied: false, distinguished: null, locked: false,
-            },
-          }));
-          console.log(`[ArcticShift] r/CryptoCurrency fallback: ${raw.length} total → ${allPosts.length} matching "${keyword}"`);
-        } else {
-          clearTimeout(timer);
-          console.warn(`[ArcticShift] r/CryptoCurrency fallback HTTP ${res.status}`);
-        }
-      } catch {
-        clearTimeout(timer);
-        console.warn(`[ArcticShift] r/CryptoCurrency fallback request failed`);
-      }
+    // Fetch across all targeted subreddits with deep pagination
+    for (const sub of targetSubreddits) {
+      const subPosts = await fetchArcticShiftPaginated(sub, maxPages, minCreatedUtc);
+      allPosts.push(...subPosts);
+      await sleep(jitter(400));
     }
 
+    // Keyword filter for generic / multi-coin subreddits (e.g. CryptoCurrency, CryptoMarkets)
+    const keyword = ticker.name.toLowerCase();
+    const symbol = ticker.symbol.toLowerCase();
+    const isSol = ticker.symbol.toUpperCase() === "SOL";
+    const isEth = ticker.symbol.toUpperCase() === "ETH";
+    const isBtc = ticker.symbol.toUpperCase() === "BTC";
+
+    const filteredByCoin = allPosts.filter((p) => {
+      // Posts from dedicated primary subreddits are inherently about this coin
+      const permalink = p.data.permalink.toLowerCase();
+      if (
+        (isBtc && (permalink.includes("/r/bitcoin/") || permalink.includes("/r/btc/") || permalink.includes("/r/bitcoinmarkets/"))) ||
+        (isEth && (permalink.includes("/r/ethereum/") || permalink.includes("/r/ethtrader/") || permalink.includes("/r/ethfinance/"))) ||
+        (isSol && (permalink.includes("/r/solana/") || permalink.includes("/r/solanatrading/")))
+      ) {
+        return true;
+      }
+
+      const text = `${p.data.title} ${p.data.selftext}`.toLowerCase();
+      if (isSol) {
+        return (
+          text.includes("solana") ||
+          text.includes("$sol") ||
+          /\bsol\b/i.test(text) ||
+          text.includes("phantom wallet") ||
+          text.includes("pump.fun") ||
+          text.includes("raydium")
+        );
+      }
+      if (isEth) {
+        return (
+          text.includes("ethereum") ||
+          text.includes("ether") ||
+          text.includes("$eth") ||
+          /\beth\b/i.test(text) ||
+          text.includes("vitalik") ||
+          text.includes("erc20") ||
+          text.includes("erc-20")
+        );
+      }
+      if (isBtc) {
+        return (
+          text.includes("bitcoin") ||
+          text.includes("satoshi") ||
+          text.includes("$btc") ||
+          /\bbtc\b/i.test(text) ||
+          text.includes("sats")
+        );
+      }
+
+      return text.includes(keyword) || text.includes(`$${symbol}`) || new RegExp(`\\b${symbol}\\b`, "i").test(text);
+    });
+
     // Defense F: filter before inserting
-    const usable = allPosts.filter((p) => isUsablePost(p.data));
+    const usable = filteredByCoin.filter((p) => isUsablePost(p.data));
     console.log(
-      `[ArcticShift] ${ticker.symbol}: ${allPosts.length} total → ${usable.length} after filtering`
+      `[ArcticShift] ${ticker.symbol}: ${allPosts.length} total fetched → ${filteredByCoin.length} coin-matched → ${usable.length} usable after content filter`
     );
 
-
-
-    let inserted = 0;
-
-    for (const post of usable) {
+    const rowsToInsert = usable.map((post) => {
       const {
         id, title, selftext, author,
         permalink, score, num_comments, created_utc, is_self,
       } = post.data;
 
-      // For link posts (is_self=false) we only have the title — that's fine,
-      // the title alone is enough for sentiment analysis.
       const content = [title, is_self ? selftext : ""]
         .filter(Boolean)
         .join("\n\n")
         .trim()
         .slice(0, 5000);
 
-      try {
-        await db
-          .insert(rawPosts)
-          .values({
-            tickerId:     ticker.id,
-            sourceType:   "reddit",
-            externalId:   id,
-            title:        title.slice(0, 500),
-            content,
-            author:       author ?? "unknown",
-            url:          `https://reddit.com${permalink}`,
-            upvotes:      score,
-            commentCount: num_comments,
-            postedAt:     new Date(created_utc * 1000),
-          })
-          .onConflictDoNothing();
+      return {
+        tickerId:     ticker.id,
+        sourceType:   "reddit" as const,
+        externalId:   id,
+        title:        title.slice(0, 500),
+        content,
+        author:       author ?? "unknown",
+        url:          `https://reddit.com${permalink}`,
+        upvotes:      score,
+        commentCount: num_comments,
+        postedAt:     new Date(created_utc * 1000),
+      };
+    });
 
-        inserted++;
-      } catch {
-        // duplicate — safe to ignore
+    let inserted = 0;
+    const batchSize = 50;
+    for (let i = 0; i < rowsToInsert.length; i += batchSize) {
+      const batch = rowsToInsert.slice(i, i + batchSize);
+      try {
+        await db.insert(rawPosts).values(batch).onConflictDoNothing();
+        inserted += batch.length;
+      } catch (insertErr) {
+        console.warn(`[Reddit] Batch insert warning for ${ticker.symbol}:`, insertErr);
       }
     }
 

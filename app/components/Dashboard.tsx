@@ -20,6 +20,7 @@ import HorizontalScale from "./HorizontalScale";
 import GlowCard from "./GlowCard";
 import TerminalLoader from "./TerminalLoader";
 import DoubleBezel from "./DoubleBezel";
+import Meter, { getSentimentColorClass } from "./meter";
 
 function getRelativeTime(timestamp: string) {
   const ms = Date.now() - new Date(timestamp).getTime();
@@ -169,23 +170,6 @@ export default function Dashboard() {
     fetchSentiment(activeSymbol, true);
   };
 
-  const getNeedleCoordinates = (score: number) => {
-    const angleInDegrees = -90 + (score / 100) * 135;
-    const angleInRadians = (angleInDegrees * Math.PI) / 180;
-    const radius = 52;
-    const cx = 90;
-    const cy = 90;
-    const x = cx + radius * Math.cos(angleInRadians);
-    const y = cy + radius * Math.sin(angleInRadians);
-    return { x, y };
-  };
-
-  const getSentimentColorClass = (score: number) => {
-    if (score > 20) return "text-emerald-500";
-    if (score < -20) return "text-rose-500";
-    return "text-zinc-400";
-  };
-
   if (isAnalyzing) {
     return <TerminalLoader symbol={activeSymbol} />;
   }
@@ -193,9 +177,6 @@ export default function Dashboard() {
   if (loading && !data) {
     return <LoadingSkeleton />;
   }
-
-  const sentimentColor = data ? getSentimentColorClass(data.sentiment.score) : "text-zinc-400";
-  const needleCoords = data ? getNeedleCoordinates(data.sentiment.score) : { x: 80, y: 25 };
 
   return (
     <div className="min-h-[100dvh] w-full pt-20 bg-[#050505] text-zinc-100 font-sans antialiased overflow-x-hidden pb-16">
@@ -303,128 +284,11 @@ export default function Dashboard() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center mt-6">
-                    {/* Left: The clean, uncluttered dial */}
-                    <div className="relative w-48 h-48 mx-auto flex items-center justify-center">
-                      <svg viewBox="0 0 180 180" className="w-full h-full transform -rotate-15 overflow-visible">
-                        {/* Background Dial Track */}
-                        <path
-                          d="M 40.5 139.5 A 70 70 0 1 1 139.5 139.5"
-                          fill="none"
-                          stroke="rgba(255,255,255,0.03)"
-                          strokeWidth="10"
-                          strokeLinecap="round"
-                        />
-                        {/* Colored Active Sentiment Track Outline */}
-                        <path
-                          d="M 40.5 139.5 A 70 70 0 1 1 139.5 139.5"
-                          fill="none"
-                          stroke={
-                            data.sentiment.score > 20
-                              ? "#10B981"
-                              : data.sentiment.score < -20
-                              ? "#F43F5E"
-                              : "#71717A"
-                          }
-                          strokeWidth="2"
-                          strokeOpacity="0.25"
-                          strokeLinecap="round"
-                        />
-
-                        {/* Dial Scale Tick Marks & Numbers */}
-                        {[-100, -50, 0, 50, 100].map((val) => {
-                          const angle = -90 + (val / 100) * 135;
-                          const rad = (angle * Math.PI) / 180;
-                          
-                          // Ticks coordinates
-                          const tx1 = 90 + 64 * Math.cos(rad);
-                          const ty1 = 90 + 64 * Math.sin(rad);
-                          const tx2 = 90 + 72 * Math.cos(rad);
-                          const ty2 = 90 + 72 * Math.sin(rad);
-                          
-                          // Numbers placement
-                          const lx = 90 + 84 * Math.cos(rad);
-                          const ly = 90 + 84 * Math.sin(rad);
-                          
-                          return (
-                            <g key={val} className="font-mono text-[8.5px] fill-zinc-500 select-none">
-                              <line
-                                x1={tx1}
-                                y1={ty1}
-                                x2={tx2}
-                                y2={ty2}
-                                stroke="rgba(255, 255, 255, 0.12)"
-                                strokeWidth="1.2"
-                              />
-                              <text
-                                x={lx}
-                                y={ly + 3}
-                                textAnchor="middle"
-                              >
-                                {val > 0 ? `+${val}` : val}
-                              </text>
-                            </g>
-                          );
-                        })}
-
-                        {/* Animated Spring Needle */}
-                        <motion.line
-                          x1="90"
-                          y1="90"
-                          initial={{ x2: 90, y2: 38 }}
-                          animate={{ x2: needleCoords.x, y2: needleCoords.y }}
-                          transition={{ type: "spring", stiffness: 100, damping: 15, mass: 0.8 }}
-                          stroke={
-                            data.sentiment.score > 20
-                              ? "#10B981"
-                              : data.sentiment.score < -20
-                              ? "#F43F5E"
-                              : "#71717A"
-                          }
-                          strokeWidth="3.5"
-                          strokeLinecap="round"
-                          style={{ filter: "drop-shadow(0 0 3px currentColor)" }}
-                        />
-                        <circle cx="90" cy="90" r="5" fill="#0C0C0E" stroke="#71717A" strokeWidth="1.5" />
-                      </svg>
-                    </div>
-
-                    {/* Right: The big, beautiful score metrics */}
-                    <div className="flex flex-col items-center md:items-start text-center md:text-left justify-center font-mono">
-                      <span className="text-xs text-zinc-500 tracking-[0.2em] uppercase">
-                        BLENDED SENTIMENT
-                      </span>
-                      <motion.span
-                        key={data.sentiment.score}
-                        initial={{ x: -15, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ type: "spring", stiffness: 100, damping: 15 }}
-                        className={`text-6xl md:text-7xl font-bold tracking-tighter ${sentimentColor} my-1`}
-                      >
-                        {data.sentiment.score > 0 ? "+" : ""}
-                        {data.sentiment.score}
-                      </motion.span>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs uppercase font-bold px-2.5 py-1 rounded bg-white/5 border border-white/5 ${sentimentColor}`}>
-                          {data.sentiment.label}
-                        </span>
-                        <span className="text-xs text-zinc-500">
-                          COCKPIT GREEN
-                        </span>
-                      </div>
-                      
-                      {/* Short subtext breakdown */}
-                      <span className="text-xs text-zinc-500 mt-6 max-w-[200px] leading-relaxed border-t border-white/5 pt-3">
-                        Blended components weighted: 45/35/15/5
-                      </span>
-                      <Link
-                        href="/methodology"
-                        className="text-[10px] text-emerald-400 hover:text-emerald-300 underline font-bold mt-2 font-mono tracking-wider transition-colors duration-200"
-                      >
-                        METHODOLOGY READ MORE →
-                      </Link>
-                    </div>
-                  </div>
+                  <Meter
+                    score={data.sentiment.score}
+                    label={data.sentiment.label}
+                    className="mt-6"
+                  />
                 </div>
               </DoubleBezel>
 

@@ -16,7 +16,7 @@ import { db } from "@/lib/db/client";
 import { tickers, rawPosts, sentimentRecords } from "@/lib/db/schema";
 import { eq, lt } from "drizzle-orm";
 import { scrapeReddit } from "@/lib/scrapers/reddit";
-import { analyzePendingPosts, rollupTimeseries } from "@/lib/ai/sentiment";
+import { analyzePendingPosts, rollupTimeseries, recordBlendedSentiment } from "@/lib/ai/sentiment";
 
 export const maxDuration = 300; // 5 min — Vercel Pro max for cron
 
@@ -49,9 +49,10 @@ export async function POST(req: Request) {
     for (const ticker of activeTickers) {
       console.log(`\n[RedditCron] === ${ticker.symbol} ===`);
 
-      const scraped = await scrapeReddit(ticker);
-      const analyzed = await analyzePendingPosts(ticker);
+      const scraped = await scrapeReddit(ticker, { lookbackDays: 14, maxPagesPerSub: 8 });
+      const analyzed = await analyzePendingPosts(ticker, 100);
       await rollupTimeseries(ticker);
+      await recordBlendedSentiment(ticker);
 
       results[ticker.symbol] = { scraped, analyzed };
 

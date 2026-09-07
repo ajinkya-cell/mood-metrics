@@ -39,7 +39,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | Styling | Tailwind CSS | ^4 | Utility-first styling |
 | Font | Geist | bundled | Vercel font family |
 | Database | Drizzle ORM + Neon (PostgreSQL) | 0.45.2 | Serverless PostgreSQL database client |
-| AI | Vercel AI SDK `generateText` + Nvidia NIM (Llama 3.1 8B) | 6.0.208 | AI-powered sentiment extraction with custom JSON parser fallback |
+| AI | Vercel AI SDK `generateText` + Nvidia NIM (Meta Llama 3.2 11B Vision Instruct + Nemotron-3 Embed 1B) | 6.0.208 | AI-powered sentiment extraction and semantic embeddings with custom JSON parser fallback |
 | Scraping | cheerio + rss-parser | 1.2.0 / 3.13.0 | Lightweight HTML parsing and feed reading |
 
 ---
@@ -132,6 +132,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 |---|---|
 | [script.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/script.md) | ~6-minute video script covering dashboard, scraper engineering journey, AI records, backtester, and advanced tools. |
 | [app/components/Dashboard.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/Dashboard.tsx) | Main client component dashboard managing telemetry fetching, live pricing, search query, gauge needles, CMD logs feed, skeletons, and the L5 Whale Movement card. It displays the `TerminalLoader` overlay during coin fetching and analysis. |
+| [app/components/meter.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/meter.tsx) | Standalone modular sentiment telemetry gauge meter component with interactive spring-animated needle, scale ticks, status badges, and score breakdown. |
 | [app/components/GlobalNav.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/GlobalNav.tsx) | Header navigation featuring dynamic routing paths for Dashboard, AI Records, Backtest, Advanced Tools, How It Works, and Support. |
 | [app/components/GlobalFooter.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/GlobalFooter.tsx) | Global footer component displaying brand details, main navigation links, and styled system diagnostics indicators. |
 | [app/components/TerminalLoader.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/TerminalLoader.tsx) | Interactive hacker-themed terminal loading overlay. Features rotating circles, a laser scanning sweep, click-to-boost log speed triggers, and a rotating crypto history fact ticker. |
@@ -165,6 +166,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | [app/api/cron/scrape-flash/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-flash/route.ts) | `POST` — Triggers parallel updates for CoinGecko + News RSS + Binance Funding + Fear & Greed + Whale Net Flow (30-min cron). Bypasses cache if `?force=true`. |
 | [app/api/cron/scrape-reddit/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-reddit/route.ts) | `POST` — Reddit scrape + AI analysis + timeseries rollup. Cleans up raw posts and sentiment records older than 14 days (6-hour cron). |
 | [scripts/setup-cron-jobs.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/setup-cron-jobs.ts) | Setup script to create/update cron jobs on cron-job.org via REST API. Replaces Vercel crons. |
+| [scripts/ingest-all-data.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/ingest-all-data.ts) | Master data ingestion CLI runner supporting lookback windows, deep Reddit pagination, flash news feeds, AI batch analysis, and timeseries rollups. |
 | [app/api/search/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/search/route.ts) | `GET /api/search?q=bit` — Ticker lookup (checks symbols and names). |
 | [lib/db/schema.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/schema.ts) | Full Drizzle schema definitions. |
 | [lib/db/client.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/client.ts) | Neon client setup with Drizzle ORM (HTTP-based for serverless environments). |
@@ -224,6 +226,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | `npx tsx scripts/check-routes.ts` | Runs integration route checks against local dev server |
 | `npx tsx --env-file=.env scripts/db-inspect.ts` | Utility to inspect the current count and status of database tables |
 | `npx tsx --env-file=.env scripts/run-reddit-ingestion.ts` | Utility to manually trigger Reddit scraping, AI analysis, and timeseries rollup |
+| `npx tsx --env-file=.env scripts/ingest-all-data.ts` | Master CLI tool for full flash news, deep paginated Reddit, AI analysis, timeseries rollups, and blended sentiment calculations |
 | `npx tsx --env-file=.env scripts/setup-cron-jobs.ts` | Creates/updates cron-job.org jobs (scrape-flash every 30m, scrape-reddit every 6h) |
 
 ---
@@ -254,7 +257,8 @@ Replaced the paid `ScrapeGraphAI` LLM-based scraping system with a free, custom-
 - Rotates demo API keys through standard HTTP headers (`x-cg-demo-api-key`).
 
 ### AI Sentiment Analysis Engine
-- Employs Nvidia NIM hosting Llama 3.1 8B Instruct model.
+- Employs Nvidia NIM hosting Meta Llama 3.2 11B Vision Instruct (`meta/llama-3.2-11b-vision-instruct`) for fast, accurate JSON sentiment classification (upgraded from deprecated Llama 3.1 8B).
+- Embeddings generated via Nvidia Nemotron-3 Embed 1B (`nvidia/nemotron-3-embed-1b`) and sliced to 1536 dimensions for Neon PostgreSQL `pgvector` indexing.
 - Analyzes batches of up to 50 posts at a time to prevent high token costs.
 - Custom fallback parser parses sentiment labels, scores, confidence readings, and reasonings from JSON output strings even if the model fails to return clean JSON blocks.
 
@@ -418,3 +422,28 @@ b2d636f  2026-06-15  added : reddit scraper
   - Replaced the unicode finger pointing symbol (`☜`) with the inverted white curved arrow image asset (`/arrow.png`) and attached the Tabler outline Bitcoin SVG icon (`icon-tabler-coin-bitcoin`) at position `-top-6 sm:-top-8 -right-14 sm:-right-18` at the arrow tail.
   - Added an editorial statement banner using the Google Font **`Kalam`** (`kalam.className`) right after the `<HorizontalScale />` divider line in pure white text (`text-white`) with a glowing white drop-shadow (`drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]`), articulating MoodMetrics' core function as an AI-powered sentiment aggregation engine.
 - Fixed React hydration mismatch warning in `AnimatedBeam` component [[animated-beam.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/magicui/animated-beam.tsx)] by replacing client-side `Math.random()` ID generation with React's `useId()` hook and adding `suppressHydrationWarning`.
+- Extracted and modularized the Bitcoin Telemetry sentiment gauge meter into [[meter.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/meter.tsx)]:
+  - Created a fully typed, reusable `Meter` component (`MeterProps`) for inclusion in component UI libraries, complete with spring-animated SVG needle, scale tick marks (-100 to +100), dynamic sentiment color scoring, customizable titles, status badges, weight breakdown text, and methodology links.
+  - Refactored [[Dashboard.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/Dashboard.tsx)] to consume `<Meter />` directly.
+- Upgraded the AI sentiment analysis engine in [[lib/ai/sentiment.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/ai/sentiment.ts)] from the deprecated `meta/llama-3.1-8b-instruct` (which reached End-of-Life on 2026-08-26 with HTTP 410 Gone) to `meta/llama-3.2-11b-vision-instruct`, and upgraded the vector embeddings model from `nvidia/llama-nemotron-embed-1b-v2` (EOL on 2026-08-25) to `nvidia/nemotron-3-embed-1b` (slicing 2048-dim vectors to 1536-dim for Postgres pgvector schema compatibility).
+- Fixed the crypto news RSS scraper in [[lib/scrapers/news.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/news.ts)] by removing the 403-failing `bitcoinmagazine.com` feed and adding verified working feeds `https://dailyhodl.com/feed/` and `https://news.bitcoin.com/feed/`.
+- Created a sentiment backfill utility script [[scripts/backfill-sentiment.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/backfill-sentiment.ts)] to process accumulated unanalyzed posts, reconstruct hourly timeseries buckets via `rollupTimeseries`, and generate fresh blended sentiment records.
+- Expanded the Flash News ingestion layer in [[lib/scrapers/news.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/news.ts)]:
+  - Integrated dynamic Google News RSS query streams per ticker (`Bitcoin cryptocurrency`, `Ethereum cryptocurrency`, `Solana crypto`).
+  - Expanded curated crypto RSS sources to 14 verified feeds including CryptoPanic RSS, U.Today, CoinGape, Yahoo Finance Crypto, CoinDesk, Decrypt, The Block, Blockworks, BeInCrypto, CryptoBriefing, CryptoSlate, DailyHodl, and News Bitcoin.
+  - Increased feed parsing inspection limit from 30 to 100 items per feed and increased lookback window up to 14 days.
+  - Added robust instant fallback: if Cheerio full HTML extraction is blocked or rate-limited, immediately falls back to the RSS title + rich description snippet, ensuring 100% of discovered articles are ingested.
+  - Enhanced coin keyword & cashtag matching for BTC, ETH, and SOL.
+  - Optimized database insertions with batch operations (batches of 50) and enforced safe `varchar(500)` slicing on `externalId`.
+- Upgraded the Historical Reddit scraper in [[lib/scrapers/reddit.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/scrapers/reddit.ts)]:
+  - Implemented multi-page timestamp cursor pagination (`fetchArcticShiftPaginated`) using `before=<created_utc>` to traverse back across the full 14-day historical window.
+  - Expanded subreddit mappings to cover 12+ high-signal subreddits: `r/bitcoin`, `r/BitcoinMarkets`, `r/btc`, `r/ethereum`, `r/ethtrader`, `r/ethfinance`, `r/solana`, `r/SolanaTrading`, `r/CryptoCurrency`, and `r/CryptoMarkets`.
+  - Added coin-specific regex pattern matching for broad subreddits and batch database insertion (`values(batch).onConflictDoNothing()`).
+- Optimized AI sentiment analysis and embedding pipelines in [[lib/ai/sentiment.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/ai/sentiment.ts)]:
+  - Added retry loop with exponential backoff on transient errors and Nvidia NIM rate limits.
+  - Added `.onConflictDoNothing()` safety guard on `sentiment_records` insertion to prevent duplicate key constraint warnings during backfills.
+- Built the master ingestion CLI runner [[scripts/ingest-all-data.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/ingest-all-data.ts)]:
+  - Unified end-to-end runner that scrapes Flash News, paginates Arctic Shift Reddit, runs AI analysis with progress reporting, recomputes hourly timeseries rollups, and calculates fresh blended sentiment records.
+  - Successfully populated ample historical data and flash news across Bitcoin, Ethereum (40+ news, 250+ Reddit posts, 40+ hourly buckets), and Solana (90+ news, 270+ Reddit posts, 49+ hourly buckets).
+
+

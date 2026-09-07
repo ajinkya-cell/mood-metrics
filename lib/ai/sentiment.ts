@@ -3,7 +3,7 @@
 // NOTE: NIM doesn't support generateObject's structured output, so we use
 // generateText and parse JSON manually from the response.
 
-import { generateText, embed } from "ai";
+import { generateText } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { db } from "@/lib/db/client";
 import { rawPosts, sentimentRecords, sentimentTimeseries, marketIndicators } from "@/lib/db/schema";
@@ -101,7 +101,7 @@ export async function getEmbedding(text: string, inputType: "passage" | "query" 
   if (!apiKey) return null;
   
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+  const timer = setTimeout(() => controller.abort(), 15000); // 15-second timeout
 
   try {
     const res = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
@@ -111,7 +111,7 @@ export async function getEmbedding(text: string, inputType: "passage" | "query" 
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "nvidia/llama-nemotron-embed-1b-v2",
+        model: "nvidia/nemotron-3-embed-1b",
         input: [text],
         encoding_format: "float",
         input_type: inputType,
@@ -127,7 +127,7 @@ export async function getEmbedding(text: string, inputType: "passage" | "query" 
       return null;
     }
     
-    const data: any = await res.json();
+    const data = (await res.json()) as { data?: { embedding?: number[] }[] };
     const rawVector = data.data?.[0]?.embedding;
     if (Array.isArray(rawVector)) {
       return rawVector.slice(0, 1536);
@@ -148,20 +148,21 @@ type SentimentResult = {
 };
 
 // ── Analyze a single post ──────────────────────────────────────────────────────
-async function analyzePost(post: RawPost, coinName: string): Promise<SentimentResult> {
+async function analyzePost(post: RawPost, coinName: string, retries = 2): Promise<SentimentResult> {
   const textToAnalyze = [post.title, post.content]
     .filter(Boolean)
     .join("\n")
     .slice(0, 2000);
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12000); // 12-second timeout
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25000); // 25-second timeout
 
-  try {
-    const { text } = await generateText({
-      model: nim.chatModel("meta/llama-3.1-8b-instruct"),
-      abortSignal: controller.signal,
-      prompt: `You are a crypto market sentiment analyst. Analyze this content about ${coinName} and determine the market sentiment.
+    try {
+      const { text } = await generateText({
+        model: nim.chatModel("meta/llama-3.2-11b-vision-instruct"),
+        abortSignal: controller.signal,
+        prompt: `You are a crypto market sentiment analyst. Analyze this content about ${coinName} and determine the market sentiment.
 
 Content:
 ${textToAnalyze}
@@ -175,14 +176,20 @@ Rules:
 - confidence: 0.0 to 1.0
 - reasoning: one short sentence explaining your analysis
 - Focus on market sentiment, not general news value`,
-    });
+      });
 
-    clearTimeout(timer);
-    return parseSentiment(text);
-  } catch (err) {
-    clearTimeout(timer);
-    throw err;
+      clearTimeout(timer);
+      return parseSentiment(text);
+    } catch (err: any) {
+      clearTimeout(timer);
+      const isLast = attempt === retries;
+      if (isLast) throw err;
+      const delay = (attempt + 1) * 1000 + Math.random() * 500;
+      await new Promise((r) => setTimeout(r, delay));
+    }
   }
+
+  return { label: "neutral", score: 0, confidence: 0, reasoning: "Analysis failed" };
 }
 
 function parseSentiment(raw: string): SentimentResult {
@@ -248,7 +255,16 @@ const SOURCE_WEIGHT = {
 } as const;
 
 // ── Analyze all unanalyzed posts for a ticker ──────────────────────────────────
-export async function analyzePendingPosts(ticker: Ticker, limit = 50): Promise<number> {
+type AnalyzeOptions = {
+  batchSize?: number;
+  onProgress?: (analyzed: number, total: number) => void;
+};
+
+export async function analyzePendingPosts(
+  ticker: Ticker,
+  limit = 50,
+  options?: AnalyzeOptions
+): Promise<number> {
   // Find raw posts that don't have a sentiment record yet
   const pending = await db
     .select({ post: rawPosts })
@@ -260,7 +276,7 @@ export async function analyzePendingPosts(ticker: Ticker, limit = 50): Promise<n
         isNull(sentimentRecords.id) // no sentiment record = not analyzed yet
       )
     )
-    .limit(limit); // process max 'limit' at a time to control API costs and response times
+    .limit(limit);
 
   if (pending.length === 0) {
     console.log(`[AI] No pending posts for ${ticker.symbol}`);
@@ -269,9 +285,8 @@ export async function analyzePendingPosts(ticker: Ticker, limit = 50): Promise<n
 
   console.log(`[AI] Analyzing ${pending.length} posts for ${ticker.symbol}...`);
   let analyzed = 0;
+  const batchSize = options?.batchSize ?? 3;
 
-  // Process posts concurrently in batches of 3 to speed up execution while respecting Nvidia limits
-  const batchSize = 3;
   for (let i = 0; i < pending.length; i += batchSize) {
     const batch = pending.slice(i, i + batchSize);
     
@@ -305,20 +320,27 @@ export async function analyzePendingPosts(ticker: Ticker, limit = 50): Promise<n
     for (const res of batchResults) {
       if (!res) continue;
       try {
-        await db.insert(sentimentRecords).values({
-          postId: res.post.id,
-          tickerId: ticker.id,
-          label: res.result.label,
-          score: res.result.score.toFixed(3),
-          confidence: res.result.confidence.toFixed(3),
-          reasoning: res.result.reasoning,
-          embedding: res.vector,
-        });
+        await db
+          .insert(sentimentRecords)
+          .values({
+            postId: res.post.id,
+            tickerId: ticker.id,
+            label: res.result.label,
+            score: res.result.score.toFixed(3),
+            confidence: res.result.confidence.toFixed(3),
+            reasoning: res.result.reasoning,
+            embedding: res.vector,
+          })
+          .onConflictDoNothing();
 
         analyzed++;
       } catch (dbError) {
         console.warn(`[AI] Database insertion failed for post ${res.post.id}:`, dbError);
       }
+    }
+
+    if (options?.onProgress) {
+      options.onProgress(analyzed, pending.length);
     }
 
     // Small delay between batches
