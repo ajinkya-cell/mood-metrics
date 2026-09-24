@@ -37,7 +37,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | UI | React | 19.2.4 | UI components |
 | Language | TypeScript | ^5 | Typed logic |
 | Styling | Tailwind CSS | ^4 | Utility-first styling |
-| Font | Geist | bundled | Vercel font family |
+| Font | Geist Sans + JetBrains Mono + EB Garamond + DotGothic16 + VT323 | bundled (`next/font/google`) | Geist for proportional editorial text; JetBrains Mono for all code & HUD metrics; EB Garamond for hero headline; DotGothic16 & VT323 for retro terminal telemetry |
 | Database | Drizzle ORM + Neon (PostgreSQL) | 0.45.2 | Serverless PostgreSQL database client |
 | AI | Vercel AI SDK `generateText` + Nvidia NIM (Meta Llama 3.2 11B Vision Instruct + Nemotron-3 Embed 1B) | 6.0.208 | AI-powered sentiment extraction and semantic embeddings with custom JSON parser fallback |
 | Scraping | cheerio + rss-parser | 1.2.0 / 3.13.0 | Lightweight HTML parsing and feed reading |
@@ -445,5 +445,32 @@ b2d636f  2026-06-15  added : reddit scraper
 - Built the master ingestion CLI runner [[scripts/ingest-all-data.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/ingest-all-data.ts)]:
   - Unified end-to-end runner that scrapes Flash News, paginates Arctic Shift Reddit, runs AI analysis with progress reporting, recomputes hourly timeseries rollups, and calculates fresh blended sentiment records.
   - Successfully populated ample historical data and flash news across Bitcoin, Ethereum (40+ news, 250+ Reddit posts, 40+ hourly buckets), and Solana (90+ news, 270+ Reddit posts, 49+ hourly buckets).
+- Resolved Next.js deployment build failure (`MODULE_NOT_FOUND: ./app/components/meter.tsx:4:1`):
+  - Changed `import { motion } from "framer-motion"` to `import { motion } from "motion/react"` in [[meter.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/meter.tsx)], matching the project's `"motion": "^12.41.0"` dependency and Next.js 16 / React 19 environment.
+  - Verified with clean local production build (`npm run build` / `next build` with Turbopack) completing with zero errors across all 23 routes.
+- Executed minimalist, anti-slop redesign across Global Navigation, Telemetry Dashboard, and AI Records sections:
+  - **Global Navigation [[GlobalNav.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/GlobalNav.tsx)]**: Updated brand logo asset to `logo-moody.png` (`public/logo-moody.png`), narrowed container max-width to `max-w-4xl`, transformed into a floating `rounded-full` capsule pill with subtle `bg-[#0C0C0E]/80` backdrop blur, crisp border (`border-white/10`), and clean font-mono navigation links. Built mobile responsiveness with an animated Hamburger menu toggle button (`List` / `X` icons from `@phosphor-icons/react`) that opens a floating, frosted-glass dropdown menu on screens `< lg`, with outside-click detection, Escape key listener, and automatic route change dismissal.
+  - **Base Minimalist Card [[BeveledCard.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/BeveledCard.tsx)]**: Created clean, understated container eliminating heavy 3D bevels, multi-color laser flares, and aggressive inset shadows. Employs a pure `#0C0C0E` matte surface, subtle perimeter boundary (`border border-white/[0.07]`), soft specular top edge (`border-t-white/[0.12]`), and clean modern elevation (`shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)]`).
+  - **Telemetry Dashboard [[Dashboard.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/Dashboard.tsx)]**: Redesigned coin selector into a sleek, minimal pill toggle (`rounded-full bg-white/[0.04] border border-white/10`) with an elevated flat white active pill. Replaced heavy skeuomorphic button with a minimal pill SYNC trigger. Stripped nested socket boxes inside live ingestion log rows and whale transactions, allowing data to breathe with clean typography and hairline dividers (`border-b border-white/[0.04]`). Removed multi-color laser flares from L1-L4 Bento layers.
+  - **Detailed AI Records [[records/page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/records/page.tsx)]**: Refactored the 6 telemetry summary cards to clean minimal surfaces with large typography and quiet borders. Redesigned Filter Coordinate Matrix inputs to flat, calm controls (`bg-white/[0.03] border border-white/10`). Converted news/Reddit record items into sleek, editorial cards with generous breathing room and clean AI verdict columns. Upgraded pagination controls to minimal pill buttons.
+- Migrated codebase typography from Geist Mono to **JetBrains Mono** and refined navigation styling:
+  - **Root Layout & CSS [[layout.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/layout.tsx), [globals.css](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/globals.css)]**: Imported `JetBrains_Mono` from `next/font/google` and configured `--font-jetbrains-mono`. Updated Tailwind `@theme` font definition to map `--font-mono` to `var(--font-jetbrains-mono), ui-monospace, monospace`, seamlessly propagating JetBrains Mono across all telemetry, badges, metrics, logs, and tables project-wide.
+  - **Global Navigation [[GlobalNav.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/GlobalNav.tsx)]**:
+    - Switched navigation link typography to proportional **Geist Sans** (`font-sans font-medium text-[13px]`) on desktop and `text-sm font-sans font-medium` on mobile dropdown items.
+    - Updated navigation icons to distinct Phosphor components: `Gauge` (Dashboard), `Database` (Records), `TrendUp` (Backtest), `Cpu` (Tools), `BookOpen` (How It Works), and `Heart` (Support).
+    - Replaced raw inline SVGs for social links with official `@phosphor-icons/react` components: `<GithubLogo size={18} weight="fill" />` and `<XLogo size={17} weight="bold" />`.
+- Revamped the homepage Hero section in [[page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/page.tsx)]:
+  - Replaced the dome celestial horizon arc and bouncy text animations with `public/base.png` as the hero background, blending smoothly into `#050505` via dual-layer vertical gradients.
+  - Implemented the reusable [[MatrixRain.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/MatrixRain.tsx)] canvas component with throttled 30 FPS rendering, decay fade trails, and Katakana glyph streams.
+  - Localized the Matrix Rain animation using an elliptical vignette mask (`radial-gradient`) to fall subtly within the open sky clearing of `base.png` without colliding with the side arches and coins.
+  - Set the primary headline to *"Map the Mood with Mood Metrics"*, rendered in Google Font **`EB Garamond`** (`EB_Garamond` from `next/font/google`) with a subtle silvery-emerald text gradient on *"Mood Metrics"*.
+  - Styled a clean, minimal pill CTA button linking directly to `/dashboard`.
+  - Upgraded the "Launch Dashboard" hero button to a precision minimal beveled trigger using the multi-layer 3D tactile box shadow, top specular prismatic highlight, and matte obsidian surface defined in `card-bevel-prompt-and-code.md`.
+  - Configured retro terminal fonts **`DotGothic16`** (`dot`) and **`VT323`** (`vt323`) via `next/font/google` in [[page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/page.tsx)].
+
+
+
+
+
 
 

@@ -1,26 +1,33 @@
+"use client";
+
 import React from "react";
+import BeveledCard, { FlareAccent } from "./BeveledCard";
+import { cn } from "@/lib/utils";
 
 type DoubleBezelProps = {
   children: React.ReactNode;
   className?: string;
   innerClassName?: string;
+  flareAccent?: FlareAccent;
 };
 
 /**
  * DoubleBezel Layout Container
- * Enforces the $150k Awwwards-tier nested "Double-Bezel" (Doppelrand) architecture.
- * Synthesizes concentric curves, outer tray enclosures, and inner highlight refractions.
+ * Updated with the tactile 3D bevel & prismatic top-border flare architecture.
  */
 export default function DoubleBezel({
   children,
   className = "",
   innerClassName = "",
+  flareAccent = "pearl",
 }: DoubleBezelProps) {
   return (
-    <div
-      className={`bg-zinc-950/50 border border-white/5 rounded-2xl ${className} ${innerClassName}`}
+    <BeveledCard
+      variant="raised"
+      flareAccent={flareAccent}
+      className={cn("w-full", className, innerClassName)}
     >
       {children}
-    </div>
+    </BeveledCard>
   );
 }

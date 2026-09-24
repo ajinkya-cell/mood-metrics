@@ -21,7 +21,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
   /* Marquee Custom Animations */
   --animate-marquee: marquee var(--duration, 40s) linear infinite;
@@ -86,3 +86,54 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Minimalist & Refined Surface Tokens
+   ───────────────────────────────────────────────────────────── */
+
+.skeuo-bevel-card {
+  position: relative;
+  background-color: #0c0c0e;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.5);
+}
+
+.skeuo-inner-socket {
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.skeuo-input-well {
+  background-color: #070709;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.skeuo-pill-active {
+  background-color: #ffffff;
+  color: #000000;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.skeuo-pill-active-emerald {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.skeuo-btn {
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.15s ease-out;
+}
+
+.skeuo-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.skeuo-btn:active {
+  transform: scale(0.98);
+}
+
+

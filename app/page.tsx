@@ -3,11 +3,28 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Albert_Sans, Source_Serif_4, Instrument_Serif, Kalam } from "next/font/google";
+import { Kalam, EB_Garamond, Geist, DotGothic16, VT323, Instrument_Serif } from "next/font/google";
+
+const dot = Instrument_Serif({
+  weight: "400",
+  subsets: ["latin" ,],
+});
+
 
 const kalam = Kalam({
   weight: ["300", "400", "700"],
   subsets: ["latin"],
+});
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const ebGaramond = EB_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  style: ["normal", "italic"],
 });
 import {
   ArrowRight,
@@ -31,6 +48,7 @@ import { AvatarCircles } from "./components/magicui/avatar-circles";
 import { DottedMap } from "./components/magicui/dotted-map";
 import { BentoGrid } from "./components/magicui/bento-grid";
 import { Particles } from "./components/magicui/particles";
+import { MatrixRain } from "./components/MatrixRain";
 
 const MOCK_SCAN_EVENTS = [
   { ticker: "BTC", source: "Reddit AI", label: "BULLISH", score: "+0.82", time: "1s ago", color: "text-emerald-400 border-emerald-950/40 bg-emerald-950/20" },
@@ -47,22 +65,6 @@ const WHALE_AVATARS = [
   "https://avatars.githubusercontent.com/u/59228569?v=4",
 ];
 
-
-const albert = Albert_Sans({
-  weight: ["100", "200", "300", "400", "500", "700", "800"],
-  subsets: ["latin"],
-});
-
-const sourceSerif = Source_Serif_4({
-  subsets: ["latin"],
-  weight: "variable",
-});
-
-const instrumentSerif = Instrument_Serif({
-  subsets: ["latin"],
-  weight: "400",
-  style: "italic",
-});
 
 const fadeUp = {
   initial: { opacity: 0, y: 24, filter: "blur(4px)" },
@@ -113,146 +115,111 @@ export default function LandingPage() {
     setGridSymbols(items);
   }, []);
 
-  const feelAnimWord = () => {
-    const chars = [..."Mood"];
-    return (
-      <motion.span
-        whileHover="hover"
-        initial="initial"
-        className="cursor-default select-none inline-block"
-      >
-        {chars.map((char, index) => (
-          <motion.span
-            key={`${char}-${index}`}
-            variants={{
-              initial: { y: 0, fontWeight: 300, color: "#e4e4e7" },
-              hover: {
-                y: -10,
-                fontWeight: 700,
-                color: "#ffffff",
-                transition: {
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 10,
-                  delay: index * 0.06,
-                },
-              },
-            }}
-            className={cn(
-              "inline-block tracking-tighter px-0.5 transition-all duration-300",
-              instrumentSerif.className
-            )}
-          >
-            {char}
-          </motion.span>
-        ))}
-      </motion.span>
-    );
-  };
-
   return (
     <div className="w-full flex flex-col items-center select-none overflow-hidden pb-20 bg-[#050505]">
-      {/* ── HERO SECTION WITH DOME HORIZON ── */}
-      <section className="relative w-full min-h-screen flex flex-col justify-center items-center pt-36 pb-24 px-6 md:px-12 -mt-[120px] overflow-hidden">
-        {/* Ambient Stardust Particles */}
-        <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
-          <Particles quantity={50} color="#10b981" />
+      {/* ── HERO SECTION WITH BASE.PNG & SUBTLE MATRIX RAIN ── */}
+      <section className="relative w-full min-h-[90vh] md:min-h-screen flex flex-col justify-center items-center pt-28 pb-20 px-6 md:px-12 -mt-[80px] overflow-hidden">
+        {/* Full Hero Background Image (base.png) */}
+        <div
+          className="absolute inset-0 z-0 bg-cover bg-center md:bg-top bg-no-repeat"
+          style={{
+            backgroundImage: "url('/base.png')",
+          }}
+        />
+
+        {/* Subtle Dark Vignette & Bottom Edge Blend into #050505 */}
+        <div className="absolute inset-0 z-[1] pointer-events-none bg-gradient-to-b from-[#050505]/40 via-transparent to-[#050505]" />
+        <div className="absolute inset-x-0 bottom-0 h-40 z-[1] pointer-events-none bg-gradient-to-t from-[#050505] to-transparent" />
+
+        {/* Subtle Matrix Rain: strictly confined to the central blank upper sky of base.png */}
+        <div
+          className="absolute inset-0 z-[2] pointer-events-none flex justify-center items-start overflow-hidden"
+          style={{
+            maskImage:
+              "radial-gradient(ellipse 55% 45% at 50% 32%, black 20%, transparent 75%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse 55% 45% at 50% 32%, black 20%, transparent 75%)",
+          }}
+        >
+          <MatrixRain
+            speed={0.7}
+            density={0.8}
+            fontSize={14}
+            decayRate={0.06}
+            color="#27272a"
+            glowColor="#a1a1aa"
+            glowStrength={5}
+            opacity={0.3}
+            fps={30}
+            className="w-full h-full"
+          />
         </div>
 
-        {/* Dynamic Celestial Horizon Arc Background */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <HorizonGradient />
-          <GlowingArc />
-        </div>
-
-        <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center justify-center text-center mt-[250px] md:mt-[270px]">
-          <h1
-            className={cn(
-              "text-[8vw] sm:text-6xl md:text-7xl lg:text-8xl tracking-tight py-4 text-white leading-[1.08] font-extrabold max-w-5xl mt-1 text-center whitespace-nowrap drop-shadow-[0_4px_30px_rgba(0,0,0,0.8)]",
-              albert.className
-            )}
+        {/* Center Content: Headline & Action */}
+        <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center justify-center text-center mt-8 sm:mt-12 md:mt-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col items-center"
           >
-            Map the{" "}
-            <motion.span
-              whileHover="hover"
-              initial="initial"
-              animate="animate"
-              className="relative inline-block pr-8 sm:pr-10 md:pr-12 cursor-default select-none"
-            >
-              {feelAnimWord()}
-
-              {/* Curved White Arrow */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/arrow.png"
-                alt="Arrow pointing to Mood"
-                className="absolute -top-8 sm:-top-10 -right-7 sm:-right-9 w-9 sm:w-14 h-9 sm:h-14 select-none transform rotate-[-65deg] scale-x-[-1] filter brightness-0 invert opacity-90 pointer-events-none drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]"
-              />
-
-              {/* Smooth 3D Y-Axis Spinning Bitcoin Coin SVG at the Arrow Tail */}
-              <motion.div
-                variants={{
-                  initial: { scale: 0, opacity: 0, rotateY: 0 },
-                  animate: {
-                    scale: 1,
-                    opacity: 1,
-                    rotateY: 0,
-                    transition: {
-                      type: "spring",
-                      stiffness: 220,
-                      damping: 18,
-                      delay: 0.25,
-                    },
-                  },
-                  hover: {
-                    rotateY: 360,
-                    scale: 1.2,
-                    transition: {
-                      duration: 0.75,
-                      ease: [0.16, 1, 0.3, 1],
-                    },
-                  },
-                }}
-                style={{ perspective: 1000 }}
-                className="absolute -top-6 sm:-top-8 -right-14 sm:-right-18 w-6 sm:w-8 h-6 sm:h-8 pointer-events-none select-none text-white drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-full h-full"
-                >
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                  <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
-                  <path d="M9 8h4.09c1.055 0 1.91 .895 1.91 2s-.855 2 -1.91 2c1.055 0 1.91 .895 1.91 2s-.855 2 -1.91 2h-4.09" />
-                  <path d="M10 12h4" />
-                  <path d="M10 7v10v-9" />
-                  <path d="M13 7v1" />
-                  <path d="M13 16v1" />
-                </svg>
-              </motion.div>
-            </motion.span>
-          </h1>
-
-          <Link href="/dashboard" className="mt-10 group inline-block">
-            <button
+            <h1
               className={cn(
-                "relative px-8 py-4 bg-gradient-to-b from-zinc-850 to-zinc-900 hover:from-zinc-750 hover:to-zinc-850 text-zinc-200 hover:text-white border-t border-emerald-400/20 border-x border-zinc-700/40 border-b-[5px] border-zinc-950 rounded-[12px] active:border-b-[1px] active:translate-y-[4px] transition-all duration-150 ease-out font-mono text-xs font-bold tracking-widest flex items-center gap-3 cursor-pointer select-none shadow-[0_4px_20px_rgba(16,185,129,0.15)] hover:shadow-[0_4px_35px_rgba(16,185,129,0.35)] active:shadow-none",
-                albert.className
+                "text-4xl sm:text-6xl translate-y-10 mb-20 md:text-7xl lg:text-8xl tracking-tight py-3 text-white leading-[1.12]  max-w-4xl text-center drop-shadow-[0_4px_30px_rgba(0,0,0,0.8)]",
+                ebGaramond.className
               )}
             >
-              {/* Mechanical Switch LED Indicator */}
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] group-hover:bg-emerald-300 transition-colors duration-300" />
+              Map every {" "}
+              <span className="italic">
+                crypto{" "}
+             </span>
+              <span className="bg-gradient-to-t from-white to-white text-transparent bg-clip-text ">
+                 sentiment today
+             </span>
               
-              LAUNCH DASHBOARD
-              
-              <ArrowRight size={12} className="text-zinc-400 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
-            </button>
-          </Link>
+            </h1>
+
+            {/*<p className={cn("mt-4 max-w-xl text-zinc-300 text-sm sm:text-base  font-normal leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]",geistSans.className)}>
+              Multi-layer sentiment intelligence aggregated from Reddit discussions,
+              curated crypto news, funding rates, and market indicators.
+            </p>*/}
+
+            <Link href="/dashboard" className="mt-8 group inline-block">
+              <button
+                className="relative overflow-hidden px-8 py-3.5 rounded-xl bg-[#121214] hover:bg-[#161618] active:bg-[#0e0e10] text-zinc-100 hover:text-white transition-all duration-200 ease-out font-sans text-xs font-semibold tracking-wider flex items-center gap-3 cursor-pointer select-none active:scale-[0.98] active:translate-y-[1px]"
+                style={{
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  boxShadow:
+                    "0 1.5px 0 0 rgba(255, 255, 255, 0.14) inset, 0 -1px 0 0 rgba(0, 0, 0, 0.7) inset, 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 4px 12px -2px rgba(0, 0, 0, 0.5)",
+                }}
+              >
+                {/* Prismatic Top-Border Highlight */}
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] z-20 rounded-t-xl transition-opacity duration-300"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 20%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0.2) 80%, transparent 100%)",
+                  }}
+                />
+
+                {/* Subtle Inner Ambient Glow on Hover */}
+                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+                {/* Mechanical LED Status Indicator */}
+                <span className="relative flex h-2 w-2 z-10">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                </span>
+
+                <span className="relative z-10">LAUNCH DASHBOARD</span>
+
+                <ArrowRight
+                  size={13}
+                  className="relative z-10 text-zinc-400 group-hover:text-white group-hover:translate-x-1 transition-all duration-200"
+                />
+              </button>
+            </Link>
+          </motion.div>
         </div>
       </section>
 
@@ -629,37 +596,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
-const GlowingArc = () => {
-  return (
-    <div className="absolute top-[280px] left-1/2 aspect-square -translate-x-1/2 rounded-full bg-[#050505] w-[150vmax] border-t border-emerald-400/50 shadow-[inset_0_50px_120px_rgba(0,0,0,0.98),inset_0_15px_45px_rgba(16,185,129,0.35),0_-20px_70px_rgba(16,185,129,0.4),0_-2px_18px_rgba(52,211,153,0.7)] relative overflow-hidden pointer-events-none select-none">
-      {/* Deep Inner Emerald Refraction Ring */}
-      <div className="absolute inset-x-0 top-0 h-[100px] bg-gradient-to-b from-emerald-500/20 via-emerald-950/5 to-transparent pointer-events-none" />
-      {/* Animated Rim Laser Scanning Beam */}
-      <div className="absolute inset-x-0 top-0 h-[2.5px] bg-gradient-to-r from-transparent via-emerald-300 to-transparent animate-pulse opacity-95 shadow-[0_0_16px_#34d399]" />
-    </div>
-  );
-};
-
-const HorizonGradient = () => {
-  return (
-    <div className="absolute top-[220px] left-1/2 -translate-x-1/2 pointer-events-none select-none w-full flex justify-center">
-      {/* Primary Cyber Emerald & Indigo Deep Halo */}
-      <div
-        className="w-[140vmax] h-[650px] rounded-full blur-[80px] opacity-75"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 10%, rgba(16, 185, 129, 0.45) 0%, rgba(79, 70, 229, 0.25) 35%, rgba(14, 165, 233, 0.12) 55%, rgba(5, 5, 5, 0) 80%)",
-        }}
-      />
-      {/* Accent Ambient Glow Core */}
-      <div
-        className="absolute top-[30px] w-[90vmax] h-[350px] rounded-full blur-[60px] opacity-80"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 0%, rgba(52, 211, 153, 0.35) 0%, rgba(16, 185, 129, 0.15) 50%, transparent 80%)",
-        }}
-      />
-    </div>
-  );
-};

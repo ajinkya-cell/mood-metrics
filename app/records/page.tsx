@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Database,
-  Calendar,
   ShieldCheck,
   Funnel,
   ArrowLeft,
@@ -11,21 +10,14 @@ import {
   ArrowSquareOut,
   Newspaper,
   RedditLogo,
-  Globe,
-  Info,
-  Circle,
   Eye,
   MagnifyingGlass,
-  ChartBar,
   ChartLineUp,
   Brain,
-  TrendUp,
-  TrendDown,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import GlowCard from "../components/GlowCard";
-import HorizontalScale from "../components/HorizontalScale";
+import BeveledCard from "../components/BeveledCard";
 import SectionEyebrow from "../components/SectionEyebrow";
 
 // Define Types
@@ -202,7 +194,6 @@ export default function SentimentRecordsPage() {
   ) => {
     const x = (index / (totalPoints - 1 || 1)) * width;
     const yRange = height - paddingY * 2;
-    // Score is -100 to +100
     const y = height - paddingY - ((score + 100) / 200) * yRange;
     return { x, y };
   };
@@ -217,12 +208,11 @@ export default function SentimentRecordsPage() {
       );
     }
 
-    // Chronological order (API returns desc, we reverse for graph)
     const pointsData = [...timeseries].reverse();
     const width = 800;
     const height = 240;
     const paddingY = 30;
-    const volumeHeight = 60; // height of volume bar graph at the bottom
+    const volumeHeight = 60;
 
     const coords = pointsData.map((pt, i) =>
       getChartCoords(i, pt.score, pointsData.length, width, height - volumeHeight - 10, paddingY)
@@ -238,7 +228,6 @@ export default function SentimentRecordsPage() {
       areaD = `${lineD} L ${coords[coords.length - 1].x} ${height - volumeHeight - 10} L ${coords[0].x} ${height - volumeHeight - 10} Z`;
     }
 
-    // Find max posts in a single bucket to scale volume bars
     const maxPosts = Math.max(...pointsData.map((p) => p.posts), 1);
 
     const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -259,10 +248,10 @@ export default function SentimentRecordsPage() {
     return (
       <div ref={chartContainerRef} className="w-full">
         {/* Scrub tooltip */}
-        <div className="flex flex-col md:flex-row  justify-between items-start md:items-center gap-2 mb-4 font-mono text-xs text-zinc-400">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-4 font-mono text-xs text-zinc-400">
           <div>
-            <span className="text-[10px] text-zinc-500 uppercase tracking-widest block">
-              CHRONOLOGICAL AI SENTIMENT TIMELINE
+            <span className="text-[10px] text-zinc-500 uppercase tracking-widest block font-bold">
+              HISTORICAL TIMELINE
             </span>
             <span>
               {activePt
@@ -272,12 +261,12 @@ export default function SentimentRecordsPage() {
                     hour: "2-digit",
                     minute: "2-digit",
                   })
-                : "Hover graph to scrub detailed bucket metrics"}
+                : "Hover to scrub hourly telemetry"}
             </span>
           </div>
 
           {activePt && (
-            <div className="flex gap-4 bg-black/40 border border-white/5 px-3 py-1.5 rounded-lg text-[11px]">
+            <div className="flex gap-4 bg-white/[0.03] border border-white/10 px-3 py-1.5 rounded-lg text-[11px]">
               <div>
                 SCORE:{" "}
                 <span
@@ -306,7 +295,7 @@ export default function SentimentRecordsPage() {
         </div>
 
         {/* The SVG element */}
-        <div className="border border-white/5 bg-[#08080A] rounded-2xl p-4 overflow-hidden relative">
+        <div className="rounded-xl border border-white/5 bg-black/40 p-4 overflow-hidden relative">
           <svg
             viewBox={`0 0 ${width} ${height}`}
             width="100%"
@@ -333,7 +322,7 @@ export default function SentimentRecordsPage() {
               y1={(height - volumeHeight - 10) / 2}
               x2={width}
               y2={(height - volumeHeight - 10) / 2}
-              stroke="rgba(255,255,255,0.05)"
+              stroke="rgba(255,255,255,0.06)"
               strokeDasharray="4 4"
             />
             <line
@@ -341,14 +330,14 @@ export default function SentimentRecordsPage() {
               y1={paddingY}
               x2={width}
               y2={paddingY}
-              stroke="rgba(255,255,255,0.02)"
+              stroke="rgba(255,255,255,0.03)"
             />
             <line
               x1="0"
               y1={height - volumeHeight - 10 - paddingY}
               x2={width}
               y2={height - volumeHeight - 10 - paddingY}
-              stroke="rgba(255,255,255,0.02)"
+              stroke="rgba(255,255,255,0.03)"
             />
 
             {/* Area Fill */}
@@ -362,20 +351,19 @@ export default function SentimentRecordsPage() {
                 d={lineD}
                 fill="none"
                 stroke="url(#scoreLineGrad)"
-                strokeWidth="2.5"
+                strokeWidth="2"
                 className="pointer-events-none"
-                style={{ filter: "drop-shadow(0 0 4px rgba(16,185,129,0.3))" }}
               />
             )}
 
-            {/* Volume Chart at bottom (Stacked bars) */}
+            {/* Volume Chart at bottom */}
             <g transform={`translate(0, ${height - volumeHeight})`}>
               <line
                 x1="0"
                 y1="0"
                 x2={width}
                 y2="0"
-                stroke="rgba(255,255,255,0.08)"
+                stroke="rgba(255,255,255,0.06)"
               />
               {pointsData.map((pt, idx) => {
                 const barWidth = Math.max(width / pointsData.length - 2, 2);
@@ -388,14 +376,12 @@ export default function SentimentRecordsPage() {
 
                 const barHeight = (pt.posts / maxPosts) * (volumeHeight - 10);
 
-                // Heights for stacked colors
                 const bullHeight = barHeight * bullPct;
                 const neutHeight = barHeight * neutPct;
                 const bearHeight = barHeight * bearPct;
 
                 return (
                   <g key={idx} className="opacity-60 hover:opacity-100 transition-opacity">
-                    {/* Bullish segment (green) */}
                     {bullHeight > 0 && (
                       <rect
                         x={x}
@@ -405,7 +391,6 @@ export default function SentimentRecordsPage() {
                         fill="#10B981"
                       />
                     )}
-                    {/* Neutral segment (gray) */}
                     {neutHeight > 0 && (
                       <rect
                         x={x}
@@ -415,7 +400,6 @@ export default function SentimentRecordsPage() {
                         fill="#71717A"
                       />
                     )}
-                    {/* Bearish segment (red) */}
                     {bearHeight > 0 && (
                       <rect
                         x={x}
@@ -430,7 +414,7 @@ export default function SentimentRecordsPage() {
               })}
             </g>
 
-            {/* Scrub vertical guideline and tracker node */}
+            {/* Scrub guideline */}
             {activeCoord && activePt && (
               <g className="pointer-events-none">
                 <line
@@ -438,14 +422,14 @@ export default function SentimentRecordsPage() {
                   y1={0}
                   x2={activeCoord.x}
                   y2={height}
-                  stroke="rgba(255,255,255,0.15)"
+                  stroke="rgba(255,255,255,0.2)"
                   strokeWidth="1"
                   strokeDasharray="3 3"
                 />
                 <circle
                   cx={activeCoord.x}
                   cy={activeCoord.y}
-                  r="5"
+                  r="4"
                   fill="#10B981"
                   stroke="#fff"
                   strokeWidth="1.5"
@@ -467,21 +451,20 @@ export default function SentimentRecordsPage() {
     const padding = 20;
 
     return (
-      <div className="bg-[#0C0C0E]/50 border border-white/5 rounded-2xl p-6 h-full flex flex-col justify-between">
+      <BeveledCard className="p-6 h-full flex flex-col justify-between">
         <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <Brain size={16} className="text-emerald-400" />
-            <h3 className="font-mono text-xs text-white uppercase tracking-wider">
+          <div className="flex items-center gap-2 mb-2">
+            <Brain size={18} className="text-emerald-400" />
+            <h3 className="font-mono text-xs text-white uppercase tracking-wider font-bold">
               AI VERDICT SCATTER MATRIX
             </h3>
           </div>
-          <p className="text-[10px] text-zinc-500 font-sans mb-4">
-            Visualizing the cluster distribution of scores (-1.0 to 1.0) against AI confidence values (0 to 1.0).
+          <p className="text-[11px] text-zinc-400 font-sans mb-4 leading-relaxed">
+            Distribution of scores (-1.0 to 1.0) vs model confidence (0 to 1.0).
           </p>
 
-          <div className="relative p-2 flex items-center justify-center">
+          <div className="rounded-xl border border-white/5 bg-black/40 p-2 flex items-center justify-center">
             <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%">
-              {/* Axes */}
               <line
                 x1={width / 2}
                 y1={padding}
@@ -496,8 +479,6 @@ export default function SentimentRecordsPage() {
                 y2={height - padding}
                 stroke="rgba(255,255,255,0.06)"
               />
-
-              {/* Grid Label Lines */}
               <line
                 x1={padding}
                 y1={height / 2}
@@ -507,12 +488,10 @@ export default function SentimentRecordsPage() {
                 strokeDasharray="2 2"
               />
 
-              {/* Scatter Points */}
               {records.map((r, idx) => {
                 const s = parseFloat(r.score);
                 const c = parseFloat(r.confidence ?? "0.5");
 
-                // Map values
                 const xVal = padding + ((s + 1) / 2) * (width - padding * 2);
                 const yVal = height - padding - c * (height - padding * 2);
 
@@ -528,9 +507,9 @@ export default function SentimentRecordsPage() {
                     key={r.id || idx}
                     cx={xVal}
                     cy={yVal}
-                    r="4.5"
+                    r="4"
                     fill={color}
-                    opacity="0.65"
+                    opacity="0.75"
                     className="hover:opacity-100 hover:scale-125 transition-all cursor-pointer"
                   >
                     <title>
@@ -540,24 +519,21 @@ export default function SentimentRecordsPage() {
                 );
               })}
 
-              {/* Axes Labels */}
               <text
                 x={padding}
                 y={height - 5}
                 fill="#71717A"
                 fontSize="10"
                 fontFamily="monospace"
-                fontWeight="bold"
               >
                 BEARISH
               </text>
               <text
-                x={width - padding - 50}
+                x={width - padding - 45}
                 y={height - 5}
                 fill="#71717A"
                 fontSize="10"
                 fontFamily="monospace"
-                fontWeight="bold"
               >
                 BULLISH
               </text>
@@ -567,7 +543,6 @@ export default function SentimentRecordsPage() {
                 fill="#71717A"
                 fontSize="10"
                 fontFamily="monospace"
-                fontWeight="bold"
               >
                 100% CONF
               </text>
@@ -575,39 +550,43 @@ export default function SentimentRecordsPage() {
           </div>
         </div>
 
-        <div className="mt-4 border-t border-white/5 pt-3 font-mono text-xs text-zinc-400 flex justify-between">
+        <div className="border-t border-white/5 pt-3 mt-4 font-mono text-xs text-zinc-400 flex justify-between">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" /> Bullish
+            <span className="w-2 h-2 rounded-full bg-emerald-400" /> Bullish
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-zinc-500" /> Neutral
+            <span className="w-2 h-2 rounded-full bg-zinc-500" /> Neutral
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Bearish
+            <span className="w-2 h-2 rounded-full bg-rose-500" /> Bearish
           </span>
         </div>
-      </div>
+      </BeveledCard>
     );
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-8 py-16 pt-25 select-none overflow-hidden pb-28 font-mono text-lg">
-      {/* Header section */}
-      <div className="mb-12 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 border-b border-white/5 pb-10">
-        <div className="space-y-4">
-          <SectionEyebrow icon={<Database size={16} className="text-emerald-400" />}>
+    <div className="w-full max-w-7xl mx-auto px-6 md:px-8 py-16 pt-24 select-none overflow-hidden pb-28 font-mono">
+      {/* Header section with Minimal Coin Selector Pill */}
+      <div className="mb-12 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 border-b border-white/5 pb-8">
+        <div className="space-y-2">
+          <SectionEyebrow icon={<Database size={15} className="text-emerald-400" />}>
             QUANTITATIVE LEDGER
           </SectionEyebrow>
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white font-sans mt-3">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-white font-sans mt-1">
             Detailed AI Sentiment Records
           </h1>
-          <p className="text-zinc-300 text-lg md:text-xl mt-4 max-w-3xl font-sans leading-relaxed">
-            Browse through exact AI-classified market telemetry. Deep dive into every scraped headline and Reddit post, inspect Nvidia Llama 3.1 confidence indicators, and study chronological volume spikes.
+          <p className="text-zinc-400 text-sm md:text-base max-w-2xl font-sans leading-relaxed">
+            Browse through granular AI-classified records from Reddit and news feeds. Inspect confidence metrics, reasoning, and historical timeline trends.
           </p>
+        </div>
 
-          {/* Minimal Ticker Selector */}
-          <div className="mt-4 flex items-center gap-3 md:gap-4 font-mono text-xs tracking-widest select-none">
-            <span className="text-zinc-500 font-bold">ACTIVE COIN:</span>
+        {/* Minimal Coin Selector Pill */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500 font-mono tracking-wider">
+            FILTER:
+          </span>
+          <div className="flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/10 select-none">
             {["ALL", "BTC", "ETH", "SOL"].map((sym) => {
               const isActive = selectedSymbol === sym;
               return (
@@ -617,10 +596,10 @@ export default function SentimentRecordsPage() {
                     setSelectedSymbol(sym);
                     setPage(0);
                   }}
-                  className={`cursor-pointer py-0.5 transition-all duration-200 hover:text-white ${
+                  className={`cursor-pointer px-3.5 py-1 rounded-full text-xs font-mono font-bold tracking-wider transition-all duration-200 ${
                     isActive
-                      ? "text-emerald-400 font-extrabold border-b-2 border-emerald-500/80 px-0.5"
-                      : "text-zinc-500"
+                      ? "bg-white text-black shadow-sm"
+                      : "text-zinc-400 hover:text-white"
                   }`}
                 >
                   {sym}
@@ -631,230 +610,209 @@ export default function SentimentRecordsPage() {
         </div>
       </div>
 
-      {/* Grid of Telemetry Summary Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 text-base">
+      {/* Grid of 6 Telemetry Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10 text-base">
         {/* Dashboard Blended Sentiment Score */}
-        <GlowCard 
-          accent={blendedScore !== null ? (blendedScore > 20 ? "emerald" : blendedScore < -20 ? "rose" : "zinc") : "zinc"} 
-          className="p-7 flex flex-col justify-between min-h-[15rem] hover:scale-[1.02] transition-transform duration-300"
-        >
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
           <div>
-            <div className="text-sm text-zinc-400 font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5 flex-wrap">
+            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
               <span>BLENDED SENTIMENT</span>
-              <span className="text-[10px] bg-emerald-950/40 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-mono font-bold uppercase">
+              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono font-bold uppercase">
                 {selectedSymbol === "ALL" ? "BTC Benchmark" : selectedSymbol}
               </span>
             </div>
             <div className="flex items-baseline gap-2">
               <span
-                className={`text-6xl font-extrabold font-sans ${
+                className={`text-5xl font-extrabold font-sans ${
                   blendedScore !== null
                     ? blendedScore > 20
                       ? "text-emerald-400"
                       : blendedScore < -20
                       ? "text-rose-400"
-                      : "text-zinc-300"
+                      : "text-zinc-200"
                     : "text-zinc-500"
                 }`}
               >
                 {isLoading ? (
-                  <span className="text-2xl text-zinc-500 animate-pulse font-mono">LOADING...</span>
+                  <span className="text-xl text-zinc-500 animate-pulse font-mono">LOADING...</span>
                 ) : blendedScore !== null ? (
                   blendedScore > 0 ? `+${blendedScore}` : blendedScore
                 ) : (
                   "N/A"
                 )}
               </span>
-              {!isLoading && blendedScore !== null && <span className="text-sm text-zinc-500">(-100 to +100)</span>}
+              {!isLoading && blendedScore !== null && <span className="text-xs text-zinc-500 font-mono">(-100 to +100)</span>}
             </div>
           </div>
-          <div className="mt-5 text-sm text-zinc-300 font-sans border-t border-white/5 pt-4 flex flex-col gap-2">
+          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-white/5 pt-3 flex flex-col gap-1">
             <span>Weighted index combining social text, leverage, and Fear & Greed.</span>
-            <Link href="/methodology" className="text-sm text-emerald-400 hover:text-emerald-300 underline font-bold inline-block font-mono tracking-wide mt-1">
-              READ MORE →
+            <Link href="/methodology" className="text-xs text-emerald-400 hover:text-emerald-300 underline font-mono font-semibold mt-0.5">
+              READ METHODOLOGY →
             </Link>
           </div>
-        </GlowCard>
+        </BeveledCard>
 
         {/* Average Sentiment Score */}
-        <GlowCard accent={stats.avgScore > 0.2 ? "emerald" : stats.avgScore < -0.2 ? "rose" : "zinc"} className="p-7 flex flex-col justify-between min-h-[15rem] hover:scale-[1.02] transition-transform duration-300">
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
           <div>
-            <div className="text-sm text-zinc-400 font-bold uppercase tracking-wider mb-3">
+            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2">
               AVERAGE TEXT SENTIMENT
             </div>
             <div className="flex items-baseline gap-2">
               <span
-                className={`text-6xl font-extrabold font-sans ${
+                className={`text-5xl font-extrabold font-sans ${
                   stats.avgScore > 0.2
                     ? "text-emerald-400"
                     : stats.avgScore < -0.2
                     ? "text-rose-400"
-                    : "text-zinc-300"
+                    : "text-zinc-200"
                 }`}
               >
                 {stats.avgScore > 0 ? "+" : ""}
                 {Math.round(stats.avgScore * 100)}
               </span>
-              <span className="text-sm text-zinc-500">(-100 to +100)</span>
+              <span className="text-xs text-zinc-500 font-mono">(-100 to +100)</span>
             </div>
           </div>
-          <div className="mt-5 text-sm leading-relaxed text-zinc-300 font-sans border-t border-white/5 pt-4 flex flex-col gap-2">
+          <div className="mt-4 text-xs leading-relaxed text-zinc-400 font-sans border-t border-white/5 pt-3 flex flex-col gap-1">
             <span>
-              <span className="text-amber-400 font-bold font-mono text-sm">TELEMETRY NOTE:</span> This score measures raw textual comments. The Dashboard Blended Score ({blendedScore !== null ? (blendedScore > 0 ? `+${blendedScore}` : blendedScore) : "N/A"}) incorporates contrarian indicators.
+              <span className="text-amber-400 font-mono font-semibold">NOTE:</span> Measures raw text. Blended score incorporates contrarian indicators.
             </span>
-            <Link href="/methodology" className="text-sm text-emerald-400 hover:text-emerald-300 underline font-bold inline-block font-mono tracking-wide mt-1">
-              READ MORE →
+            <Link href="/methodology" className="text-xs text-emerald-400 hover:text-emerald-300 underline font-mono font-semibold mt-0.5">
+              READ METHODOLOGY →
             </Link>
           </div>
-        </GlowCard>
+        </BeveledCard>
 
         {/* AI Confidence */}
-        <GlowCard accent="zinc" className="p-7 flex flex-col justify-between min-h-[15rem] hover:scale-[1.02] transition-transform duration-300">
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
           <div>
-            <div className="text-sm text-zinc-400 font-bold uppercase tracking-wider mb-3">
+            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2">
               AI CLASSIFIER CONFIDENCE
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-6xl font-extrabold font-sans text-white">
+              <span className="text-5xl font-extrabold font-sans text-white">
                 {Math.round(stats.avgConfidence * 100)}%
               </span>
-              <span className="text-sm text-zinc-500">ACCURACY BIAS</span>
+              <span className="text-xs text-zinc-500 font-mono">ACCURACY BIAS</span>
             </div>
           </div>
-          <div className="mt-5 text-sm text-zinc-300 font-sans border-t border-white/5 pt-4">
+          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-white/5 pt-3">
             Confidence average declared by Nvidia Llama 3.1.
           </div>
-        </GlowCard>
+        </BeveledCard>
 
         {/* Signals Distribution */}
-        <GlowCard accent="zinc" className="p-7 flex flex-col justify-between min-h-[15rem] hover:scale-[1.02] transition-transform duration-300">
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
           <div>
-            <div className="text-sm text-zinc-400 font-bold uppercase tracking-wider mb-3">
+            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2">
               LABEL RATIO MATRIX
             </div>
-            <div className="space-y-3 mt-3">
-              <div className="flex justify-between text-sm text-zinc-200">
-                <span className="text-emerald-400 font-bold">BULLISH</span>
-                <span className="font-bold">
+            <div className="space-y-1.5 mt-2 font-mono text-xs">
+              <div className="flex justify-between text-zinc-300">
+                <span className="text-emerald-400 font-semibold">BULLISH</span>
+                <span>
                   {stats.bullishCount} ({stats.totalCount > 0 ? Math.round((stats.bullishCount / stats.totalCount) * 100) : 0}%)
                 </span>
               </div>
-              <div className="flex justify-between text-sm text-zinc-200">
-                <span className="text-zinc-500 font-bold">NEUTRAL</span>
-                <span className="font-bold">
+              <div className="flex justify-between text-zinc-300">
+                <span className="text-zinc-500 font-semibold">NEUTRAL</span>
+                <span>
                   {stats.neutralCount} ({stats.totalCount > 0 ? Math.round((stats.neutralCount / stats.totalCount) * 100) : 0}%)
                 </span>
               </div>
-              <div className="flex justify-between text-sm text-zinc-200">
-                <span className="text-rose-500 font-bold">BEARISH</span>
-                <span className="font-bold">
+              <div className="flex justify-between text-zinc-300">
+                <span className="text-rose-400 font-semibold">BEARISH</span>
+                <span>
                   {stats.bearishCount} ({stats.totalCount > 0 ? Math.round((stats.bearishCount / stats.totalCount) * 100) : 0}%)
                 </span>
               </div>
             </div>
           </div>
-          <div className="mt-5 text-sm text-zinc-400 font-sans border-t border-white/5 pt-4">
+          <div className="mt-4 text-xs text-zinc-500 font-sans border-t border-white/5 pt-3">
             Ratio metrics for sentiment label slices.
           </div>
-        </GlowCard>
+        </BeveledCard>
 
         {/* Total Volume */}
-        <GlowCard accent="zinc" className="p-7 flex flex-col justify-between min-h-[15rem] hover:scale-[1.02] transition-transform duration-300">
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
           <div>
-            <div className="text-sm text-zinc-400 font-bold uppercase tracking-wider mb-3">
+            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2">
               TOTAL INGESTED LOGS
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-6xl font-extrabold font-sans text-white">
+              <span className="text-5xl font-extrabold font-sans text-white">
                 {stats.totalCount}
               </span>
-              <span className="text-sm text-zinc-500">RECORDS</span>
+              <span className="text-xs text-zinc-500 font-mono">RECORDS</span>
             </div>
           </div>
-          <div className="mt-5 text-sm text-zinc-300 font-sans border-t border-white/5 pt-4">
+          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-white/5 pt-3">
             Total records meeting the active query criteria.
           </div>
-        </GlowCard>
+        </BeveledCard>
 
         {/* Fear & Greed Index */}
-        <GlowCard 
-          accent={fearGreed !== null ? (fearGreed.value >= 56 ? "emerald" : fearGreed.value <= 45 ? "rose" : "zinc") : "zinc"} 
-          className="p-7 flex flex-col justify-between min-h-[15rem] hover:scale-[1.02] transition-transform duration-300"
-        >
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
           <div>
-            <div className="text-sm text-zinc-400 font-bold uppercase tracking-wider mb-3">
+            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2">
               FEAR & GREED INDEX
             </div>
             <div className="flex items-baseline justify-between mb-2">
               <div className="flex items-baseline gap-2">
-                <span className="text-6xl font-extrabold font-sans text-white">
+                <span className="text-5xl font-extrabold font-sans text-white">
                   {isLoading ? (
-                    <span className="text-2xl text-zinc-500 animate-pulse font-mono">LOADING...</span>
+                    <span className="text-xl text-zinc-500 animate-pulse font-mono">LOADING...</span>
                   ) : fearGreed !== null ? (
                     fearGreed.value
                   ) : (
                     "N/A"
                   )}
                 </span>
-                {!isLoading && fearGreed !== null && <span className="text-sm text-zinc-500">/ 100</span>}
+                {!isLoading && fearGreed !== null && <span className="text-xs text-zinc-500 font-mono">/ 100</span>}
               </div>
-              <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded bg-white/5 border border-white/10 ${
-                isLoading 
-                  ? "text-zinc-500 border-white/5"
-                  : fearGreed !== null 
-                  ? (fearGreed.value >= 76 ? "text-emerald-400 border-emerald-500/20" : fearGreed.value >= 56 ? "text-emerald-500 border-emerald-500/10" : fearGreed.value >= 46 ? "text-zinc-300 border-white/5" : fearGreed.value >= 26 ? "text-rose-400 border-rose-500/10" : "text-rose-600 border-rose-500/20")
-                  : "text-zinc-500 border-white/5"
-              }`}>
+              <span className="text-xs font-mono font-semibold uppercase px-2.5 py-0.5 rounded-full border border-white/10 bg-white/[0.03] text-zinc-300">
                 {isLoading ? "LOADING" : fearGreed !== null ? fearGreed.label : "N/A"}
               </span>
             </div>
 
-            {/* Meter component like alternative.me source */}
-            <div className="mt-4 space-y-2">
-              <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
-                <span>0 (FEAR)</span>
-                <span>50 (NEUTRAL)</span>
-                <span>100 (GREED)</span>
-              </div>
-              <div className="relative h-3.5 w-full bg-zinc-950/80 border border-white/10 rounded-full p-[2.5px] overflow-hidden">
-                {/* Gradient track background representing alternative.me's red-orange-yellow-green scale */}
-                <div className="absolute inset-[2.5px] rounded-full bg-gradient-to-r from-red-600 via-yellow-500 to-green-500 opacity-20" />
-                {/* Active progress fill */}
+            {/* Clean Progress Meter */}
+            <div className="mt-3 space-y-1.5">
+              <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
                 <div 
-                  className="h-full rounded-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-500 opacity-95 transition-all duration-555"
+                  className="h-full rounded-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-500 transition-all duration-500"
                   style={{ width: fearGreed !== null ? `${fearGreed.value}%` : '0%' }}
                 />
               </div>
-              {fearGreed !== null && (
-                <div className="flex justify-between items-center text-[10px] font-mono mt-1 text-zinc-450">
-                  <span>INDEX VALUE:</span>
-                  <span className="font-extrabold text-white">{fearGreed.value}% POSITION</span>
-                </div>
-              )}
+              <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                <span>0 FEAR</span>
+                <span>50 NEUTRAL</span>
+                <span>100 GREED</span>
+              </div>
             </div>
           </div>
-          <div className="mt-5 text-sm text-zinc-300 font-sans border-t border-white/5 pt-4 flex flex-col gap-2">
-            <span className="leading-relaxed">Global indicator measuring leverage levels and social momentum.</span>
+          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-white/5 pt-3 flex flex-col gap-1">
+            <span>Global indicator measuring market leverage and sentiment.</span>
             <a 
               href="https://alternative.me/crypto/fear-and-greed-index/" 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="text-sm text-emerald-400 hover:text-emerald-300 underline font-bold inline-block font-mono tracking-wide mt-1"
+              className="text-xs text-emerald-400 hover:text-emerald-300 underline font-mono font-semibold"
             >
               ALTERNATIVE.ME SOURCE →
             </a>
           </div>
-        </GlowCard>
+        </BeveledCard>
       </div>
 
       {/* Main Content Layout Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10">
         {/* Left main grid: Chronological chart */}
         <div className="lg:col-span-8 flex flex-col gap-6">
-          <div className="bg-[#0C0C0E]/50 border border-white/5 rounded-2xl p-8">
-            <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
-              <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-3">
-                <ChartLineUp size={22} className="text-emerald-400" />
+          <BeveledCard className="p-7">
+            <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-3">
+              <h2 className="text-base md:text-lg font-bold text-white flex items-center gap-2.5">
+                <ChartLineUp size={20} className="text-emerald-400" />
                 HISTORICAL SENTIMENT TIMELINE (7D)
               </h2>
             </div>
@@ -866,7 +824,7 @@ export default function SentimentRecordsPage() {
             ) : (
               renderTimeseriesChart()
             )}
-          </div>
+          </BeveledCard>
         </div>
 
         {/* Right main grid: Scatter Plot Matrix */}
@@ -875,81 +833,83 @@ export default function SentimentRecordsPage() {
         </div>
       </div>
 
-      {/* Filter panel */}
-      <div className="bg-[#0C0C0E]/40 border border-white/5 rounded-2xl p-8 mb-10 text-base">
-        <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-3 mb-8 border-b border-white/5 pb-4">
-          <Funnel size={22} className="text-emerald-400" />
+      {/* Filter Coordinate Matrix (Minimal Clean Control Deck) */}
+      <BeveledCard className="p-7 mb-10 text-base">
+        <h2 className="text-base md:text-lg font-bold text-white flex items-center gap-2 mb-6 border-b border-white/5 pb-3 font-sans">
+          <Funnel size={18} className="text-emerald-400" />
           FILTER COORDINATE MATRIX
         </h2>
 
-        <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+        <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
           {/* Label Selector */}
-          <div className="md:col-span-3 flex flex-col gap-2">
-            <label className="text-sm text-zinc-300 font-extrabold uppercase tracking-wider">SENTIMENT LABEL</label>
+          <div className="md:col-span-3 flex flex-col gap-1.5">
+            <label className="text-xs text-zinc-400 font-mono uppercase tracking-wider font-semibold">LABEL</label>
             <select
               value={selectedLabel}
               onChange={(e) => {
                 setSelectedLabel(e.target.value);
                 setPage(0);
               }}
-              className="bg-black/80 border border-white/20 rounded-xl px-5 py-3.5 text-base text-white focus:outline-none focus:border-emerald-500 w-full cursor-pointer transition-all"
+              className="bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full cursor-pointer transition-colors font-mono"
             >
-              <option value="ALL">ALL LABELS</option>
-              <option value="BULLISH">BULLISH</option>
-              <option value="NEUTRAL">NEUTRAL</option>
-              <option value="BEARISH">BEARISH</option>
+              <option value="ALL" className="bg-[#0C0C0E]">ALL LABELS</option>
+              <option value="BULLISH" className="bg-[#0C0C0E]">BULLISH</option>
+              <option value="NEUTRAL" className="bg-[#0C0C0E]">NEUTRAL</option>
+              <option value="BEARISH" className="bg-[#0C0C0E]">BEARISH</option>
             </select>
           </div>
 
           {/* Source Selector */}
-          <div className="md:col-span-3 flex flex-col gap-2">
-            <label className="text-sm text-zinc-300 font-extrabold uppercase tracking-wider">INGEST SOURCE</label>
+          <div className="md:col-span-3 flex flex-col gap-1.5">
+            <label className="text-xs text-zinc-400 font-mono uppercase tracking-wider font-semibold">SOURCE</label>
             <select
               value={selectedSource}
               onChange={(e) => {
                 setSelectedSource(e.target.value);
                 setPage(0);
               }}
-              className="bg-black/80 border border-white/20 rounded-xl px-5 py-3.5 text-base text-white focus:outline-none focus:border-emerald-500 w-full cursor-pointer transition-all"
+              className="bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full cursor-pointer transition-colors font-mono"
             >
-              <option value="ALL">ALL SOURCES</option>
-              <option value="REDDIT">REDDIT BOARDS</option>
-              <option value="COINGECKO">COINGECKO</option>
-              <option value="NEWS_RSS">NEWS HEADLINES</option>
+              <option value="ALL" className="bg-[#0C0C0E]">ALL SOURCES</option>
+              <option value="REDDIT" className="bg-[#0C0C0E]">REDDIT BOARDS</option>
+              <option value="COINGECKO" className="bg-[#0C0C0E]">COINGECKO</option>
+              <option value="NEWS_RSS" className="bg-[#0C0C0E]">NEWS HEADLINES</option>
             </select>
           </div>
 
           {/* Search Mode Selector */}
-          <div className="md:col-span-2 flex flex-col gap-2">
-            <label className="text-sm text-zinc-300 font-extrabold uppercase tracking-wider">SEARCH MODE</label>
+          <div className="md:col-span-2 flex flex-col gap-1.5">
+            <label className="text-xs text-zinc-400 font-mono uppercase tracking-wider font-semibold">MODE</label>
             <select
               value={searchType}
               onChange={(e) => {
                 setSearchType(e.target.value);
                 setPage(0);
               }}
-              className="bg-black/80 border border-white/20 rounded-xl px-5 py-3.5 text-base text-white focus:outline-none focus:border-emerald-500 w-full cursor-pointer transition-all"
+              className="bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full cursor-pointer transition-colors font-mono"
             >
-              <option value="text">KEYWORD TEXT</option>
-              <option value="semantic">AI SEMANTIC (vector)</option>
+              <option value="text" className="bg-[#0C0C0E]">KEYWORD</option>
+              <option value="semantic" className="bg-[#0C0C0E]">AI SEMANTIC</option>
             </select>
           </div>
 
           {/* Text Search Input */}
-          <div className="md:col-span-3 flex flex-col gap-2 relative">
-            <label className="text-sm text-zinc-300 font-extrabold uppercase tracking-wider">{searchType === "semantic" ? "AI PROMPT" : "KEYWORD QUERY"}</label>
+          <div className="md:col-span-3 flex flex-col gap-1.5 relative">
+            <label className="text-xs text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+              {searchType === "semantic" ? "AI PROMPT" : "KEYWORD"}
+            </label>
             <div className="relative">
               <input
                 type="text"
                 placeholder={searchType === "semantic" ? "Ask AI e.g. 'etf flows'..." : "Search titles/content..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-black/80 border border-white/20 rounded-xl pl-12 pr-4 py-3.5 text-base text-white focus:outline-none focus:border-emerald-500 w-full placeholder-zinc-700 font-sans transition-all"
+                className="bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full placeholder-zinc-600 font-sans transition-colors"
               />
               {searchType === "semantic" ? (
-                <Brain size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-400 animate-pulse" />
+                <Brain size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
               ) : (
-                <MagnifyingGlass size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
               )}
             </div>
           </div>
@@ -958,29 +918,29 @@ export default function SentimentRecordsPage() {
           <div className="md:col-span-1">
             <button
               type="submit"
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-black text-base font-extrabold py-3.5 px-5 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-lg hover:shadow-emerald-500/10"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold py-2.5 px-3 rounded-xl transition-colors cursor-pointer"
             >
               FILTER
             </button>
           </div>
         </form>
-      </div>
+      </BeveledCard>
 
       {/* Granular records list */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {isLoading ? (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
-                className="h-36 border border-white/5 rounded-2xl bg-zinc-950/20 animate-pulse"
+                className="h-32 rounded-2xl bg-zinc-900/40 border border-white/5 animate-pulse"
               />
             ))}
           </div>
         ) : records.length === 0 ? (
-          <div className="text-center py-24 text-zinc-400 border border-white/5 rounded-2xl bg-[#0C0C0E]/40 font-sans text-sm">
+          <BeveledCard className="text-center py-16 text-zinc-500 font-sans text-sm">
             No AI sentiment records found matching the active filters.
-          </div>
+          </BeveledCard>
         ) : (
           records.map((item) => {
             const scoreNum = parseFloat(item.score);
@@ -990,174 +950,175 @@ export default function SentimentRecordsPage() {
             return (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, y: 25, filter: "blur(4px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full bg-[#0C0C0E]/50 border border-white/5 rounded-2xl p-8 md:p-10 shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:bg-[#0E0E12]/80 transition-all duration-300"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3 mb-4 text-xs md:text-sm text-zinc-450">
-                  <div className="flex flex-wrap items-center gap-3">
-                    {isReddit ? (
-                      <RedditLogo size={16} className="text-rose-500" />
-                    ) : (
-                      <Newspaper size={16} className="text-emerald-400" />
-                    )}
-                    <span className="font-extrabold uppercase text-zinc-350 tracking-wider">
-                      [{item.sourceType.replace("_", " ")}]
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-white/10 text-zinc-200 text-xs font-bold">
-                      {item.tickerSymbol}
-                    </span>
-                    <span className="text-xs text-zinc-400 font-medium">
-                      UPVOTES: {item.upvotes ?? 0}
-                    </span>
-                    {item.similarity !== undefined && item.similarity !== null && item.similarity < 1.0 && (
-                      <span className="px-2 py-0.5 rounded bg-purple-950/20 text-purple-400 border border-purple-500/20 font-bold uppercase text-[10px] font-mono tracking-wider">
-                        MATCH: {Math.round(item.similarity * 100)}%
+                <BeveledCard className="w-full p-6 md:p-7 hover:-translate-y-0.5 transition-all duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2.5 mb-3 text-xs text-zinc-400">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      {isReddit ? (
+                        <RedditLogo size={15} className="text-rose-400" />
+                      ) : (
+                        <Newspaper size={15} className="text-zinc-400" />
+                      )}
+                      <span className="font-bold uppercase text-zinc-300 text-[11px] tracking-wider">
+                        [{item.sourceType.replace("_", " ")}]
                       </span>
-                    )}
-                  </div>
-
-                  <span className="text-zinc-500 font-medium">
-                    INGESTED: {new Date(item.postedAt).toLocaleString([], {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex flex-col md:flex-row gap-6 md:items-start justify-between">
-                  <div className="flex-1 space-y-2">
-                    <h3 className="text-lg md:text-xl lg:text-2xl font-extrabold text-white mb-3 leading-snug font-sans tracking-tight hover:text-emerald-400 transition-colors duration-200">
-                      {item.postTitle || "HEADLINE ANALYSIS"}
-                    </h3>
-                    <p className="text-sm md:text-base text-zinc-300 leading-relaxed font-sans">
-                      {(() => {
-                        const cleaned = cleanHtmlText(item.postContent);
-                        return cleaned.length > 450
-                          ? `${cleaned.slice(0, 450)}...`
-                          : cleaned;
-                      })()}
-                    </p>
-                  </div>
-
-                  {/* AI Verdict panel */}
-                  <div className="flex items-center gap-6 py-3.5 px-4 bg-white/[0.02] border border-white/5 rounded-xl font-mono shrink-0 mt-4 md:mt-0">
-                    <div className="text-center min-w-[80px]">
-                      <span className="text-[10px] text-zinc-550 block uppercase font-bold tracking-wider mb-1.5">
-                        AI VERDICT
+                      <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/5 text-zinc-300 text-[11px] font-bold">
+                        {item.tickerSymbol}
                       </span>
-                      <span
-                        className={`text-xs font-extrabold px-3 py-1 rounded-md ${
-                          item.label === "bullish"
-                            ? "bg-emerald-950/20 text-emerald-400 border border-emerald-500/20"
-                            : item.label === "bearish"
-                            ? "bg-rose-950/20 text-rose-400 border border-rose-500/20"
-                            : "bg-zinc-900 text-zinc-400 border border-white/5"
-                        }`}
-                      >
-                        {item.label.toUpperCase()}
+                      <span className="text-[11px] text-zinc-500 font-medium">
+                        UPVOTES: {item.upvotes ?? 0}
                       </span>
+                      {item.similarity !== undefined && item.similarity !== null && item.similarity < 1.0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-purple-950/30 text-purple-400 border border-purple-500/20 font-bold uppercase text-[10px] font-mono">
+                          MATCH: {Math.round(item.similarity * 100)}%
+                        </span>
+                      )}
                     </div>
 
-                    <div className="text-center min-w-[60px] border-l border-white/10 pl-5">
-                      <span className="text-[10px] text-zinc-555 block uppercase font-bold tracking-wider mb-1.5">
-                        SCORE
-                      </span>
-                      <span
-                        className={`text-sm md:text-base font-extrabold ${
-                          scoreNum > 0.2
-                            ? "text-emerald-400"
-                            : scoreNum < -0.2
-                            ? "text-rose-400"
-                            : "text-zinc-350"
-                        }`}
-                      >
-                        {scoreNum > 0 ? "+" : ""}
-                        {scoreNum.toFixed(2)}
-                      </span>
+                    <span className="text-zinc-500 text-[11px]">
+                      {new Date(item.postedAt).toLocaleString([], {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row gap-5 md:items-start justify-between">
+                    <div className="flex-1 space-y-1.5">
+                      <h3 className="text-base md:text-lg font-bold text-white leading-snug font-sans tracking-tight hover:text-emerald-400 transition-colors">
+                        {item.postTitle || "HEADLINE ANALYSIS"}
+                      </h3>
+                      <p className="text-sm text-zinc-400 leading-relaxed font-sans">
+                        {(() => {
+                          const cleaned = cleanHtmlText(item.postContent);
+                          return cleaned.length > 450
+                            ? `${cleaned.slice(0, 450)}...`
+                            : cleaned;
+                        })()}
+                      </p>
                     </div>
 
-                    <div className="text-center min-w-[60px] border-l border-white/10 pl-5">
-                      <span className="text-[10px] text-zinc-555 block uppercase font-bold tracking-wider mb-1.5">
-                        CONFIDENCE
-                      </span>
-                      <span className="text-sm md:text-base font-extrabold text-white">
-                        {Math.round(parseFloat(item.confidence ?? "0") * 100)}%
-                      </span>
+                    {/* AI Verdict Summary Column */}
+                    <div className="flex items-center gap-4 py-2 px-3.5 rounded-xl border border-white/5 bg-white/[0.01] font-mono shrink-0 mt-3 md:mt-0">
+                      <div className="text-center min-w-[70px]">
+                        <span className="text-[10px] text-zinc-500 block uppercase font-medium mb-0.5">
+                          VERDICT
+                        </span>
+                        <span
+                          className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                            item.label === "bullish"
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                              : item.label === "bearish"
+                              ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                              : "bg-zinc-800 text-zinc-400"
+                          }`}
+                        >
+                          {item.label.toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div className="text-center min-w-[50px] border-l border-white/10 pl-3.5">
+                        <span className="text-[10px] text-zinc-500 block uppercase font-medium mb-0.5">
+                          SCORE
+                        </span>
+                        <span
+                          className={`text-sm font-bold ${
+                            scoreNum > 0.2
+                              ? "text-emerald-400"
+                              : scoreNum < -0.2
+                              ? "text-rose-400"
+                              : "text-zinc-300"
+                          }`}
+                        >
+                          {scoreNum > 0 ? "+" : ""}
+                          {scoreNum.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="text-center min-w-[50px] border-l border-white/10 pl-3.5">
+                        <span className="text-[10px] text-zinc-500 block uppercase font-medium mb-0.5">
+                          CONF
+                        </span>
+                        <span className="text-sm font-bold text-white">
+                          {Math.round(parseFloat(item.confidence ?? "0") * 100)}%
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Collapsible reasoning bar */}
-                <div className="mt-6 pt-5 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs md:text-sm">
-                  <button
-                    onClick={() => setExpandedRecordId(isExpanded ? null : item.id)}
-                    className="flex items-center gap-2 text-zinc-400 hover:text-white font-bold transition-colors cursor-pointer"
-                  >
-                    <Eye size={16} />
-                    <span>{isExpanded ? "HIDE AI REASONING" : "VIEW AI REASONING DRAWOUT"}</span>
-                  </button>
-
-                  {item.postUrl && (
-                    <a
-                      href={item.postUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-zinc-400 hover:text-emerald-400 transition-colors font-bold"
+                  {/* Collapsible reasoning bar */}
+                  <div className="mt-4 pt-3 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <button
+                      onClick={() => setExpandedRecordId(isExpanded ? null : item.id)}
+                      className="flex items-center gap-1.5 text-zinc-400 hover:text-white font-medium transition-colors cursor-pointer"
                     >
-                      REDIRECT NODE SOURCE <ArrowSquareOut size={12} />
-                    </a>
-                  )}
-                </div>
+                      <Eye size={14} />
+                      <span>{isExpanded ? "HIDE REASONING" : "VIEW AI REASONING"}</span>
+                    </button>
 
-                {isExpanded && (
-                  <div className="mt-5 border-l-2 border-emerald-500/30 bg-emerald-500/[0.02] rounded-r-2xl pl-6 pr-4 py-4 text-sm md:text-base text-zinc-300 font-sans leading-relaxed shadow-inner">
-                    <div className="flex items-center gap-2 text-emerald-400 font-mono text-xs font-extrabold mb-3 tracking-widest">
-                      <Brain size={16} />
-                      NVIDIA NIM LLAMA-3.1-8B-INSTRUCT CLASSIFICATION ANALYSIS:
-                    </div>
-                    {item.reasoning || "No reasoning details returned by model."}
+                    {item.postUrl && (
+                      <a
+                        href={item.postUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-zinc-500 hover:text-emerald-400 transition-colors"
+                      >
+                        SOURCE LINK <ArrowSquareOut size={11} />
+                      </a>
+                    )}
                   </div>
-                )}
+
+                  {isExpanded && (
+                    <div className="mt-3 border-l border-emerald-500/40 pl-3 py-2 text-xs md:text-sm text-zinc-300 font-sans leading-relaxed bg-white/[0.01] rounded-r-lg">
+                      <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-[11px] font-bold mb-1.5">
+                        <Brain size={14} />
+                        LLAMA-3.1 CLASSIFICATION ANALYSIS:
+                      </div>
+                      {item.reasoning || "No reasoning details returned by model."}
+                    </div>
+                  )}
+                </BeveledCard>
               </motion.div>
             );
           })
         )}
       </div>
 
-      {/* Pagination controls */}
+      {/* Minimal Pagination controls */}
       {!isLoading && records.length > 0 && (
-        <div className="flex items-center justify-between mt-12 border-t border-white/5 pt-8 text-sm md:text-base text-zinc-450">
+        <div className="flex items-center justify-between mt-10 border-t border-white/5 pt-6 text-xs text-zinc-400">
           <span>
             SHOWING {page * limit + 1} - {Math.min((page + 1) * limit, stats.totalCount)} OF{" "}
             {stats.totalCount} RECORDS
           </span>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(p - 1, 0))}
               disabled={page === 0}
-              className={`px-5 py-3 rounded-xl border border-white/5 flex items-center gap-1.5 transition-all text-sm font-bold ${
+              className={`px-3.5 py-1.5 rounded-full border border-white/10 flex items-center gap-1 transition-all text-xs font-mono font-medium ${
                 page === 0
                   ? "opacity-40 cursor-not-allowed"
-                  : "bg-black hover:bg-white/5 text-zinc-300 hover:text-white cursor-pointer"
+                  : "text-zinc-300 hover:text-white hover:bg-white/5 cursor-pointer"
               }`}
             >
-              <ArrowLeft size={14} /> PREVIOUS
+              <ArrowLeft size={12} /> PREV
             </button>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={(page + 1) * limit >= stats.totalCount}
-              className={`px-5 py-3 rounded-xl border border-white/5 flex items-center gap-1.5 transition-all text-sm font-bold ${
+              className={`px-3.5 py-1.5 rounded-full border border-white/10 flex items-center gap-1 transition-all text-xs font-mono font-medium ${
                 (page + 1) * limit >= stats.totalCount
                   ? "opacity-40 cursor-not-allowed"
-                  : "bg-black hover:bg-white/5 text-zinc-300 hover:text-white cursor-pointer"
+                  : "text-zinc-300 hover:text-white hover:bg-white/5 cursor-pointer"
               }`}
             >
-              NEXT <ArrowRight size={14} />
+              NEXT <ArrowRight size={12} />
             </button>
           </div>
         </div>

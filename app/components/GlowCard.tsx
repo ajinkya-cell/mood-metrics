@@ -1,11 +1,15 @@
+"use client";
+
 import React from "react";
 import { cn } from "@/lib/utils";
 
-interface GlowCardProps {
+export interface GlowCardProps {
   children: React.ReactNode;
   className?: string;
   accent?: "emerald" | "rose" | "zinc";
   as?: "div" | "section" | "article";
+  interactive?: boolean;
+  onClick?: () => void;
 }
 
 export default function GlowCard({
@@ -13,20 +17,27 @@ export default function GlowCard({
   className,
   accent = "zinc",
   as = "div",
+  interactive = false,
+  onClick,
 }: GlowCardProps) {
   const Component = as;
 
   const accentStyles = {
-    emerald: "shadow-[0_0_20px_-8px_var(--glow-emerald)] border-emerald-500/10 hover:border-emerald-500/20 hover:shadow-[0_0_30px_-5px_var(--glow-emerald)]",
-    rose: "shadow-[0_0_20px_-8px_var(--glow-rose)] border-rose-500/10 hover:border-rose-500/20 hover:shadow-[0_0_30px_-5px_var(--glow-rose)]",
-    zinc: "shadow-[0_0_15px_-8px_var(--glow-white)] border-white/5 hover:border-white/10 hover:shadow-[0_0_25px_-5px_var(--glow-white)]",
+    emerald:
+      "border-white/[0.07] hover:border-emerald-500/25 hover:shadow-[0_8px_30px_-6px_rgba(16,185,129,0.1)]",
+    rose:
+      "border-white/[0.07] hover:border-rose-500/25 hover:shadow-[0_8px_30px_-6px_rgba(244,63,94,0.1)]",
+    zinc:
+      "border-white/[0.07] hover:border-white/15 hover:shadow-[0_8px_30px_-6px_rgba(255,255,255,0.04)]",
   };
 
   return (
     <Component
+      onClick={onClick}
       className={cn(
-        "rounded-2xl border bg-[#0C0C0E]/80 backdrop-blur-sm transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        "relative overflow-hidden rounded-2xl bg-[#0C0C0E] border shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] transition-all duration-200",
         accentStyles[accent],
+        interactive && "cursor-pointer hover:-translate-y-0.5 active:scale-[0.995]",
         className
       )}
     >
