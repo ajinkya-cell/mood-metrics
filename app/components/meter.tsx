@@ -86,7 +86,7 @@ export function Meter({
       <div className="relative w-48 h-48 mx-auto flex items-center justify-center">
         <svg
           viewBox="0 0 180 180"
-          className="w-full h-full transform -rotate-15 overflow-visible"
+          className="w-full h-full overflow-visible"
         >
           {/* Background Dial Track */}
           <path

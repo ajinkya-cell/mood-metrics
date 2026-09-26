@@ -466,7 +466,9 @@ b2d636f  2026-06-15  added : reddit scraper
   - Set the primary headline to *"Map the Mood with Mood Metrics"*, rendered in Google Font **`EB Garamond`** (`EB_Garamond` from `next/font/google`) with a subtle silvery-emerald text gradient on *"Mood Metrics"*.
   - Styled a clean, minimal pill CTA button linking directly to `/dashboard`.
   - Upgraded the "Launch Dashboard" hero button to a precision minimal beveled trigger using the multi-layer 3D tactile box shadow, top specular prismatic highlight, and matte obsidian surface defined in `card-bevel-prompt-and-code.md`.
-  - Configured retro terminal fonts **`DotGothic16`** (`dot`) and **`VT323`** (`vt323`) via `next/font/google` in [[page.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/page.tsx)].
+  - Aligned sentiment meter dial to upright center in [[app/components/meter.tsx](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/components/meter.tsx)]:
+  - Removed the legacy `transform -rotate-15` CSS class from the dial's `<svg>` element.
+  - The underlying geometry (arc path, ticks from -100 to +100, needle coordinates) was already mathematically centered around $x = 90$ and $-90^\circ$ (12 o'clock). Removing the -15° rotation aligned the `0` tick mark directly at the top vertical middle, leveled the `-100` and `+100` endpoints at the exact same horizontal height, and eliminated the slanted tilt.
 
 
 
