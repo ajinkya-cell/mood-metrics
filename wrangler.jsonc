@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Must match the Worker name in the Cloudflare dashboard
+  "name": "mood-metrics",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      // Self-reference used by OpenNext for caching; service must equal "name" above
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "mood-metrics"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  }
+}
