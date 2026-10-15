@@ -33,7 +33,8 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 
 | Category | Library | Version | Purpose |
 |---|---|---|---|
-| Framework | Next.js | 16.2.9 | App Router |
+| Framework | Next.js | 16.4.1 | App Router |
+| Deploy adapter | @opennextjs/cloudflare + wrangler | 1.20.11 / 4.151.0 | Builds `.open-next/worker.js` for Cloudflare Workers (requires Next >=16.3.8) |
 | UI | React | 19.2.4 | UI components |
 | Language | TypeScript | ^5 | Typed logic |
 | Styling | Tailwind CSS | ^4 | Utility-first styling |
@@ -174,6 +175,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | [scripts/enable-vector.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/scripts/enable-vector.ts) | Setup script to enable the pgvector extension on the Neon database server. |
 | [next.config.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/next.config.ts) | Next.js configuration file, configured with explicit `turbopack.root` to resolve module resolution/Turbopack workspace root detection issues. |
 | [wrangler.jsonc](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/wrangler.jsonc) | Cloudflare Workers (OpenNext) deploy config. Worker name is `mood-metrics` (must match the dashboard Worker); the `WORKER_SELF_REFERENCE` service binding must point at the same name, otherwise deploy fails with error 10143. Also binds `ASSETS` (`.open-next/assets`) and `IMAGES`. |
+| [open-next.config.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/open-next.config.ts) | OpenNext Cloudflare adapter config (`defineCloudflareConfig()`, defaults). Required by `opennextjs-cloudflare build`. |
 | ~~vercel.json~~ | Removed. Cron scheduling moved to cron-job.org (see [scripts/setup-cron-jobs.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/setup-cron-jobs.ts)). |
 | [implement-redis.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/implement-redis.md) | Redis integration proposal outlining Upstash caching and distributed scraper locks. |
 | [interview.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/interview.md) | Comprehensive technical interview guide and engineering retrospective strictly scoped to the Dashboard and Records sections. Covers architecture, tools, technologies, synchronization, Antigravity usage, key decisions, and 20 curated interview questions with senior answers. |
@@ -223,7 +225,10 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | Command | Action |
 |---|---|
 | `npm run dev` | Starts local Next.js dev server |
-| `npm run build` | Builds app for deployment |
+| `npm run build` | Plain `next build` (does NOT produce the Worker bundle) |
+| `npm run cf-build` | `opennextjs-cloudflare build` — runs `next build` then generates `.open-next/worker.js`. Use this as the Cloudflare **Build command** |
+| `npm run deploy` | OpenNext build + deploy to Cloudflare Workers |
+| `npm run preview` | OpenNext build + local Workers preview |
 | `npm run start` | Boots production app server |
 | `npm run lint` | Runs ESLint rules |
 | `npx tsx lib/db/seed.ts` | Seeds the database with default assets (BTC, ETH, SOL) |
@@ -486,9 +491,9 @@ b2d636f  2026-06-15  added : reddit scraper
   - Detailed automated cleanup routines (the 6-hour cron deletion query in `/api/cron/scrape-reddit`, the in-flight pre-deletion guard solving PostgreSQL's `NULL != NULL` uniqueness bug in `rollupTimeseries()`, and atomic cache overwrites).
   - Provided mathematical capacity and cost projections proving ~95.6% reduction in storage volume without sacrificing analytical or backtesting fidelity.
 
-
-
-
-
-
-
+### 2026-10-15 — Cloudflare Workers deploy fix
+- Fixed `✘ [ERROR] The entry-point file at ".open-next/worker.js" was not found` on Cloudflare deploy: the build ran plain `next build`, and `@opennextjs/cloudflare` was never installed, so nothing generated `.open-next/`.
+- Installed `@opennextjs/cloudflare` + `wrangler` (devDeps); upgraded `next`/`eslint-config-next` 16.2.9 → 16.4.1 (adapter peer requires >=16.3.8).
+- Added `open-next.config.ts`, `cf-build`/`deploy`/`preview` scripts, and `.open-next`, `.wrangler`, `.dev.vars` to `.gitignore`.
+- Removed stale `pnpm-lock.yaml`; npm (`package-lock.json`) is the sole package manager.
+- Cloudflare dashboard Build command must be `npm run cf-build` (deploy command stays `npx wrangler deploy`).
