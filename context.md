@@ -497,3 +497,7 @@ b2d636f  2026-06-15  added : reddit scraper
 - Added `open-next.config.ts`, `cf-build`/`deploy`/`preview` scripts, and `.open-next`, `.wrangler`, `.dev.vars` to `.gitignore`.
 - Removed stale `pnpm-lock.yaml`; npm (`package-lock.json`) is the sole package manager.
 - Cloudflare dashboard Build command must be `npm run cf-build` (deploy command stays `npx wrangler deploy`).
+
+### 2026-10-16 — Installed `void` agent skill
+- Ran `npx skills add ajinkya-cell/adgrid-ui --skill void`: adds `.agents/skills/void/` (canonical) and `.claude/skills/void/` (Claude Code copy), and updates `skills-lock.json`.
+- `void` revamps UI into the adgrid-ui (void-ui) design system (dark machined surfaces, bevels, wells, popouts). Includes `tokens.css`/`tailwind-theme.css`, a lint script and a screenshot script. No app code changed.
