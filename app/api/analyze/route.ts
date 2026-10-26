@@ -33,6 +33,17 @@ import { analyzePendingPosts, normalizeFearGreed, normalizeFundingRate, calculat
 // ── How long flash data stays fresh before we re-fetch ───────────────────────
 const FLASH_CACHE_MS = 30 * 60 * 1000;  // 30 minutes
 
+// Newest lastFetchedAt among the given sources, or null if never scraped
+function latestFetch(
+  entries: { sourceType: string; lastFetchedAt: Date }[],
+  sources: string[],
+): string | null {
+  const times = entries
+    .filter((e) => sources.includes(e.sourceType))
+    .map((e) => e.lastFetchedAt.getTime());
+  return times.length > 0 ? new Date(Math.max(...times)).toISOString() : null;
+}
+
 export async function GET(req: NextRequest) {
   const symbol = req.nextUrl.searchParams.get("symbol")?.toUpperCase();
   const force = req.nextUrl.searchParams.get("force") === "true";
@@ -391,6 +402,9 @@ export async function GET(req: NextRequest) {
       flashPostsUsed: flashOnly.length,
       historicBucketsUsed: recentBuckets.length,
       lastUpdated:   new Date().toISOString(),
+      // Last successful scrape per layer — lets the UI flag a dead pipeline
+      lastFlashScrapeAt:  latestFetch(flashCacheEntries, ["coingecko", "news_rss"]),
+      lastRedditScrapeAt: latestFetch(flashCacheEntries, ["reddit"]),
     },
   });
 }

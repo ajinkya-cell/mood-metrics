@@ -166,7 +166,11 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | [app/api/backtest/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/backtest/route.ts) | `GET /api/backtest` — Runs strategy backtesting over real database spot prices and sentiment scores, returning performance metrics. |
 | [app/api/cron/scrape-flash/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-flash/route.ts) | `POST` — Triggers parallel updates for CoinGecko + News RSS + Binance Funding + Fear & Greed + Whale Net Flow (30-min cron). Bypasses cache if `?force=true`. |
 | [app/api/cron/scrape-reddit/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/cron/scrape-reddit/route.ts) | `POST` — Reddit scrape + AI analysis + timeseries rollup. Cleans up raw posts and sentiment records older than 14 days (6-hour cron). |
-| [scripts/setup-cron-jobs.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/setup-cron-jobs.ts) | Setup script to create/update cron jobs on cron-job.org via REST API. Replaces Vercel crons. |
+| [scripts/setup-cron-jobs.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/setup-cron-jobs.ts) | **Deprecated.** Created cron-job.org jobs hitting `/api/cron/*`. Superseded by GitHub Actions so ingestion doesn't depend on the hosting URL. Don't re-run it. |
+| [lib/jobs/flash.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/jobs/flash.ts) | `runFlashJob({ force })` — flash layer job (CoinGecko, RSS, funding, F&G, whale + AI analysis + rollup). Shared by the cron route and `scripts/cron-flash.ts`. |
+| [lib/jobs/reddit.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/jobs/reddit.ts) | `runRedditJob()` — 14-day cleanup + Arctic Shift scrape + AI analysis + rollup. Shared by the cron route and `scripts/cron-reddit.ts`. |
+| [scripts/cron-flash.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/cron-flash.ts) / [scripts/cron-reddit.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/cron-reddit.ts) | CLI entry points for the two jobs, run by GitHub Actions directly against Neon. |
+| [.github/workflows/ingest.yml](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/.github/workflows/ingest.yml) | Scheduled ingestion: flash hourly (`5 * * * *`), reddit every 6h (`20 */6 * * *`), plus manual `workflow_dispatch`. Needs repo secrets `DATABASE_URL`, `NVIDIA_API_KEY`, `COINGECKO_API_KEY`. |
 | [scripts/ingest-all-data.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/ingest-all-data.ts) | Master data ingestion CLI runner supporting lookback windows, deep Reddit pagination, flash news feeds, AI batch analysis, and timeseries rollups. |
 | [app/api/search/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/search/route.ts) | `GET /api/search?q=bit` — Ticker lookup (checks symbols and names). |
 | [lib/db/schema.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/schema.ts) | Full Drizzle schema definitions. |
@@ -176,7 +180,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | [next.config.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/next.config.ts) | Next.js configuration file, configured with explicit `turbopack.root` to resolve module resolution/Turbopack workspace root detection issues. |
 | [wrangler.jsonc](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/wrangler.jsonc) | Cloudflare Workers (OpenNext) deploy config. Worker name is `mood-metrics` (must match the dashboard Worker); the `WORKER_SELF_REFERENCE` service binding must point at the same name, otherwise deploy fails with error 10143. Also binds `ASSETS` (`.open-next/assets`) and `IMAGES`. |
 | [open-next.config.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/open-next.config.ts) | OpenNext Cloudflare adapter config (`defineCloudflareConfig()`, defaults). Required by `opennextjs-cloudflare build`. |
-| ~~vercel.json~~ | Removed. Cron scheduling moved to cron-job.org (see [scripts/setup-cron-jobs.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/setup-cron-jobs.ts)). |
+| ~~vercel.json~~ | Removed. Cron scheduling now lives in [.github/workflows/ingest.yml](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/.github/workflows/ingest.yml). |
 | [implement-redis.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/implement-redis.md) | Redis integration proposal outlining Upstash caching and distributed scraper locks. |
 | [interview.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/interview.md) | Comprehensive technical interview guide and engineering retrospective strictly scoped to the Dashboard and Records sections. Covers architecture, tools, technologies, synchronization, Antigravity usage, key decisions, and 20 curated interview questions with senior answers. |
 | [interview-2.md](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/interview-2.md) | The interactive interviewer delivery playbook and live demo script. Contains word-for-word spoken pitches (30s/2min/weather analogy), click-by-click live demo guide for the dashboard and records, plain-English scraper/ingestion explainers, 8 bug war stories and architecture decisions, an extensive masterclass on leveraging AI agents to the fullest as a lead systems architect, and top 10 curveball interview Q&As with pocket cheat cards. |
@@ -213,7 +217,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | `COINGECKO_API_KEY` | CoinGecko API key (used on demo tier) |
 | `SCRAPEGRAPH_API_KEY` | Legacy scrapegraph scraper key (Unused) |
 | `CRON_SECRET` | Shared secret header checking for secure cron endpoints |
-| `CRON_JOB_ORG_API_KEY` | API key for cron-job.org REST API (generated in cron-job.org console → Settings → API Keys) |
+| `CRON_JOB_ORG_API_KEY` | (Legacy) cron-job.org REST API key, only used by the deprecated `setup-cron-jobs.ts` |
 | `NEXTAUTH_SECRET` | (Unused) |
 | `NEXT_PUBLIC_APP_URL` | The application URL (defaults to `http://localhost:3000`) |
 | `NODE_ENV` | Environment context (`development` / `production`) |
@@ -236,7 +240,9 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | `npx tsx --env-file=.env scripts/db-inspect.ts` | Utility to inspect the current count and status of database tables |
 | `npx tsx --env-file=.env scripts/run-reddit-ingestion.ts` | Utility to manually trigger Reddit scraping, AI analysis, and timeseries rollup |
 | `npx tsx --env-file=.env scripts/ingest-all-data.ts` | Master CLI tool for full flash news, deep paginated Reddit, AI analysis, timeseries rollups, and blended sentiment calculations |
-| `npx tsx --env-file=.env scripts/setup-cron-jobs.ts` | Creates/updates cron-job.org jobs (scrape-flash every 30m, scrape-reddit every 6h) |
+| `npx tsx --env-file=.env scripts/cron-flash.ts [--force]` | Runs the flash layer job once (what GitHub Actions runs hourly) |
+| `npx tsx --env-file=.env scripts/cron-reddit.ts` | Runs the Reddit historical job once (what GitHub Actions runs every 6h) |
+| ~~`scripts/setup-cron-jobs.ts`~~ | Deprecated — cron-job.org replaced by GitHub Actions |
 
 ---
 
@@ -501,3 +507,11 @@ b2d636f  2026-06-15  added : reddit scraper
 ### 2026-10-16 — Installed `void` agent skill
 - Ran `npx skills add ajinkya-cell/adgrid-ui --skill void`: adds `.agents/skills/void/` (canonical) and `.claude/skills/void/` (Claude Code copy), and updates `skills-lock.json`.
 - `void` revamps UI into the adgrid-ui (void-ui) design system (dark machined surfaces, bevels, wells, popouts). Includes `tokens.css`/`tailwind-theme.css`, a lint script and a screenshot script. No app code changed.
+
+### 2026-10-26 — Ingestion moved to GitHub Actions (data stopped on Oct 13)
+- **Root cause:** after the site moved off the original Vercel deployment (it now runs on Vercel under a different account), the cron-job.org jobs still POSTed to the deleted Vercel deployment (`mood-metrics-gilt.vercel.app`, now 404). The jobs failed and cron-job.org auto-disabled them, so nothing was scraped after 2026-10-13 09:31 UTC. The L1 (48h window) and L2 (7-day window) cards dropped to 0.
+- Ingestion now runs on GitHub Actions directly against Neon, so it no longer depends on the site's URL or host. (The Cloudflare Workers free plan, ~10ms CPU / 50 subrequests, couldn't have run the jobs anyway.)
+- Moved job logic out of the cron routes into `lib/jobs/flash.ts` and `lib/jobs/reddit.ts`. The `/api/cron/*` routes are now thin manual triggers.
+- Added `scripts/cron-flash.ts`, `scripts/cron-reddit.ts` and `.github/workflows/ingest.yml` (flash hourly, reddit every 6h) that run the jobs directly against Neon.
+- `/api/analyze` now returns `meta.lastFlashScrapeAt` / `meta.lastRedditScrapeAt`. The Dashboard L1/L2 badges show an amber `Stale · Xd ago` when flash is >2h or reddit >12h old, instead of always showing "Fresh Feed".
+- Known separate issue: `funding_rate` indicators haven't been collected since 2026-09-07.

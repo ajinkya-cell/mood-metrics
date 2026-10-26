@@ -90,8 +90,19 @@ type AnalyzeResponse = {
     flashPostsUsed: number;
     historicBucketsUsed: number;
     lastUpdated: string;
+    lastFlashScrapeAt: string | null;
+    lastRedditScrapeAt: string | null;
   };
 };
+
+// Returns "Xm/Xh/Xd ago" if the last scrape is older than maxAgeHours, else null
+function staleAge(lastScrapeAt: string | null, maxAgeHours: number): string | null {
+  if (!lastScrapeAt) return "never";
+  const ageMs = Date.now() - new Date(lastScrapeAt).getTime();
+  if (ageMs <= maxAgeHours * 60 * 60 * 1000) return null;
+  const hours = Math.floor(ageMs / (60 * 60 * 1000));
+  return hours >= 24 ? `${Math.floor(hours / 24)}d ago` : `${hours}h ago`;
+}
 
 export default function Dashboard() {
   const [activeSymbol, setActiveSymbol] = useState("BTC");
@@ -457,9 +468,15 @@ export default function Dashboard() {
                   <div className="border-t border-white/[0.06] pt-3.5 font-mono text-xs text-zinc-400 flex items-center justify-between mt-4">
                     <span className="flex items-center gap-2">
                       <span className="text-zinc-500">Status:</span>
-                      <span className="text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 text-[11px]">
-                        Fresh Feed
-                      </span>
+                      {staleAge(data.meta.lastFlashScrapeAt, 2) ? (
+                        <span className="text-amber-400 font-medium bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 text-[11px]">
+                          Stale · {staleAge(data.meta.lastFlashScrapeAt, 2)}
+                        </span>
+                      ) : (
+                        <span className="text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 text-[11px]">
+                          Fresh Feed
+                        </span>
+                      )}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <span className="text-zinc-500">Used:</span>
@@ -508,9 +525,15 @@ export default function Dashboard() {
                   <div className="border-t border-white/[0.06] pt-3.5 font-mono text-xs text-zinc-400 flex items-center justify-between mt-4">
                     <span className="flex items-center gap-2">
                       <span className="text-zinc-500">Source:</span>
-                      <span className="text-zinc-300 font-medium bg-white/[0.04] px-2 py-0.5 rounded border border-white/10 text-[11px]">
-                        Arctic Shift
-                      </span>
+                      {staleAge(data.meta.lastRedditScrapeAt, 12) ? (
+                        <span className="text-amber-400 font-medium bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 text-[11px]">
+                          Stale · {staleAge(data.meta.lastRedditScrapeAt, 12)}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-300 font-medium bg-white/[0.04] px-2 py-0.5 rounded border border-white/10 text-[11px]">
+                          Arctic Shift
+                        </span>
+                      )}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <span className="text-zinc-500">Analyzed:</span>

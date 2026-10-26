@@ -1,0 +1,55 @@
+# Scheduled data ingestion. Replaces cron-job.org → /api/cron/*, which broke
+# when the site moved hosts (jobs kept calling the old, deleted URL).
+# Required repo secrets: DATABASE_URL, NVIDIA_API_KEY, COINGECKO_API_KEY
+name: ingest
+
+on:
+  schedule:
+    - cron: "5 * * * *"      # flash: hourly
+    - cron: "20 */6 * * *"   # reddit: every 6 hours
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Which job to run"
+        type: choice
+        options: [flash, reddit, both]
+        default: both
+
+concurrency:
+  group: ingest-${{ github.event.schedule || github.event.inputs.job }}
+  cancel-in-progress: false
+
+jobs:
+  flash:
+    if: github.event.schedule == '5 * * * *' || github.event.inputs.job == 'flash' || github.event.inputs.job == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/cron-flash.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+
+  reddit:
+    if: github.event.schedule == '20 */6 * * *' || github.event.inputs.job == 'reddit' || github.event.inputs.job == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/cron-reddit.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
