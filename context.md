@@ -40,7 +40,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | Styling | Tailwind CSS | ^4 | Utility-first styling |
 | Font | Geist Sans + JetBrains Mono + EB Garamond + DotGothic16 + VT323 | bundled (`next/font/google`) | Geist for proportional editorial text; JetBrains Mono for all code & HUD metrics; EB Garamond for hero headline; DotGothic16 & VT323 for retro terminal telemetry |
 | Database | Drizzle ORM + Neon (PostgreSQL) | 0.45.2 | Serverless PostgreSQL database client |
-| AI | Vercel AI SDK `generateText` + Nvidia NIM (Nemotron 3.5 Lightning 30B-A3B, thinking off + Nemotron-3 Embed 1B) | 6.0.208 | AI-powered sentiment extraction and semantic embeddings with custom JSON parser fallback |
+| AI | Vercel AI SDK `generateText` + Nvidia NIM (Nemotron 3.5 Bolt E4B, thinking off + Nemotron-3 Embed 1B) | 6.0.208 | AI-powered sentiment extraction and semantic embeddings with custom JSON parser fallback |
 | Scraping | cheerio + rss-parser | 1.2.0 / 3.13.0 | Lightweight HTML parsing and feed reading |
 
 ---
@@ -277,11 +277,13 @@ Replaced the paid `ScrapeGraphAI` LLM-based scraping system with a free, custom-
 - Rotates demo API keys through standard HTTP headers (`x-cg-demo-api-key`).
 
 ### AI Sentiment Analysis Engine
-- Employs Nvidia NIM hosting `nvidia/nemotron-3.5-lightning-30b-a3b` (constant `SENTIMENT_MODEL` in `lib/ai/sentiment.ts`) for JSON sentiment classification, ~1.2s/post. It is a reasoning model, so calls pass `providerOptions.nim.chat_template_kwargs.enable_thinking = false`; with thinking on it returns null content. History: Llama 3.1 8B → Llama 3.2 11B Vision (retired/unresponsive Oct 2026) → Nemotron 3.5 Lightning.
+- Employs Nvidia NIM hosting `nvidia/nemotron-3.5-bolt-e4b` (constant `SENTIMENT_MODEL` in `lib/ai/sentiment.ts`) for JSON sentiment classification, ~1 post/s end to end. Calls pass `providerOptions.nim.chat_template_kwargs.enable_thinking = false`; Nemotron 3.5 models are reasoning models and return null content with thinking on. History: Llama 3.1 8B → Llama 3.2 11B Vision (unresponsive Oct 2026) → Nemotron 3.5 Lightning (rate-limited after ~30 calls, NIM limits are per model) → Bolt.
+- **Score/label alignment:** the prompt gives bullish/bearish/neutral examples, and `alignScore()` forces the score's sign to match the label (neutral is clamped to ±0.2), because Bolt sometimes copied a positive example score onto bearish labels.
+- **Throughput:** pending posts are analyzed newest first (the dashboard reads 48h/7d windows). Calls are paced client-side (`NIM_RPM`, default 240) and back off 15s on 429. Embeddings are fetched in one `getEmbeddings()` call per batch (default batch size 10) instead of one call per post.
 - **Fail-fast:** if the first 6 posts in an `analyzePendingPosts` run all fail (or every post fails), it throws `AIModelDownError` instead of waiting out timeouts on every post. Unparseable model output is no longer stored as a fake neutral record; the post stays unanalyzed and is retried next run. `/api/analyze` catches the error so the dashboard still serves cached data.
 - **Health check:** `checkAIHealth()` sends one known-bullish post through the chat and embedding models. `scripts/check-ai-health.ts` runs it as the first step of every GitHub Actions run.
 - Embeddings generated via Nvidia Nemotron-3 Embed 1B (`nvidia/nemotron-3-embed-1b`) and sliced to 1536 dimensions for Neon PostgreSQL `pgvector` indexing.
-- Analyzes batches of up to 50 posts at a time to prevent high token costs.
+- Analyzes up to `limit` posts per call (50 default), 10 per batch.
 - Custom fallback parser parses sentiment labels, scores, confidence readings, and reasonings from JSON output strings even if the model fails to return clean JSON blocks.
 
 ### Timeseries Pre-aggregations
@@ -522,5 +524,6 @@ b2d636f  2026-06-15  added : reddit scraper
 
 ### 2026-10-26 — AI model replaced + model-down alerting
 - `meta/llama-3.2-11b-vision-instruct` stopped responding on NIM (requests hang until timeout), so after the Oct 26 backfill only 75 of ~825 new posts were analyzed and the L1/L2 cards stayed at 0. Tested replacements: most Llama/Gemma/Mistral models return 410 (retired) or 404 for this account.
-- Switched to `nvidia/nemotron-3.5-lightning-30b-a3b` with thinking disabled (`SENTIMENT_MODEL` constant). Embeddings stay on `nvidia/nemotron-3-embed-1b` (`EMBEDDING_MODEL`).
+- Switched to `nvidia/nemotron-3.5-bolt-e4b` with thinking disabled (`SENTIMENT_MODEL` constant). Lightning 30B was tried first but hit per-model 429s within ~30 calls.
+- Added newest-first analysis, client-side request pacing with 429 backoff, batched embeddings, and `alignScore()` label/score sign enforcement. Rate-limit errors don't count toward the fail-fast model-down check. Embeddings stay on `nvidia/nemotron-3-embed-1b` (`EMBEDDING_MODEL`).
 - Added the `AIModelDownError` fail-fast check, `checkAIHealth()` + `scripts/check-ai-health.ts`, and the `alert` job in `.github/workflows/ingest.yml` that opens and auto-closes an `ingest-alert` issue.

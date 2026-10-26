@@ -90,8 +90,10 @@ export function calculateBlendedScore(input: BlendInput): BlendOutput {
 
 // NIM retires models without much notice (llama-3.1-8b and llama-3.3-70b went
 // 410 on 2026-08-26; llama-3.2-11b-vision stopped responding in Oct 2026).
+// Rate limits are per model: nemotron-3.5-lightning-30b 429'd after ~30 calls,
+// bolt-e4b handled 80 calls in 8s with no 429s.
 // If analysis starts failing, run `npx tsx --env-file=.env scripts/check-ai-health.ts`.
-export const SENTIMENT_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b";
+export const SENTIMENT_MODEL = "nvidia/nemotron-3.5-bolt-e4b";
 export const EMBEDDING_MODEL = "nvidia/nemotron-3-embed-1b";
 
 // Thrown when the model fails on every post at the start of a run — the
@@ -111,48 +113,77 @@ const nim = createOpenAICompatible({
   },
 });
 
+// Client-side pacing so a run isn't mostly 429s. Shared across chat +
+// embedding calls in this process; override with NIM_RPM.
+const NIM_RPM = Number(process.env.NIM_RPM ?? 240);
+let nextNimSlot = 0;
+async function waitForNimSlot(): Promise<void> {
+  const now = Date.now();
+  const wait = Math.max(0, nextNimSlot - now);
+  nextNimSlot = Math.max(now, nextNimSlot) + 60000 / NIM_RPM;
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+}
+
+const isRateLimited = (err: unknown) =>
+  err instanceof Error && /too many requests|429/i.test(err.message);
+
 export async function getEmbedding(text: string, inputType: "passage" | "query" = "passage"): Promise<number[] | null> {
+  const [vector] = await getEmbeddings([text], inputType);
+  return vector;
+}
+
+// One API call for many texts — returns vectors in input order (null on failure)
+export async function getEmbeddings(texts: string[], inputType: "passage" | "query" = "passage"): Promise<(number[] | null)[]> {
   const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) return null;
-  
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+  const none = texts.map(() => null);
+  if (!apiKey || texts.length === 0) return none;
 
-  try {
-    const res = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: [text],
-        encoding_format: "float",
-        input_type: inputType,
-      }),
-      signal: controller.signal,
-    });
-    
-    clearTimeout(timer);
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    await waitForNimSlot();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000); // 15-second timeout
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.warn(`[AI] Nvidia Embeddings API error: ${res.status} ${res.statusText}. Response: ${errText}`);
-      return null;
+    try {
+      const res = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: EMBEDDING_MODEL,
+          input: texts,
+          encoding_format: "float",
+          input_type: inputType,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timer);
+
+      if (res.status === 429 && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 15000));
+        continue;
+      }
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn(`[AI] Nvidia Embeddings API error: ${res.status} ${res.statusText}. Response: ${errText}`);
+        return none;
+      }
+
+      const data = (await res.json()) as { data?: { index?: number; embedding?: number[] }[] };
+      const vectors: (number[] | null)[] = [...none];
+      (data.data ?? []).forEach((d, i) => {
+        if (Array.isArray(d.embedding)) vectors[d.index ?? i] = d.embedding.slice(0, 1536);
+      });
+      return vectors;
+    } catch (err) {
+      clearTimeout(timer);
+      console.error("[AI] Error getting embeddings:", err);
+      return none;
     }
-    
-    const data = (await res.json()) as { data?: { embedding?: number[] }[] };
-    const rawVector = data.data?.[0]?.embedding;
-    if (Array.isArray(rawVector)) {
-      return rawVector.slice(0, 1536);
-    }
-    return null;
-  } catch (err) {
-    clearTimeout(timer);
-    console.error("[AI] Error getting embedding:", err);
-    return null;
   }
+  return none;
 }
 
 type SentimentResult = {
@@ -170,6 +201,7 @@ async function analyzePost(post: RawPost, coinName: string, retries = 2): Promis
     .slice(0, 2000);
 
   for (let attempt = 0; attempt <= retries; attempt++) {
+    await waitForNimSlot();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 25000); // 25-second timeout
 
@@ -189,11 +221,16 @@ Content:
 ${textToAnalyze}
 
 Respond with ONLY valid JSON in this exact format (no markdown, no explanation):
-{"label": "bullish", "score": 0.5, "confidence": 0.8, "reasoning": "One sentence explaining why."}
+{"label": "<bullish|bearish|neutral>", "score": <number>, "confidence": <number>, "reasoning": "<one sentence>"}
+
+Examples:
+{"label": "bullish", "score": 0.7, "confidence": 0.85, "reasoning": "Record ETF inflows signal strong institutional demand."}
+{"label": "bearish", "score": -0.8, "confidence": 0.9, "reasoning": "Large exchange inflows suggest imminent selling pressure."}
+{"label": "neutral", "score": 0.0, "confidence": 0.7, "reasoning": "A wallet question with no market direction."}
 
 Rules:
 - label: "bullish" (positive outlook), "bearish" (negative), "neutral" (no clear direction)
-- score: -1.0 (extremely bearish) to +1.0 (extremely bullish), 0 = neutral
+- score: -1.0 (extremely bearish) to +1.0 (extremely bullish), 0 = neutral. Bearish scores MUST be negative.
 - confidence: 0.0 to 1.0
 - reasoning: one short sentence explaining your analysis
 - Focus on market sentiment, not general news value`,
@@ -209,7 +246,8 @@ Rules:
       clearTimeout(timer);
       const isLast = attempt === retries;
       if (isLast) throw err;
-      const delay = (attempt + 1) * 1000 + Math.random() * 500;
+      // Rate limited → wait for the per-minute window to roll over
+      const delay = isRateLimited(err) ? 15000 : (attempt + 1) * 1000 + Math.random() * 500;
       await new Promise((r) => setTimeout(r, delay));
     }
   }
@@ -228,7 +266,9 @@ export async function checkAIHealth(): Promise<{ ok: boolean; chat: string; embe
       "Bitcoin",
       0
     );
-    if (result.label !== "bullish") chat = `unexpected label "${result.label}" for an obviously bullish post`;
+    if (result.label !== "bullish" || result.score <= 0) {
+      chat = `unexpected ${result.label} / ${result.score} for an obviously bullish post`;
+    }
   } catch (err) {
     chat = `${SENTIMENT_MODEL} failed: ${err instanceof Error ? err.message : String(err)}`;
   }
@@ -264,13 +304,21 @@ function parseSentiment(raw: string): SentimentResult | null {
 
     return {
       label,
-      score: clamp(score, -1, 1),
+      score: alignScore(label, clamp(isNaN(score) ? 0 : score, -1, 1)),
       confidence: clamp(confidence, 0, 1),
       reasoning: String(reasoning).slice(0, 300),
     };
   } catch {
     return null;
   }
+}
+
+// Small models sometimes copy a positive example score onto a bearish label.
+// The label is the more reliable signal, so force the score's sign to match it.
+function alignScore(label: SentimentResult["label"], score: number): number {
+  if (label === "bullish") return Math.abs(score);
+  if (label === "bearish") return -Math.abs(score);
+  return clamp(score, -0.2, 0.2);
 }
 
 function normalizeLabel(val: unknown): "bullish" | "bearish" | "neutral" {
@@ -321,6 +369,8 @@ export async function analyzePendingPosts(
         isNull(sentimentRecords.id) // no sentiment record = not analyzed yet
       )
     )
+    // Newest first — the dashboard only reads the last 48h (flash) / 7d (reddit)
+    .orderBy(desc(rawPosts.postedAt))
     .limit(limit);
 
   if (pending.length === 0) {
@@ -331,7 +381,7 @@ export async function analyzePendingPosts(
   console.log(`[AI] Analyzing ${pending.length} posts for ${ticker.symbol}...`);
   let analyzed = 0;
   let failed = 0;
-  const batchSize = options?.batchSize ?? 3;
+  const batchSize = options?.batchSize ?? 10;
   // If the first FAIL_FAST_AFTER posts all fail, the model is down — stop
   // instead of burning 25s × retries on every remaining post
   const FAIL_FAST_AFTER = 6;
@@ -346,33 +396,28 @@ export async function analyzePendingPosts(
 
     const batch = pending.slice(i, i + batchSize);
 
-    const batchResults = await Promise.all(
+    const sentiments = await Promise.all(
       batch.map(async ({ post }) => {
         try {
-          const result = await analyzePost(post, ticker.name);
-
-          // Generate embedding using Nvidia NIM
-          const textToAnalyze = [post.title, post.content]
-            .filter(Boolean)
-            .join("\n")
-            .slice(0, 1000);
-          
-          let vector: number[] | null = null;
-          try {
-            vector = await getEmbedding(textToAnalyze, "passage");
-          } catch (embedError) {
-            console.warn(`[AI] Embedding generation failed for post ${post.id}:`, embedError);
-          }
-
-          return { post, result, vector };
+          return { post, result: await analyzePost(post, ticker.name) };
         } catch (error) {
-          failed++;
+          // Rate limits aren't the model being down — don't count them
+          // toward fail-fast; the post is retried on the next run
+          if (!isRateLimited(error)) failed++;
           lastError = error instanceof Error ? error.message : String(error);
           console.warn(`[AI] Failed to analyze post ${post.id}: ${lastError}`);
           return null;
         }
       })
     );
+
+    // One embeddings call for the whole batch
+    const succeeded = sentiments.filter((s): s is NonNullable<typeof s> => s !== null);
+    const vectors = await getEmbeddings(
+      succeeded.map(({ post }) => [post.title, post.content].filter(Boolean).join("\n").slice(0, 1000)),
+      "passage"
+    );
+    const batchResults = succeeded.map((s, idx) => ({ ...s, vector: vectors[idx] }));
 
     // Save batch results to database
     for (const res of batchResults) {
