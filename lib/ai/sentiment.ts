@@ -1,5 +1,5 @@
 // AI sentiment analysis engine
-// Uses Vercel AI SDK + Nvidia NIM (Llama 3.1 8B) to analyze each post
+// Uses Vercel AI SDK + Nvidia NIM (SENTIMENT_MODEL below) to analyze each post
 // NOTE: NIM doesn't support generateObject's structured output, so we use
 // generateText and parse JSON manually from the response.
 
@@ -88,6 +88,21 @@ export function calculateBlendedScore(input: BlendInput): BlendOutput {
 }
 
 
+// NIM retires models without much notice (llama-3.1-8b and llama-3.3-70b went
+// 410 on 2026-08-26; llama-3.2-11b-vision stopped responding in Oct 2026).
+// If analysis starts failing, run `npx tsx --env-file=.env scripts/check-ai-health.ts`.
+export const SENTIMENT_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b";
+export const EMBEDDING_MODEL = "nvidia/nemotron-3-embed-1b";
+
+// Thrown when the model fails on every post at the start of a run — the
+// model is down, not a single bad post. Callers let it fail the cron run.
+export class AIModelDownError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AIModelDownError";
+  }
+}
+
 const nim = createOpenAICompatible({
   name: "nim",
   baseURL: "https://integrate.api.nvidia.com/v1",
@@ -111,7 +126,7 @@ export async function getEmbedding(text: string, inputType: "passage" | "query" 
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "nvidia/nemotron-3-embed-1b",
+        model: EMBEDDING_MODEL,
         input: [text],
         encoding_format: "float",
         input_type: inputType,
@@ -160,8 +175,14 @@ async function analyzePost(post: RawPost, coinName: string, retries = 2): Promis
 
     try {
       const { text } = await generateText({
-        model: nim.chatModel("meta/llama-3.2-11b-vision-instruct"),
+        model: nim.chatModel(SENTIMENT_MODEL),
         abortSignal: controller.signal,
+        maxRetries: 0, // this loop handles retries
+        temperature: 0.1,
+        maxOutputTokens: 300,
+        // Nemotron 3.5 is a reasoning model — with thinking on it burns the
+        // token budget and returns null content
+        providerOptions: { nim: { chat_template_kwargs: { enable_thinking: false } } },
         prompt: `You are a crypto market sentiment analyst. Analyze this content about ${coinName} and determine the market sentiment.
 
 Content:
@@ -179,8 +200,12 @@ Rules:
       });
 
       clearTimeout(timer);
-      return parseSentiment(text);
-    } catch (err: any) {
+      const parsed = parseSentiment(text);
+      // Don't store a fake "neutral" for garbage output — leave the post
+      // unanalyzed so it's retried, and let it count as a failure
+      if (!parsed) throw new Error(`Unparseable model response: ${text.slice(0, 120)}`);
+      return parsed;
+    } catch (err) {
       clearTimeout(timer);
       const isLast = attempt === retries;
       if (isLast) throw err;
@@ -192,7 +217,27 @@ Rules:
   return { label: "neutral", score: 0, confidence: 0, reasoning: "Analysis failed" };
 }
 
-function parseSentiment(raw: string): SentimentResult {
+// ── Health check — one known post through the chat + embedding models ────────
+// Used by scripts/check-ai-health.ts (first step of every GitHub Actions run).
+export async function checkAIHealth(): Promise<{ ok: boolean; chat: string; embedding: string }> {
+  let chat = "ok";
+  let embedding = "ok";
+  try {
+    const result = await analyzePost(
+      { title: "Bitcoin ETF inflows hit a record high", content: "Analysts expect a rally." } as RawPost,
+      "Bitcoin",
+      0
+    );
+    if (result.label !== "bullish") chat = `unexpected label "${result.label}" for an obviously bullish post`;
+  } catch (err) {
+    chat = `${SENTIMENT_MODEL} failed: ${err instanceof Error ? err.message : String(err)}`;
+  }
+  const vector = await getEmbedding("bitcoin rally", "passage");
+  if (!vector || vector.length !== 1536) embedding = `${EMBEDDING_MODEL} returned no 1536-dim vector`;
+  return { ok: chat === "ok" && embedding === "ok", chat, embedding };
+}
+
+function parseSentiment(raw: string): SentimentResult | null {
   try {
     // Extract JSON object from the response (it might have surrounding text)
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -224,7 +269,7 @@ function parseSentiment(raw: string): SentimentResult {
       reasoning: String(reasoning).slice(0, 300),
     };
   } catch {
-    return { label: "neutral", score: 0, confidence: 0, reasoning: "Failed to parse AI response" };
+    return null;
   }
 }
 
@@ -285,11 +330,22 @@ export async function analyzePendingPosts(
 
   console.log(`[AI] Analyzing ${pending.length} posts for ${ticker.symbol}...`);
   let analyzed = 0;
+  let failed = 0;
   const batchSize = options?.batchSize ?? 3;
+  // If the first FAIL_FAST_AFTER posts all fail, the model is down — stop
+  // instead of burning 25s × retries on every remaining post
+  const FAIL_FAST_AFTER = 6;
+  let lastError = "";
 
   for (let i = 0; i < pending.length; i += batchSize) {
+    if (analyzed === 0 && failed >= FAIL_FAST_AFTER) {
+      throw new AIModelDownError(
+        `${SENTIMENT_MODEL}: first ${failed} posts for ${ticker.symbol} all failed. Last error: ${lastError}`
+      );
+    }
+
     const batch = pending.slice(i, i + batchSize);
-    
+
     const batchResults = await Promise.all(
       batch.map(async ({ post }) => {
         try {
@@ -310,7 +366,9 @@ export async function analyzePendingPosts(
 
           return { post, result, vector };
         } catch (error) {
-          console.warn(`[AI] Failed to analyze post ${post.id}:`, error);
+          failed++;
+          lastError = error instanceof Error ? error.message : String(error);
+          console.warn(`[AI] Failed to analyze post ${post.id}: ${lastError}`);
           return null;
         }
       })
@@ -349,7 +407,13 @@ export async function analyzePendingPosts(
     }
   }
 
-  console.log(`[AI] ${ticker.symbol}: analyzed ${analyzed} posts`);
+  if (analyzed === 0 && failed > 0) {
+    throw new AIModelDownError(
+      `${SENTIMENT_MODEL}: all ${failed} posts for ${ticker.symbol} failed. Last error: ${lastError}`
+    );
+  }
+
+  console.log(`[AI] ${ticker.symbol}: analyzed ${analyzed} posts (${failed} failed)`);
   return analyzed;
 }
 

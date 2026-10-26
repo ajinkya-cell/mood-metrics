@@ -151,7 +151,12 @@ export async function GET(req: NextRequest) {
 
     if (unanalyzedCount.length > 0) {
       console.log(`[Analyze] Running on-demand AI analysis inline (limit 3)...`);
-      await analyzePendingPosts(ticker, 3);
+      // A dead model must not break the dashboard — serve what's already in the DB
+      try {
+        await analyzePendingPosts(ticker, 3);
+      } catch (err) {
+        console.error("[Analyze] Inline AI analysis failed:", err);
+      }
     }
   }
 

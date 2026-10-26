@@ -40,7 +40,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | Styling | Tailwind CSS | ^4 | Utility-first styling |
 | Font | Geist Sans + JetBrains Mono + EB Garamond + DotGothic16 + VT323 | bundled (`next/font/google`) | Geist for proportional editorial text; JetBrains Mono for all code & HUD metrics; EB Garamond for hero headline; DotGothic16 & VT323 for retro terminal telemetry |
 | Database | Drizzle ORM + Neon (PostgreSQL) | 0.45.2 | Serverless PostgreSQL database client |
-| AI | Vercel AI SDK `generateText` + Nvidia NIM (Meta Llama 3.2 11B Vision Instruct + Nemotron-3 Embed 1B) | 6.0.208 | AI-powered sentiment extraction and semantic embeddings with custom JSON parser fallback |
+| AI | Vercel AI SDK `generateText` + Nvidia NIM (Nemotron 3.5 Lightning 30B-A3B, thinking off + Nemotron-3 Embed 1B) | 6.0.208 | AI-powered sentiment extraction and semantic embeddings with custom JSON parser fallback |
 | Scraping | cheerio + rss-parser | 1.2.0 / 3.13.0 | Lightweight HTML parsing and feed reading |
 
 ---
@@ -169,8 +169,9 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | [scripts/setup-cron-jobs.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/setup-cron-jobs.ts) | **Deprecated.** Created cron-job.org jobs hitting `/api/cron/*`. Superseded by GitHub Actions so ingestion doesn't depend on the hosting URL. Don't re-run it. |
 | [lib/jobs/flash.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/jobs/flash.ts) | `runFlashJob({ force })` — flash layer job (CoinGecko, RSS, funding, F&G, whale + AI analysis + rollup). Shared by the cron route and `scripts/cron-flash.ts`. |
 | [lib/jobs/reddit.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/jobs/reddit.ts) | `runRedditJob()` — 14-day cleanup + Arctic Shift scrape + AI analysis + rollup. Shared by the cron route and `scripts/cron-reddit.ts`. |
+| [scripts/check-ai-health.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/check-ai-health.ts) | Pings the NIM chat + embedding models with a known post; exits 1 if either is down. First step of each GitHub Actions job. |
 | [scripts/cron-flash.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/cron-flash.ts) / [scripts/cron-reddit.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/cron-reddit.ts) | CLI entry points for the two jobs, run by GitHub Actions directly against Neon. |
-| [.github/workflows/ingest.yml](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/.github/workflows/ingest.yml) | Scheduled ingestion: flash hourly (`5 * * * *`), reddit every 6h (`20 */6 * * *`), plus manual `workflow_dispatch`. Needs repo secrets `DATABASE_URL`, `NVIDIA_API_KEY`, `COINGECKO_API_KEY`. |
+| [.github/workflows/ingest.yml](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/.github/workflows/ingest.yml) | Scheduled ingestion: flash hourly (`5 * * * *`), reddit every 6h (`20 */6 * * *`), plus manual `workflow_dispatch`. Needs repo secrets `DATABASE_URL`, `NVIDIA_API_KEY`, `COINGECKO_API_KEY`. An `alert` job opens a GitHub issue labelled `ingest-alert` (assigned to the repo owner → email + mobile push) when any job fails, comments on it for repeat failures, and closes it on the next green run. |
 | [scripts/ingest-all-data.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/scripts/ingest-all-data.ts) | Master data ingestion CLI runner supporting lookback windows, deep Reddit pagination, flash news feeds, AI batch analysis, and timeseries rollups. |
 | [app/api/search/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/app/api/search/route.ts) | `GET /api/search?q=bit` — Ticker lookup (checks symbols and names). |
 | [lib/db/schema.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%20-%20coding%20-%20ventures/crypto-mood/lib/db/schema.ts) | Full Drizzle schema definitions. |
@@ -240,6 +241,7 @@ The [app/api/analyze/route.ts](file:///C:/Users/ajink/OneDrive/Desktop/personal%
 | `npx tsx --env-file=.env scripts/db-inspect.ts` | Utility to inspect the current count and status of database tables |
 | `npx tsx --env-file=.env scripts/run-reddit-ingestion.ts` | Utility to manually trigger Reddit scraping, AI analysis, and timeseries rollup |
 | `npx tsx --env-file=.env scripts/ingest-all-data.ts` | Master CLI tool for full flash news, deep paginated Reddit, AI analysis, timeseries rollups, and blended sentiment calculations |
+| `npx tsx --env-file=.env scripts/check-ai-health.ts` | Checks the NIM sentiment + embedding models respond (exit 1 if down) |
 | `npx tsx --env-file=.env scripts/cron-flash.ts [--force]` | Runs the flash layer job once (what GitHub Actions runs hourly) |
 | `npx tsx --env-file=.env scripts/cron-reddit.ts` | Runs the Reddit historical job once (what GitHub Actions runs every 6h) |
 | ~~`scripts/setup-cron-jobs.ts`~~ | Deprecated — cron-job.org replaced by GitHub Actions |
@@ -275,7 +277,9 @@ Replaced the paid `ScrapeGraphAI` LLM-based scraping system with a free, custom-
 - Rotates demo API keys through standard HTTP headers (`x-cg-demo-api-key`).
 
 ### AI Sentiment Analysis Engine
-- Employs Nvidia NIM hosting Meta Llama 3.2 11B Vision Instruct (`meta/llama-3.2-11b-vision-instruct`) for fast, accurate JSON sentiment classification (upgraded from deprecated Llama 3.1 8B).
+- Employs Nvidia NIM hosting `nvidia/nemotron-3.5-lightning-30b-a3b` (constant `SENTIMENT_MODEL` in `lib/ai/sentiment.ts`) for JSON sentiment classification, ~1.2s/post. It is a reasoning model, so calls pass `providerOptions.nim.chat_template_kwargs.enable_thinking = false`; with thinking on it returns null content. History: Llama 3.1 8B → Llama 3.2 11B Vision (retired/unresponsive Oct 2026) → Nemotron 3.5 Lightning.
+- **Fail-fast:** if the first 6 posts in an `analyzePendingPosts` run all fail (or every post fails), it throws `AIModelDownError` instead of waiting out timeouts on every post. Unparseable model output is no longer stored as a fake neutral record; the post stays unanalyzed and is retried next run. `/api/analyze` catches the error so the dashboard still serves cached data.
+- **Health check:** `checkAIHealth()` sends one known-bullish post through the chat and embedding models. `scripts/check-ai-health.ts` runs it as the first step of every GitHub Actions run.
 - Embeddings generated via Nvidia Nemotron-3 Embed 1B (`nvidia/nemotron-3-embed-1b`) and sliced to 1536 dimensions for Neon PostgreSQL `pgvector` indexing.
 - Analyzes batches of up to 50 posts at a time to prevent high token costs.
 - Custom fallback parser parses sentiment labels, scores, confidence readings, and reasonings from JSON output strings even if the model fails to return clean JSON blocks.
@@ -515,3 +519,8 @@ b2d636f  2026-06-15  added : reddit scraper
 - Added `scripts/cron-flash.ts`, `scripts/cron-reddit.ts` and `.github/workflows/ingest.yml` (flash hourly, reddit every 6h) that run the jobs directly against Neon.
 - `/api/analyze` now returns `meta.lastFlashScrapeAt` / `meta.lastRedditScrapeAt`. The Dashboard L1/L2 badges show an amber `Stale · Xd ago` when flash is >2h or reddit >12h old, instead of always showing "Fresh Feed".
 - Known separate issue: `funding_rate` indicators haven't been collected since 2026-09-07.
+
+### 2026-10-26 — AI model replaced + model-down alerting
+- `meta/llama-3.2-11b-vision-instruct` stopped responding on NIM (requests hang until timeout), so after the Oct 26 backfill only 75 of ~825 new posts were analyzed and the L1/L2 cards stayed at 0. Tested replacements: most Llama/Gemma/Mistral models return 410 (retired) or 404 for this account.
+- Switched to `nvidia/nemotron-3.5-lightning-30b-a3b` with thinking disabled (`SENTIMENT_MODEL` constant). Embeddings stay on `nvidia/nemotron-3-embed-1b` (`EMBEDDING_MODEL`).
+- Added the `AIModelDownError` fail-fast check, `checkAIHealth()` + `scripts/check-ai-health.ts`, and the `alert` job in `.github/workflows/ingest.yml` that opens and auto-closes an `ingest-alert` issue.
