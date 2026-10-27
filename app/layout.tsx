@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, JetBrains_Mono } from "next/font/google";
+import { Geist, JetBrains_Mono, Jersey_10, Bricolage_Grotesque, Reenie_Beanie } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import GlobalNav from "./components/GlobalNav";
 import GlobalFooter from "./components/GlobalFooter";
+import ScrollToTop from "./components/ScrollToTop";
 import GrainOverlay from "./components/GrainOverlay";
 
 const geistSans = Geist({
@@ -14,6 +15,25 @@ const geistSans = Geist({
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+});
+
+// Display face (headlines, big numerals, wordmark) + grotesk for UI
+const jersey = Jersey_10({
+  variable: "--font-jersey",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
+  subsets: ["latin"],
+});
+
+// Handwritten face for the landing page's "The idea" statement
+const reenieBeanie = Reenie_Beanie({
+  variable: "--font-reenie-beanie",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +50,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
+      className={`${geistSans.variable} ${jetbrainsMono.variable} ${jersey.variable} ${bricolage.variable} ${reenieBeanie.variable} h-full antialiased dark`}
       suppressHydrationWarning
     >
       <head suppressHydrationWarning>
@@ -60,8 +80,9 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className="min-h-full flex flex-col bg-[#050505] text-zinc-100" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col bg-[var(--ed-page)] text-zinc-100" suppressHydrationWarning>
         <GrainOverlay />
+        <ScrollToTop />
         <GlobalNav />
         <div className="flex-1 flex flex-col">{children}</div>
         <GlobalFooter />

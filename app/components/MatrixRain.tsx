@@ -1,156 +1,115 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
-import { cn } from "@/lib/utils";
+import React from "react";
 
-export interface MatrixRainProps extends React.CanvasHTMLAttributes<HTMLCanvasElement> {
-  className?: string;
-  speed?: number; // Speed multiplier (default: 1.0)
-  density?: number; // Column density factor (default: 1.0)
-  fontSize?: number; // Font size of rain symbols (default: 16)
-  decayRate?: number; // Rate at which streams fade out (default: 0.05)
-  color?: string; // Color of stream tail (default: "#525252" for monochrome)
-  glowColor?: string; // Color of the stream head (default: "#ffffff")
-  glowStrength?: number; // Blur strength of glow shadow (default: 8)
-  opacity?: number; // Canvas transparency (default: 0.35)
-  customCharacters?: string; // Characters pool (default: Matrix Katakana + Alphabets)
-  fps?: number; // Target frame rate (default: 30)
-}
+// Faint falling-glyph backdrop for the landing hero. Transparent canvas (cleared
+// every frame, no black fade-wash) so it sits on the page surface; each column
+// is a short trail that brightens at its head. Throttled to ~24fps, paused
+// offscreen, and a single still frame under reduced motion.
 
-export function MatrixRain({
-  className,
-  speed = 1.0,
-  density = 1.0,
-  fontSize = 16,
-  decayRate = 0.05,
-  color = "#525252",
-  glowColor = "#ffffff",
-  glowStrength = 8,
-  opacity = 0.35,
-  customCharacters,
-  fps = 30,
-  style,
-  ...props
-}: MatrixRainProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameId = useRef<number>(0);
-  const yPositionsRef = useRef<number[]>([]);
-  const lastDrawTimeRef = useRef<number>(0);
+const GLYPHS = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾙﾚﾛﾜ0123456789₿Ξ◎ÐŁ$+−";
+const pick = () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
 
-  // Default characters pool: Matrix katakana characters mixed with uppercase letters and digits
-  const defaultChars =
-    "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const charPool = customCharacters || defaultChars;
+type Drop = { y: number; speed: number; len: number; chars: string[] };
 
-  useEffect(() => {
+export default function MatrixRain({ className, cell = 18 }: { className?: string; cell?: number }) {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+
+  React.useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let w = 0, h = 0, dpr = 1, rows = 0;
+    let drops: Drop[] = [];
+    let raf = 0, last = 0, running = false;
 
-    const init = () => {
-      // Use parent bounding client rect or window dimensions
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width || window.innerWidth;
-      canvas.height = rect.height || window.innerHeight;
-
-      // Base column layout
-      const colWidth = fontSize;
-      const colCount = Math.floor((canvas.width / colWidth) * density);
-
-      // Initialize vertical offsets randomly so they don't fall in a flat line
-      yPositionsRef.current = Array.from(
-        { length: colCount },
-        () => Math.random() * -canvas.height
-      );
+    const spawn = (scatter: boolean): Drop => {
+      const len = 5 + Math.floor(Math.random() * 9);
+      return {
+        y: scatter ? Math.random() * (rows + len) : -Math.random() * rows * 0.8,
+        speed: 0.1 + Math.random() * 0.2,
+        len,
+        chars: Array.from({ length: len }, pick),
+      };
     };
 
-    const draw = (timestamp: number) => {
-      animationFrameId.current = requestAnimationFrame(draw);
+    const resize = () => {
+      const r = canvas.getBoundingClientRect();
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = r.width;
+      h = r.height;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      rows = Math.ceil(h / cell);
+      // Only about one column in three carries a stream, so it never reads as a wall
+      drops = Array.from({ length: Math.ceil(w / cell) }, () => (Math.random() < 0.34 ? spawn(true) : null)) as Drop[];
+    };
 
-      // Frame rate throttling for retro Matrix style
-      const elapsed = timestamp - lastDrawTimeRef.current;
-      const interval = 1000 / fps;
-      if (elapsed < interval) return;
-      lastDrawTimeRef.current = timestamp - (elapsed % interval);
-
-      // Draw transparent overlay to create decay fade trail
-      ctx.fillStyle = `rgba(0, 0, 0, ${decayRate})`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.font = `${fontSize}px monospace`;
-
-      const colCount = yPositionsRef.current.length;
-      for (let i = 0; i < colCount; i++) {
-        // Calculate horizontal coordinates
-        const x = (i * fontSize) / density;
-        const y = yPositionsRef.current[i];
-
-        // Only draw if within viewport bounds
-        if (y >= 0) {
-          const char = charPool[Math.floor(Math.random() * charPool.length)];
-
-          // 1. Draw glowing head character
-          ctx.save();
-          ctx.fillStyle = glowColor;
-          if (glowStrength > 0) {
-            ctx.shadowColor = glowColor;
-            ctx.shadowBlur = glowStrength;
-          }
-          ctx.fillText(char, x, y);
-          ctx.restore();
-
-          // 2. Draw regular trail characters trailing slightly behind
-          ctx.fillStyle = color;
-          const trailY = y - fontSize;
-          if (trailY >= 0) {
-            ctx.fillText(char, x, trailY);
-          }
+    const draw = () => {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      ctx.font = `${cell * 0.72}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      drops.forEach((d, col) => {
+        if (!d) return;
+        const x = col * cell + cell / 2;
+        const head = Math.floor(d.y);
+        for (let i = 0; i < d.len; i++) {
+          const row = head - i;
+          if (row < 0 || row > rows) continue;
+          const fade = 1 - i / d.len;
+          ctx.fillStyle = i === 0 ? `rgba(245,240,232,0.3)` : `rgba(200,117,69,${(fade * 0.2).toFixed(3)})`;
+          ctx.fillText(d.chars[row % d.len], x, row * cell + cell / 2);
         }
-
-        // Increment stream position
-        yPositionsRef.current[i] += fontSize * speed;
-
-        // Reset column to top randomly when it hits bottom
-        if (yPositionsRef.current[i] > canvas.height && Math.random() > 0.975) {
-          yPositionsRef.current[i] = 0;
-        }
-      }
+      });
     };
 
-    const handleResize = () => {
-      init();
+    const step = () => {
+      drops.forEach((d, col) => {
+        if (!d) return;
+        d.y += d.speed;
+        if (Math.random() < 0.03) d.chars[Math.floor(Math.random() * d.len)] = pick();
+        if (d.y - d.len > rows) drops[col] = spawn(false);
+      });
     };
 
-    init();
-    lastDrawTimeRef.current = performance.now();
-    animationFrameId.current = requestAnimationFrame(draw);
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      if (now - last < 42) return;
+      last = now;
+      step();
+      draw();
+    };
+    const play = () => {
+      if (reduced || running) return;
+      running = true;
+      raf = requestAnimationFrame(loop);
+    };
+    const pause = () => {
+      running = false;
+      cancelAnimationFrame(raf);
+    };
 
-    window.addEventListener("resize", handleResize);
+    const ro = new ResizeObserver(() => {
+      resize();
+      draw();
+    });
+    ro.observe(canvas);
+    const io = new IntersectionObserver(([e]) => (e.isIntersecting ? play() : pause()));
+    io.observe(canvas);
 
+    resize();
+    draw();
+    play();
     return () => {
-      cancelAnimationFrame(animationFrameId.current);
-      window.removeEventListener("resize", handleResize);
+      pause();
+      ro.disconnect();
+      io.disconnect();
     };
-  }, [
-    speed,
-    density,
-    fontSize,
-    decayRate,
-    color,
-    glowColor,
-    glowStrength,
-    charPool,
-    fps,
-  ]);
+  }, [cell]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className={cn("pointer-events-none z-0", className)}
-      style={{ opacity, ...style }}
-      {...props}
-    />
-  );
+  return <canvas ref={canvasRef} aria-hidden className={className} />;
 }

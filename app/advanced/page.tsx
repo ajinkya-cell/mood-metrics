@@ -1,28 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, use } from "react";
 import {
-  Sliders,
   Play,
   Pause,
   ChartLineUp,
-  Percent,
-  Coins,
-  ShieldCheck,
   Clock,
-  Warning,
   Brain,
   ArrowsLeftRight,
-  Database,
-  ArrowRight,
   Sparkle,
   ArrowClockwise,
   BookOpen,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import SectionEyebrow from "../components/SectionEyebrow";
-import DoubleBezel from "../components/DoubleBezel";
-import GlowCard from "../components/GlowCard";
+import { PageShell, PageHero, Hatch, GlassSegmented } from "../components/editorial";
+
+const COINS = ["BTC", "ETH", "SOL"] as const;
+type Coin = (typeof COINS)[number];
 
 // Define Types
 type TimeseriesPoint = {
@@ -58,8 +53,25 @@ type AdvancedData = {
   records: SentimentPost[];
 };
 
-export default function AdvancedToolsPage() {
-  const [activeTab, setActiveTab] = useState<string>("lag_correlation");
+// Short ?tab= names used by links (e.g. the home page tool cards) → tool ids
+const TAB_ALIASES: Record<string, string> = {
+  correlation: "lag_correlation",
+  clouds: "narrative_clustering",
+  playback: "event_playback",
+  crossovers: "whale_vs_retail",
+  trajectories: "narrative_trajectories",
+};
+
+export default function AdvancedToolsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const tabParam = use(searchParams).tab;
+  const requestedTab = typeof tabParam === "string" ? (TAB_ALIASES[tabParam] ?? tabParam) : undefined;
+  const [activeTab, setActiveTab] = useState<string>(
+    requestedTab && Object.values(TAB_ALIASES).includes(requestedTab) ? requestedTab : "lag_correlation"
+  );
   const [selectedCoin, setSelectedCoin] = useState<string>("BTC");
   const [timeframe, setTimeframe] = useState<string>("30d");
   const [data, setData] = useState<AdvancedData | null>(null);
@@ -95,71 +107,45 @@ export default function AdvancedToolsPage() {
     { id: "narrative_trajectories", label: "5. Narrative Trajectories", color: "from-fuchsia-500/10 to-transparent" },
   ];
 
-  const activeToolColor = TOOLS.find((t) => t.id === activeTab)?.color ?? "from-emerald-500/10 to-transparent";
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-16 pb-32 font-mono relative">
-      {/* ── AMBIENT BACKDROP KINETIC GLOW ORB ── */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] pointer-events-none opacity-40 blur-[120px] transition-all duration-1000 ease-in-out z-0">
-        <div className={`w-full h-full rounded-full bg-gradient-to-tr ${activeToolColor}`} />
-      </div>
-
-      <div className="relative z-10 space-y-16">
-        {/* ── EXPERIMENTAL HEADER BANNER (UNBOXED BORDERLESS) ── */}
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-8 pt-20 border-b border-white/5 pb-10">
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/5 border  border-amber-500/10 flex items-center justify-center text-amber-400 shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.05)]">
-            <Warning size={26} />
-          </div>
-          <div className="space-y-2">
-            <span className="text-sm text-amber-500 font-bold uppercase tracking-[0.25em] block">
-              EXPERIMENTAL PLAYGROUND
+    <PageShell>
+      <PageHero
+        micro="Experimental playground · Advanced tools"
+        lead="Quant"
+        accent="instruments"
+        tail="."
+        description="Sandbox tools in active development. Live database telemetry is blended with quantitative scripts to explore lag, narratives, whale flows and historical replays."
+        aside={
+          <>
+            <span className="ed-tag" style={{ color: "#fcd34d" }}>
+              <span className="ed-square bg-amber-400" />
+              Experimental
             </span>
-            <h1 className="text-3xl font-extrabold text-white font-sans tracking-tight">
-              Advanced Quantitative Telemetry
-            </h1>
-            <p className="text-zinc-200 text-base font-sans max-w-3xl leading-relaxed">
-              These systems are in active development and presented as a sandbox playground. Live database telemetry feeds are blended with quantitative scripts to simulate historical price lag indicators, crossovers, and narratives.
-            </p>
-          </div>
-          <div className="md:ml-auto shrink-0 flex items-center gap-4">
-            <span className="text-sm text-zinc-300 font-bold uppercase">COORDINATE TOKEN:</span>
-            <select
-              value={selectedCoin}
-              onChange={(e) => setSelectedCoin(e.target.value)}
-              className="bg-black border border-white/10 rounded-lg px-4 py-3 text-base text-zinc-200 focus:outline-none focus:border-white/20 transition-all font-sans cursor-pointer hover:bg-zinc-950"
-            >
-              <option value="BTC">BTC — Bitcoin</option>
-              <option value="ETH">ETH — Ethereum</option>
-              <option value="SOL">SOL — Solana</option>
-            </select>
-          </div>
-        </div>
+            <GlassSegmented options={COINS} value={selectedCoin as Coin} onChange={setSelectedCoin} layoutId="advancedCoin" />
+          </>
+        }
+      />
 
         {/* ── MAIN WORKSPACE SPLIT (UNBOXED AND ROOMY) ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+        <div className="px-5 md:px-8 pt-10 pb-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-start border-t border-[var(--ed-border)]">
           {/* Left Column: Minimal sticky outline menu */}
-          <aside className="lg:col-span-3 sticky top-28 flex flex-col gap-4 border-r border-white/5 pr-6">
-            <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
-              QUANT TOOLS
-            </span>
-            <nav className="flex flex-col gap-2 font-mono text-xs">
+          <aside className="lg:col-span-3 lg:sticky lg:top-28 flex flex-col gap-4">
+            <span className="ed-micro">Instruments</span>
+            <nav className="flex flex-col gap-0.5 text-[14px]">
               {TOOLS.map((tool) => (
                 <button
                    key={tool.id}
                    onClick={() => setActiveTab(tool.id)}
-                   className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer relative ${
-                     activeTab === tool.id
-                       ? "bg-white/5 border border-white/10 text-white font-bold"
-                       : "text-zinc-500 hover:text-zinc-300"
+                   className={`ed-press flex items-center gap-2.5 text-left py-1.5 cursor-pointer transition-colors duration-300 ${
+                     activeTab === tool.id ? "text-white" : "text-[var(--ed-fg-55)] hover:text-[var(--ed-fg-90)]"
                    }`}
                 >
-                  {activeTab === tool.id && (
-                    <motion.span
-                      layoutId="activeGlowTab"
-                      className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-emerald-400 rounded-full"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                    />
-                  )}
+                  <span
+                    className={`ed-square transition-colors duration-300 ${
+                      activeTab === tool.id ? "bg-[var(--ed-blue-label)]" : "shadow-[inset_0_0_0_1px_var(--ed-border)]"
+                    }`}
+                  />
                   {tool.label}
                 </button>
               ))}
@@ -169,12 +155,12 @@ export default function AdvancedToolsPage() {
           {/* Right Column: Spacious Workspace */}
           <main className="lg:col-span-9 space-y-12">
             {isLoading ? (
-              <div className="flex h-96 items-center justify-center text-base text-zinc-400 animate-pulse font-mono tracking-widest">
-                RETRIEVING SANDBOX ARCHITECTURES...
+              <div className="flex h-96 items-center justify-center ed-micro animate-pulse">
+                Loading instruments…
               </div>
             ) : error ? (
-              <div className="text-center py-20 text-rose-500 border border-white/5 rounded-2xl bg-rose-500/5 font-mono text-base">
-                CRITICAL INTERRUPT: {error}
+              <div className="ed-bento text-center py-20 text-rose-300 text-[15px]">
+                Couldn&apos;t load data: {error}
               </div>
             ) : (
               data && (
@@ -199,16 +185,16 @@ export default function AdvancedToolsPage() {
           </main>
         </div>
 
-        {/* Dynamic, Tab-specific Reference Manual with Sticky TOC Sidebar */}
-        <DoubleBezel className="w-full mt-12 p-8 font-sans">
+        {/* Tab-specific reference manual */}
+        <Hatch />
+        <section className="px-5 md:px-8 pt-12 pb-6">
           {activeTab === "lag_correlation" && <LagCorrelationDocs />}
           {activeTab === "narrative_clustering" && <NarrativeClusteringDocs />}
           {activeTab === "event_playback" && <EventPlaybackDocs />}
           {activeTab === "whale_vs_retail" && <WhaleVsRetailDocs />}
           {activeTab === "narrative_trajectories" && <NarrativeTrajectoriesDocs />}
-        </DoubleBezel>
-      </div>
-    </div>
+        </section>
+    </PageShell>
   );
 }
 
@@ -295,34 +281,34 @@ function LagCorrelationPanel({ data }: { data: AdvancedData }) {
         <SectionEyebrow icon={<ArrowsLeftRight size={12} className="text-emerald-400" />}>
           CORRELATION LAB
         </SectionEyebrow>
-        <h2 className="text-3xl font-extrabold text-white font-sans tracking-tight">
+        <h2 className="ed-display text-4xl md:text-5xl text-white mt-3">
           Sentiment-Price Lag Correlation
         </h2>
       </div>
 
       {/* Concept Explanation Card */}
-      <div className="border-l-2 border-emerald-500/40 bg-emerald-500/[0.015] rounded-r-2xl pl-6 pr-5 py-4 flex flex-col md:flex-row gap-4 items-start font-sans text-base leading-relaxed max-w-4xl shadow-[0_2px_12px_-3px_rgba(16,185,129,0.01)]">
-        <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 text-emerald-400 rounded-xl shrink-0">
+      <div className="ed-bento p-5 flex flex-col md:flex-row gap-4 items-start text-[16px] leading-relaxed max-w-4xl">
+        <div className="ed-chip p-3 rounded-xl text-white shrink-0">
           <BookOpen size={20} />
         </div>
-        <div className="space-y-3 text-zinc-300">
+        <div className="space-y-3 text-[var(--ed-fg-70)]">
           <div>
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-sm mb-1 font-mono">Concept & Mechanics</h3>
+            <h3 className="ed-eyebrow mb-1.5">Concept & Mechanics</h3>
             <p>
               Price trends in cryptocurrency are heavily influenced by shifts in public psychology, but these emotional narratives do not immediately impact order books. This tool measures the exact time delay (lead/lag hours) between sentiment indicators and actual asset pricing movements.
             </p>
           </div>
-          <div className="border-t border-white/5 pt-2">
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-sm mb-1 font-mono">How to read it</h3>
+          <div className="border-t border-[var(--ed-border)] pt-2">
+            <h3 className="ed-eyebrow mb-1.5">How to read it</h3>
             <p>
-              Adjust the lag slider below. This offsets the green sentiment line back in time. The engine continuously calculates the <strong>Pearson Correlation Coefficient (R)</strong>. An R closer to <span className="text-emerald-400 font-mono font-bold">+1.0</span> indicates strong positive correlation, signaling that sentiment changes at that specific offset reliably predict pricing trends.
+              Adjust the lag slider below. This offsets the solid sentiment line back in time. The engine continuously calculates the <strong>Pearson Correlation Coefficient (R)</strong>. An R closer to <span className="text-emerald-400 font-mono font-bold">+1.0</span> indicates strong positive correlation, signaling that sentiment changes at that specific offset reliably predict pricing trends.
             </p>
           </div>
         </div>
       </div>
 
       {/* Lag hours slider */}
-      <div className="bg-[#0A0A0C]/50 border border-white/5 rounded-2xl p-6 flex flex-col sm:flex-row justify-between items-center gap-6 font-mono text-base">
+      <div className="bg-[#0A0A0C]/50 border border-[var(--ed-border)] rounded-2xl p-6 flex flex-col sm:flex-row justify-between items-center gap-6 font-mono text-base">
         <div className="flex flex-col gap-2 w-full sm:w-2/3">
           <label className="text-sm text-zinc-300 font-bold uppercase tracking-wider">LAG HOUR SHIFT DELAY</label>
           <div className="flex items-center gap-4">
@@ -332,40 +318,54 @@ function LagCorrelationPanel({ data }: { data: AdvancedData }) {
               max="24"
               value={lagHours}
               onChange={(e) => setLagHours(parseInt(e.target.value, 10))}
-              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-400"
+              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
             />
             <span className="text-white font-bold text-lg shrink-0">{lagHours}h</span>
           </div>
         </div>
 
-        <div className="text-center shrink-0 w-full sm:w-auto sm:border-l sm:border-white/5 sm:pl-8">
-          <span className="text-sm text-zinc-355 block uppercase tracking-wider font-semibold">PEARSON COEFFICIENT</span>
-          <span className={`text-4xl font-extrabold ${Math.abs(correlation) > 0.4 ? "text-emerald-400" : "text-zinc-400"}`}>
-            R = {correlation.toFixed(2)}
+        <div className="text-center shrink-0 w-full sm:w-auto sm:border-l sm:border-[var(--ed-border)] sm:pl-8">
+          <span className="ed-eyebrow block">Pearson coefficient</span>
+          <span className="ed-display text-5xl leading-none tabular-nums text-white block mt-2">
+            r = {correlation.toFixed(2)}
           </span>
-          <span className="text-sm text-zinc-400 block mt-1">
-            {Math.abs(correlation) > 0.6 ? "STRONG SIGNAL" : Math.abs(correlation) > 0.3 ? "MODERATE SIGNAL" : "NO CORRELATION"}
+          <span className="ed-tag mt-3">
+            <span className={`ed-square ${Math.abs(correlation) > 0.3 ? "bg-[rgb(126_190_152)]" : "bg-white/30"}`} />
+            {Math.abs(correlation) > 0.6 ? "Strong signal" : Math.abs(correlation) > 0.3 ? "Moderate signal" : "No correlation"}
           </span>
         </div>
       </div>
 
       {/* SVG Chart */}
       {sentimentD && priceD ? (
-        <div className="relative border border-white/5 rounded-2xl bg-[#08080A] p-6 overflow-hidden shadow-[0_0_30px_-10px_rgba(16,185,129,0.02)]">
-          <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%">
-            <line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke="rgba(255,255,255,0.03)" strokeDasharray="4 4" />
-            <path d={priceD} fill="none" stroke="#71717A" strokeWidth="2" strokeDasharray="3 3" className="opacity-60" />
-            <path d={sentimentD} fill="none" stroke="#10B981" strokeWidth="3" style={{ filter: "drop-shadow(0 0 4px rgba(16,185,129,0.2))" }} />
-          </svg>
+        <div>
+          {/* void-ui tray: sentiment is the popout line, price the dashed second tone */}
+          <div className="ed-tray p-5 overflow-hidden">
+            <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%">
+              <line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke="rgba(255,255,255,0.09)" />
+              <path d={priceD} fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeDasharray="5 4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d={sentimentD} fill="none" stroke="#f5f5f5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className="mt-3.5 flex gap-4 text-[13px] text-[var(--ed-fg-55)]">
+            <span className="flex items-center gap-1.5">
+              <svg width="16" height="6" aria-hidden><line x1="1.5" y1="3" x2="14.5" y2="3" stroke="#f5f5f5" strokeWidth="2" strokeLinecap="round" /></svg>
+              Sentiment
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg width="16" height="6" aria-hidden><line x1="1.5" y1="3" x2="14.5" y2="3" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeDasharray="5 4" strokeLinecap="round" /></svg>
+              Price (lag-shifted)
+            </span>
+          </div>
         </div>
       ) : (
-        <div className="text-center py-16 text-zinc-400 text-base font-sans">
-          INSUFFICIENT TIMESERIES HISTORY TO CALCULATE CORRELATION
+        <div className="ed-tray text-center py-16 text-[var(--ed-fg-55)] text-[15px]">
+          Not enough history yet to calculate a correlation.
         </div>
       )}
 
       {/* Stats footer grid */}
-      <div className="grid grid-cols-3 gap-6 font-mono text-sm text-zinc-300 border-t border-white/5 pt-6 max-w-xl">
+      <div className="grid grid-cols-3 gap-6 font-mono text-sm text-zinc-300 border-t border-[var(--ed-border)] pt-6 max-w-xl">
         <div>
           OPTIMAL LEAD LAG: <span className="text-white font-bold">4 Hours</span>
         </div>
@@ -493,9 +493,10 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
   const displayPost = hoveredPost || selectedPost || (plottedPosts.length > 0 ? plottedPosts[0].post : null);
 
   const getDotColor = (score: number) => {
-    if (score > 0.15) return "#10B981"; // Bullish green
-    if (score < -0.15) return "#F43F5E"; // Bearish red
-    return "#71717A"; // Neutral gray
+    // void-ui muted status tones
+    if (score > 0.15) return "rgb(126 190 152)"; // bullish
+    if (score < -0.15) return "rgb(229 115 115)"; // bearish
+    return "rgba(255,255,255,0.3)"; // neutral
   };
 
   return (
@@ -505,25 +506,25 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
         <SectionEyebrow icon={<Brain size={12} className="text-purple-400" />}>
           THE NARRATIVES
         </SectionEyebrow>
-        <h2 className="text-4xl font-extrabold text-white font-sans tracking-tight">
+        <h2 className="ed-display text-4xl md:text-5xl text-white mt-3">
           AI Narrative Topic Clouds
         </h2>
       </div>
 
       {/* Concept Explanation Card */}
-      <div className="border-l-2 border-purple-500/40 bg-purple-500/[0.015] rounded-r-2xl pl-6 pr-5 py-4 flex flex-col md:flex-row gap-4 items-start font-sans text-base leading-relaxed max-w-4xl shadow-[0_2px_12px_-3px_rgba(168,85,247,0.01)]">
-        <div className="p-3 bg-purple-500/5 border border-purple-500/10 text-purple-400 rounded-xl shrink-0">
+      <div className="ed-bento p-5 flex flex-col md:flex-row gap-4 items-start text-[16px] leading-relaxed max-w-4xl">
+        <div className="ed-chip p-3 rounded-xl text-white shrink-0">
           <Brain size={20} />
         </div>
-        <div className="space-y-3 text-zinc-300">
+        <div className="space-y-3 text-[var(--ed-fg-70)]">
           <div>
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-sm mb-1 font-mono">Concept & Mechanics</h3>
+            <h3 className="ed-eyebrow mb-1.5">Concept & Mechanics</h3>
             <p>
               Sentiment scores represent raw numeric intensity, but lack semantic topic grouping. This interactive projection parses Llama-reasoned metadata to classify and project incoming community posts into spatial "narrative islands" using keyword embeddings.
             </p>
           </div>
-          <div className="border-t border-white/5 pt-2">
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-sm mb-1 font-mono">How to read it</h3>
+          <div className="border-t border-[var(--ed-border)] pt-2">
+            <h3 className="ed-eyebrow mb-1.5">How to read it</h3>
             <p>
               Hover over any point in the scatter plot below to read the specific post details, Llama sentiment score, and extraction reasoning in the detail cockpit. Click any of the narrative cards below the plot to filter and isolate records belonging to that narrative group.
             </p>
@@ -534,27 +535,27 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
       {/* 2D Projection & Side Detail Layout (Stacked Vertically for Readability) */}
       <div className="flex flex-col gap-8">
         {/* Scatter Plot SVG */}
-        <div className="w-full bg-[#08080A] border border-white/5 rounded-2xl p-6 relative overflow-hidden shadow-[0_0_40px_-10px_rgba(168,85,247,0.02)]">
-          <div className="flex justify-between items-baseline mb-4 font-mono text-sm text-zinc-300 uppercase tracking-widest">
-            <span>2D Narrative Sentiment Space</span>
-            <span className="flex gap-4 text-xs font-bold">
-              <span className="text-emerald-400">● BULLISH</span>
-              <span className="text-zinc-500">● NEUTRAL</span>
-              <span className="text-rose-455">● BEARISH</span>
+        <div className="w-full ed-bento p-6">
+          <div className="flex justify-between items-baseline mb-4 gap-4">
+            <span className="ed-eyebrow">Narrative sentiment space</span>
+            <span className="flex gap-4 text-[13px] text-[var(--ed-fg-55)]">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[rgb(126_190_152)]" /> Bullish</span>
+              <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-white/30" /> Neutral</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[rgb(229_115_115)]" /> Bearish</span>
             </span>
           </div>
 
-          <div className="relative w-full h-[320px]">
+          <div className="ed-tray relative w-full h-[320px] p-2">
             <svg viewBox="0 0 600 270" className="w-full h-full">
               {/* Grid crosshairs */}
-              <line x1={300} y1={0} x2={300} y2={270} stroke="rgba(255,255,255,0.02)" strokeDasharray="3 3" />
-              <line x1={0} y1={135} x2={600} y2={135} stroke="rgba(255,255,255,0.02)" strokeDasharray="3 3" />
+              <line x1={300} y1={0} x2={300} y2={270} stroke="rgba(255,255,255,0.045)" />
+              <line x1={0} y1={135} x2={600} y2={135} stroke="rgba(255,255,255,0.045)" />
 
               {/* Cluster region titles */}
-              <text x={150} y={25} textAnchor="middle" className="font-mono text-xs fill-zinc-400 font-bold tracking-wider">L1: INSTITUTIONAL FLOWS</text>
-              <text x={450} y={25} textAnchor="middle" className="font-mono text-xs fill-zinc-400 font-bold tracking-wider">L2: REGULATORY FUD</text>
-              <text x={140} y={260} textAnchor="middle" className="font-mono text-xs fill-zinc-400 font-bold tracking-wider">L3: TECH & CONGESTION</text>
-              <text x={460} y={260} textAnchor="middle" className="font-mono text-xs fill-zinc-400 font-bold tracking-wider">L4: LIQUIDATION EXHAUSTION</text>
+              <text x={150} y={25} textAnchor="middle" fontSize="10.5" fill="rgb(115 115 115)">L1: INSTITUTIONAL FLOWS</text>
+              <text x={450} y={25} textAnchor="middle" fontSize="10.5" fill="rgb(115 115 115)">L2: REGULATORY FUD</text>
+              <text x={140} y={260} textAnchor="middle" fontSize="10.5" fill="rgb(115 115 115)">L3: TECH & CONGESTION</text>
+              <text x={460} y={260} textAnchor="middle" fontSize="10.5" fill="rgb(115 115 115)">L4: LIQUIDATION EXHAUSTION</text>
 
               {/* Plotted Dots */}
               {plottedPosts.map(({ post, clusterId, coords }) => {
@@ -570,14 +571,14 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
                     r={isSelected ? 8.5 : 5.5}
                     fill={color}
                     opacity={isClusterSelected ? (hoveredPost?.id === post.id ? 1 : 0.75) : 0.15}
-                    stroke={isSelected ? "#fff" : "rgba(255,255,255,0.15)"}
-                    strokeWidth={isSelected ? 2.0 : 0.8}
+                    stroke={isSelected ? "#f5f5f5" : "#0c0c0d"}
+                    strokeWidth={isSelected ? 2.0 : 2}
                     className="transition-all duration-300 cursor-pointer"
                     onMouseEnter={() => setHoveredPost(post)}
                     onMouseLeave={() => setHoveredPost(null)}
                     onClick={() => setSelectedPost(post)}
                     style={{
-                      filter: isSelected ? "drop-shadow(0 0 6px #fff)" : hoveredPost?.id === post.id ? `drop-shadow(0 0 4px ${color})` : "none"
+                      filter: isSelected ? "drop-shadow(0 0 4px rgba(255,255,255,0.4))" : "none"
                     }}
                   />
                 );
@@ -589,9 +590,9 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
         {/* Dynamic Detail Card */}
         <div className="w-full">
           {displayPost ? (
-            <div className="border border-white/5 bg-[#08080A]/60 rounded-2xl p-6 font-mono text-sm space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
+            <div className="border border-[var(--ed-border)] bg-[#08080A]/60 rounded-2xl p-6 font-mono text-sm space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
               <div className="space-y-3">
-                <div className="flex justify-between items-baseline border-b border-white/5 pb-2 text-xs text-zinc-500">
+                <div className="flex justify-between items-baseline border-b border-[var(--ed-border)] pb-2 text-xs text-zinc-500">
                   <span className="uppercase font-bold">[{displayPost.source.toUpperCase()}] • FEED</span>
                   <span className="font-sans font-medium">
                     {new Date(displayPost.postedAt).toLocaleDateString()} {new Date(displayPost.postedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -608,7 +609,7 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
               </div>
 
               <div className="space-y-3 border-l border-purple-500/30 pl-4 py-1">
-                <div className="flex justify-between items-baseline text-xs border-b border-white/5 pb-1 text-zinc-500">
+                <div className="flex justify-between items-baseline text-xs border-b border-[var(--ed-border)] pb-1 text-zinc-500">
                   <span className="font-bold">AI VERDICT ENGINE</span>
                   <span>CONFIDENCE: {Math.round(displayPost.confidence * 100)}%</span>
                 </div>
@@ -625,7 +626,7 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
               </div>
             </div>
           ) : (
-            <div className="border border-dashed border-white/5 rounded-2xl flex items-center justify-center text-center p-8 text-zinc-450 text-sm">
+            <div className="border border-dashed border-[var(--ed-border)] rounded-2xl flex items-center justify-center text-center p-8 text-zinc-450 text-sm">
               Hover over or click any point in the projection space to retrieve raw AI reasoning records.
             </div>
           )}
@@ -648,7 +649,7 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
               className={`p-5 rounded-2xl border text-left flex flex-col justify-between transition-all h-32 cursor-pointer ${
                 isSelected
                   ? "bg-purple-500/10 border-purple-500/40 text-white shadow-[0_0_15px_rgba(168,85,247,0.06)]"
-                  : "bg-[#08080A] border-white/5 text-zinc-400 hover:border-white/10"
+                  : "bg-[#08080A] border-[var(--ed-border)] text-zinc-400 hover:border-[var(--ed-border)]"
               }`}
             >
               <div>
@@ -669,7 +670,7 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
                       ? "bg-emerald-950/20 text-emerald-400 border border-emerald-500/20"
                       : score < -15
                       ? "bg-rose-950/20 text-rose-455 border border-rose-500/20"
-                      : "bg-zinc-900 text-zinc-400 border border-white/5"
+                      : "bg-zinc-900 text-zinc-400 border border-[var(--ed-border)]"
                   }`}
                 >
                   {score > 0 ? "+" : ""}
@@ -683,7 +684,7 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
 
       {/* Matching Posts list details */}
       {activeCluster && (
-        <div className="border-t border-white/5 pt-6 space-y-4 text-sm">
+        <div className="border-t border-[var(--ed-border)] pt-6 space-y-4 text-sm">
           <div className="flex justify-between items-center text-sm text-zinc-300 font-bold">
             <span>SHOWING CLUSTERED RECORDS FOR: {activeCluster.name.toUpperCase()}</span>
             <button
@@ -699,14 +700,14 @@ function NarrativeClusteringPanel({ data }: { data: AdvancedData }) {
 
           <div className="space-y-4 max-h-[420px] overflow-y-auto pr-2 scrollbar-none">
             {activeCluster.posts.map((post) => (
-              <div key={post.id} className="py-5 border-b border-white/5 last:border-b-0 font-mono text-sm space-y-2 hover:bg-white/[0.01] transition-all duration-200 px-4 rounded-xl">
+              <div key={post.id} className="py-5 border-b border-[var(--ed-border)] last:border-b-0 font-mono text-sm space-y-2 hover:bg-white/[0.01] transition-all duration-200 px-4 rounded-xl">
                 <div className="flex justify-between text-xs text-zinc-450 font-mono">
                   <span className="uppercase">[{post.source}] • UPVOTES: {post.upvotes}</span>
                   <span>{new Date(post.postedAt).toLocaleDateString()} {new Date(post.postedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <h4 className="text-base font-extrabold text-white font-sans">{post.title}</h4>
                 <p className="text-zinc-300 font-sans leading-relaxed text-sm">{post.content}</p>
-                <div className="text-emerald-450/90 text-sm pt-2 border-t border-white/5 mt-2 font-sans flex items-start gap-1">
+                <div className="text-emerald-450/90 text-sm pt-2 border-t border-[var(--ed-border)] mt-2 font-sans flex items-start gap-1">
                   <span className="font-bold shrink-0">Llama Reasoning:</span>
                   <span className="italic">{post.reasoning}</span>
                 </div>
@@ -852,25 +853,25 @@ function EventPlaybackPanel({ symbol }: { symbol: string }) {
         <SectionEyebrow icon={<Clock size={12} className="text-amber-400" />}>
           TIMELINE PLAYER
         </SectionEyebrow>
-        <h2 className="text-3xl font-extrabold text-white font-sans tracking-tight">
+        <h2 className="ed-display text-4xl md:text-5xl text-white mt-3">
           Historical Event Playback
         </h2>
       </div>
 
       {/* Concept Explanation Card */}
-      <div className="border border-white/5 bg-[#0C0C0E]/30 rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-start font-sans text-base leading-relaxed max-w-4xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
-        <div className="p-3 bg-amber-500/5 border border-amber-500/10 text-amber-400 rounded-xl shrink-0">
+      <div className="ed-bento p-5 flex flex-col md:flex-row gap-4 items-start text-[16px] leading-relaxed max-w-4xl">
+        <div className="ed-chip p-3 rounded-xl text-white shrink-0">
           <Clock size={20} />
         </div>
-        <div className="space-y-3 text-zinc-300">
+        <div className="space-y-3 text-[var(--ed-fg-70)]">
           <div>
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-sm mb-1 font-mono">Concept & Mechanics</h3>
+            <h3 className="ed-eyebrow mb-1.5">Concept & Mechanics</h3>
             <p>
               A quantitative time-machine. Crypto history is filled with dramatic liquidations and sudden regulatory shifts. This simulator loads real-time database logs or historical event data to study chronological sentiment cascades as they occurred.
             </p>
           </div>
-          <div className="border-t border-white/5 pt-2">
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-sm mb-1 font-mono">How to read it</h3>
+          <div className="border-t border-[var(--ed-border)] pt-2">
+            <h3 className="ed-eyebrow mb-1.5">How to read it</h3>
             <p>
               Select either the <strong>[LIVE INGESTION] Database Logs Feed</strong> (for real-time timeline playback of your current DB state) or choose one of the pre-coded presets (FTX Crash, LUNA algorithmic depeg, etc.). Click play to step hour-by-hour through the logs, watching the gauge rotate and the event list update.
             </p>
@@ -889,7 +890,7 @@ function EventPlaybackPanel({ symbol }: { symbol: string }) {
               setCurrentHourIdx(0);
               setIsPlaying(false);
             }}
-            className="bg-black border border-white/10 rounded-lg px-4 py-3 text-base text-zinc-200 focus:outline-none w-full font-mono cursor-pointer hover:bg-zinc-950"
+            className="bg-black border border-[var(--ed-border)] rounded-lg px-4 py-3 text-base text-zinc-200 focus:outline-none w-full font-mono cursor-pointer hover:bg-zinc-950"
           >
             <option value="real_time_ingest">
               [LIVE INGESTION] Database Logs Feed ({symbol})
@@ -906,15 +907,15 @@ function EventPlaybackPanel({ symbol }: { symbol: string }) {
         <div className="flex items-end gap-3">
           <button
             onClick={handlePlayToggle}
-            className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black text-base font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_4px_12px_rgba(16,185,129,0.1)]"
+            className="ed-chip ed-press flex-1 py-3 px-6 text-[14px] font-medium text-white flex items-center justify-center gap-2 cursor-pointer"
           >
             {isPlaying ? (
               <>
-                <Pause size={14} weight="bold" /> PAUSE PLAYBACK
+                <Pause size={14} weight="fill" /> Pause playback
               </>
             ) : (
               <>
-                <Play size={14} weight="bold" /> START PLAYBACK
+                <Play size={14} weight="fill" /> Start playback
               </>
             )}
           </button>
@@ -923,7 +924,7 @@ function EventPlaybackPanel({ symbol }: { symbol: string }) {
               setCurrentHourIdx(0);
               setIsPlaying(false);
             }}
-            className="border border-white/5 bg-[#0C0C0E] hover:bg-white/5 text-zinc-355 hover:text-white p-3.5 rounded-lg cursor-pointer"
+            className="ed-chip ed-press p-3.5 text-white cursor-pointer" aria-label="Restart playback"
           >
             <ArrowClockwise size={16} />
           </button>
@@ -931,13 +932,13 @@ function EventPlaybackPanel({ symbol }: { symbol: string }) {
       </div>
 
       {/* Visual Playback Cockpit dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center bg-[#08080A] border border-white/5 rounded-2xl p-8 mb-8">
+      <div className="ed-tray grid grid-cols-1 md:grid-cols-12 gap-8 items-center p-8 mb-8">
         {/* Playback dial */}
         <div className="md:col-span-4 flex flex-col items-center">
           <svg viewBox="0 0 100 60" className="w-44 overflow-visible">
             <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6" />
-            <path d="M 10 50 A 40 40 0 0 1 50 10" fill="none" stroke="rgba(244,63,94,0.12)" strokeWidth="6" />
-            <path d="M 50 10 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(16,185,129,0.12)" strokeWidth="6" />
+            <path d="M 10 50 A 40 40 0 0 1 50 10" fill="none" stroke="rgba(229,115,115,0.22)" strokeWidth="6" />
+            <path d="M 50 10 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(126,190,152,0.22)" strokeWidth="6" />
 
             {/* Needle */}
             <g transform="translate(50, 50)">
@@ -946,15 +947,17 @@ function EventPlaybackPanel({ symbol }: { symbol: string }) {
                 y1="0"
                 x2="0"
                 y2="-38"
-                stroke="#10B981"
+                stroke="#f5f5f5"
                 strokeWidth="3.0"
+                strokeLinecap="round"
                 transform={`rotate(${needleAngle})`}
                 className="transition-transform duration-1000 ease-out"
               />
-              <circle cx="0" cy="0" r="5" fill="#fff" />
+              <circle cx="0" cy="0" r="6.5" fill="#0c0c0d" />
+              <circle cx="0" cy="0" r="4" fill="#f5f5f5" />
             </g>
           </svg>
-          <span className="text-4xl font-extrabold font-sans text-white mt-2">
+          <span className="font-display text-5xl leading-none tracking-tight tabular-nums text-white mt-2">
             {dialScore > 0 ? "+" : ""}
             {dialScore}
           </span>
@@ -964,7 +967,7 @@ function EventPlaybackPanel({ symbol }: { symbol: string }) {
         </div>
 
         {/* Current Log text */}
-        <div className="md:col-span-8 space-y-3 border-l border-white/5 pl-6">
+        <div className="md:col-span-8 space-y-3 border-l border-[var(--ed-border)] pl-6">
           <div className="flex justify-between items-baseline text-xs text-zinc-500 font-mono">
             <span>HOUR OF DAY: {currentLog ? currentLog.h : "08:00"}</span>
             <span className="text-emerald-400 font-bold uppercase">INGESTION TIMEFRAME ACTIVE</span>
@@ -994,9 +997,9 @@ function EventPlaybackPanel({ symbol }: { symbol: string }) {
       {/* Ingest logs tracker timeline */}
       <div className="space-y-3">
         <span className="text-sm text-zinc-300 font-bold uppercase font-mono">PLAYBACK TRACK LOGS</span>
-        <div className="space-y-1.5 font-mono text-sm bg-[#050507] border border-white/5 rounded-xl p-4 h-48 overflow-y-auto scrollbar-none select-text">
+        <div className="space-y-1.5 font-mono text-sm bg-[#050507] border border-[var(--ed-border)] rounded-xl p-4 h-48 overflow-y-auto scrollbar-none select-text">
           {activeEvent?.logs?.slice(0, currentHourIdx + 1).map((log: any, idx: number) => (
-            <div key={idx} className="flex justify-between py-2 border-b border-white/5 last:border-0 items-center">
+            <div key={idx} className="flex justify-between py-2 border-b border-[var(--ed-border)] last:border-0 items-center">
               <span className="text-zinc-450 font-mono">
                 [{log.h}] <span className="text-white font-sans font-medium text-xs ml-2">{log.title}</span>
               </span>
@@ -1128,11 +1131,11 @@ function WhaleVsRetailPanel({ data }: { data: AdvancedData }) {
     }
 
     return (
-      <div className="relative border border-white/5 rounded-2xl bg-[#08080A] p-6 overflow-hidden">
+      <div className="ed-tray p-5 overflow-hidden">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
-          <line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
-          <path d={whaleD} fill="none" stroke="#10B981" strokeWidth="2.5" />
-          <path d={retailD} fill="none" stroke="#F43F5E" strokeWidth="2.5" />
+          <line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke="rgba(255,255,255,0.09)" />
+          <path d={retailD} fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeDasharray="5 4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={whaleD} fill="none" stroke="#f5f5f5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
     );
@@ -1145,42 +1148,42 @@ function WhaleVsRetailPanel({ data }: { data: AdvancedData }) {
         <SectionEyebrow icon={<ChartLineUp size={12} className="text-emerald-400" />}>
           CONVERGENCE MATRIX
         </SectionEyebrow>
-        <h2 className="text-3xl font-extrabold text-white font-sans tracking-tight">
+        <h2 className="ed-display text-4xl md:text-5xl text-white mt-3">
           Whale vs. Retail Crossover Index
         </h2>
       </div>
 
       {/* Concept Explanation Card */}
-      <div className="border border-white/5 bg-[#0C0C0E]/30 rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-start font-sans text-base leading-relaxed max-w-4xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
-        <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 text-emerald-400 rounded-xl shrink-0">
+      <div className="ed-bento p-5 flex flex-col md:flex-row gap-4 items-start text-[16px] leading-relaxed max-w-4xl">
+        <div className="ed-chip p-3 rounded-xl text-white shrink-0">
           <ChartLineUp size={20} />
         </div>
-        <div className="space-y-3 text-zinc-300">
+        <div className="space-y-3 text-[var(--ed-fg-70)]">
           <div>
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-sm mb-1 font-mono">Concept & Mechanics</h3>
+            <h3 className="ed-eyebrow mb-1.5">Concept & Mechanics</h3>
             <p>
               This index evaluates structural differences between institutional/smart money positioning and community chatter. The <strong>Whale Index</strong> compiles RSS news publications and high-consensus upvoted items; the <strong>Retail Index</strong> aggregates generic social chatter.
             </p>
           </div>
-          <div className="border-t border-white/5 pt-2">
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-sm mb-1 font-mono">How to read it</h3>
+          <div className="border-t border-[var(--ed-border)] pt-2">
+            <h3 className="ed-eyebrow mb-1.5">How to read it</h3>
             <p>
-              When the green line (Whales) crosses above the red line (Retail), it signals a <strong>contrarian buy setup</strong> (smart money absorbing panic). Conversely, when the red line crosses above the green line (Retail FOMO), it signals potential market exhaustion, suggesting retail is buying local tops while whales distribute.
+              When the solid line (Whales) crosses above the dashed line (Retail), it signals a <strong>contrarian buy setup</strong> (smart money absorbing panic). Conversely, when the dashed line crosses above the solid line (Retail FOMO), it signals potential market exhaustion, suggesting retail is buying local tops while whales distribute.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Key color indicators */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-6 font-mono text-sm">
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-0.5 bg-emerald-400 block" />
-          <span className="text-zinc-300 font-bold uppercase">WHALE SENTIMENT INDEX (INSTITUTIONS)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-0.5 bg-rose-455 block" />
-          <span className="text-zinc-300 font-bold uppercase">RETAIL SENTIMENT INDEX (COMMUNITY CHATTER)</span>
-        </div>
+      {/* Legend: series told apart by luminance and dash (void-ui), not hue */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-4 text-[13px] text-[var(--ed-fg-55)]">
+        <span className="flex items-center gap-1.5">
+          <svg width="16" height="6" aria-hidden><line x1="1.5" y1="3" x2="14.5" y2="3" stroke="#f5f5f5" strokeWidth="2" strokeLinecap="round" /></svg>
+          Whale sentiment (institutions)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <svg width="16" height="6" aria-hidden><line x1="1.5" y1="3" x2="14.5" y2="3" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeDasharray="5 4" strokeLinecap="round" /></svg>
+          Retail sentiment (community chatter)
+        </span>
       </div>
 
       {/* Crossover chart */}
@@ -1227,7 +1230,7 @@ function WhaleVsRetailPanel({ data }: { data: AdvancedData }) {
             ))}
           </div>
         ) : (
-          <div className="p-5 border border-white/5 bg-[#08080A] rounded-xl text-sm font-mono text-zinc-500 text-center py-6">
+          <div className="p-5 border border-[var(--ed-border)] bg-[#08080A] rounded-xl text-sm font-mono text-zinc-500 text-center py-6">
             NO CROSSOVER SIGNALS DETECTED IN THE CHOSEN RANGE
           </div>
         )}
@@ -1274,7 +1277,7 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex h-96 items-center justify-center text-sm text-zinc-500 animate-pulse font-mono tracking-widest bg-[#08080A]/20 border border-white/5 rounded-2xl">
+      <div className="flex h-96 items-center justify-center text-sm text-zinc-500 animate-pulse font-mono tracking-widest bg-[#08080A]/20 border border-[var(--ed-border)] rounded-2xl">
         CALCULATING COSINE CENTROID DISTANCES...
       </div>
     );
@@ -1282,7 +1285,7 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
 
   if (error) {
     return (
-      <div className="text-center py-20 text-rose-500 border border-white/5 bg-rose-500/5 rounded-2xl font-mono text-sm">
+      <div className="text-center py-20 text-rose-500 border border-[var(--ed-border)] bg-rose-500/5 rounded-2xl font-mono text-sm">
         VECTOR RESOLUTION ERROR: {error}
       </div>
     );
@@ -1313,9 +1316,10 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
   });
 
   const getDotColor = (score: number) => {
-    if (score > 15) return "#10B981"; // Bullish green
-    if (score < -15) return "#F43F5E"; // Bearish red
-    return "#71717A"; // Neutral gray
+    // void-ui muted status tones
+    if (score > 15) return "rgb(126 190 152)"; // bullish
+    if (score < -15) return "rgb(229 115 115)"; // bearish
+    return "rgba(255,255,255,0.3)"; // neutral
   };
 
   return (
@@ -1325,25 +1329,25 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
         <SectionEyebrow icon={<Sparkle size={12} className="text-fuchsia-400" />}>
           VECTOR TRAJECTORIES
         </SectionEyebrow>
-        <h2 className="text-3xl font-extrabold text-white font-sans tracking-tight">
+        <h2 className="ed-display text-4xl md:text-5xl text-white mt-3">
           Temporal Narrative Trajectory Tracker
         </h2>
       </div>
 
       {/* Concept Explanation Card */}
-      <div className="border border-white/5 bg-[#0C0C0E]/30 rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-start font-sans text-base leading-relaxed max-w-4xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
-        <div className="p-3 bg-fuchsia-500/5 border border-fuchsia-500/10 text-fuchsia-400 rounded-xl shrink-0">
+      <div className="ed-bento p-5 flex flex-col md:flex-row gap-4 items-start text-[16px] leading-relaxed max-w-4xl">
+        <div className="ed-chip p-3 rounded-xl text-white shrink-0">
           <Sparkle size={20} />
         </div>
-        <div className="space-y-3 text-zinc-300">
+        <div className="space-y-3 text-[var(--ed-fg-70)]">
           <div>
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-sm mb-1 font-mono">Concept & Mechanics</h3>
+            <h3 className="ed-eyebrow mb-1.5">Concept & Mechanics</h3>
             <p>
               Narratives in crypto are organic and shift shapes dynamically. By dividing records into chronological lanes, calculating vector embeddings, and running a Leader Clustering algorithm, this map identifies how topics split, persist, or merge together over time.
             </p>
           </div>
-          <div className="border-t border-white/5 pt-2">
-            <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-sm mb-1 font-mono">How to read it</h3>
+          <div className="border-t border-[var(--ed-border)] pt-2">
+            <h3 className="ed-eyebrow mb-1.5">How to read it</h3>
             <p>
               Each column is a calendar date. Circular nodes represent cluster centroids (size represents record volume, color represents average sentiment). The curves connecting nodes are <strong>semantic filaments</strong>. A connection represents high cosine similarity ($&gt;0.81$) of centroids from day-to-day. Click any node to open the Detail Cockpit.
             </p>
@@ -1354,40 +1358,31 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
       {/* Interactive Visual Graph & Detail Card Grid (Stacked Vertically for Breathing Space) */}
       <div className="flex flex-col gap-8">
         {/* Filament Map */}
-        <div className="w-full bg-[#08080A] border border-white/5 rounded-2xl p-6 relative overflow-hidden shadow-[0_0_40px_-10px_rgba(217,70,239,0.015)]">
-          <div className="flex justify-between items-baseline mb-4 font-mono text-sm text-zinc-300 uppercase tracking-widest">
-            <span>Semantic Trajectory Map ({symbol})</span>
-            <span className="flex gap-4 text-xs font-bold">
-              <span className="text-emerald-400">● BULLISH</span>
-              <span className="text-zinc-500">● NEUTRAL</span>
-              <span className="text-rose-455">● BEARISH</span>
+        <div className="w-full ed-bento p-6">
+          <div className="flex justify-between items-baseline mb-4 gap-4">
+            <span className="ed-eyebrow">Semantic trajectory map · {symbol}</span>
+            <span className="flex gap-4 text-[13px] text-[var(--ed-fg-55)]">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[rgb(126_190_152)]" /> Bullish</span>
+              <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-white/30" /> Neutral</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[rgb(229_115_115)]" /> Bearish</span>
             </span>
           </div>
 
           {lanes.length === 0 ? (
-            <div className="h-[280px] flex items-center justify-center text-zinc-400 text-sm font-sans">
+            <div className="ed-tray h-[280px] flex items-center justify-center text-[var(--ed-fg-55)] text-[14px]">
               No trajectory filaments resolved in the database.
             </div>
           ) : (
-            <div className="relative w-full h-[280px] select-none">
+            <div className="ed-tray w-full h-[300px] p-3 select-none">
               <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
-                <defs>
-                  <filter id="node-glow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
 
                 {/* Day Columns Labels Grid */}
                 {lanes.map((lane, lIdx) => {
                   const x = paddingX + (lIdx / (lanes.length - 1 || 1)) * (width - paddingX * 2);
                   return (
                     <g key={lane.day}>
-                      <line x1={x} y1={20} x2={x} y2={height - 20} stroke="rgba(255,255,255,0.015)" strokeDasharray="3 3" />
-                      <text x={x} y={15} textAnchor="middle" className="font-mono text-xs fill-zinc-300 font-bold uppercase tracking-wider">
+                      <line x1={x} y1={20} x2={x} y2={height - 20} stroke="rgba(255,255,255,0.045)" />
+                      <text x={x} y={15} textAnchor="middle" fontSize="10.5" fill="rgb(115 115 115)">
                         {lane.day}
                       </text>
                     </g>
@@ -1409,8 +1404,8 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
                       key={idx}
                       d={`M ${start.x} ${start.y} C ${cpX} ${start.y}, ${cpX} ${end.y}, ${end.x} ${end.y}`}
                       fill="none"
-                      stroke={isHovered ? "#f472b6" : isSelected ? "rgba(168,85,247,0.8)" : "rgba(168,85,247,0.2)"}
-                      strokeWidth={isHovered ? 3.5 : isSelected ? 3.0 : 1.8}
+                      stroke={isHovered ? "oklch(78.5% 0.115 274.713)" : isSelected ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.12)"}
+                      strokeWidth={isHovered ? 2.5 : isSelected ? 2 : 1.5}
                       className="transition-all duration-300"
                     />
                   );
@@ -1439,9 +1434,8 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
                         cy={coords.y}
                         r={isSelected ? 9 + Math.min(cluster.volume, 10) : 7 + Math.min(cluster.volume, 8)}
                         fill={color}
-                        stroke={isSelected ? "#fff" : "rgba(255,255,255,0.5)"}
-                        strokeWidth={isSelected ? 2.0 : 1.0}
-                        filter={isSelected ? "url(#node-glow)" : "none"}
+                        stroke={isSelected ? "#f5f5f5" : "#0c0c0d"}
+                        strokeWidth={2}
                         className="transition-all duration-300"
                       />
                     </g>
@@ -1455,9 +1449,9 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
         {/* Narrative Detail Cockpit */}
         <div className="w-full">
           {selectedCluster ? (
-            <div className="border border-white/5 bg-[#08080A]/60 rounded-2xl p-6 flex flex-col justify-between font-mono text-sm space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)] relative overflow-hidden">
+            <div className="border border-[var(--ed-border)] bg-[#08080A]/60 rounded-2xl p-6 flex flex-col justify-between font-mono text-sm space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)] relative overflow-hidden">
               <div className="space-y-4 pr-1 scrollbar-none">
-                <div className="flex justify-between items-baseline border-b border-white/5 pb-2 text-xs text-zinc-550">
+                <div className="flex justify-between items-baseline border-b border-[var(--ed-border)] pb-2 text-xs text-zinc-550">
                   <span className="uppercase font-bold">NARRATIVE DETAIL COCKPIT</span>
                   <span className="text-zinc-400 font-bold">{selectedCluster.volume} RECORDS</span>
                 </div>
@@ -1466,7 +1460,7 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
                   {selectedCluster.headlines[0] || "Thematic Narrative Cluster"}
                 </h4>
 
-                <div className="space-y-2 mt-2 pt-2 border-t border-white/5">
+                <div className="space-y-2 mt-2 pt-2 border-t border-[var(--ed-border)]">
                   <span className="text-xs text-zinc-350 font-bold block uppercase tracking-wider font-mono">REPRESENTATIVE CLUSTER THEMES</span>
                   <ul className="list-disc list-inside space-y-1.5 text-zinc-300 font-sans leading-relaxed text-sm">
                     {selectedCluster.headlines.slice(0, 3).map((hl: string, idx: number) => (
@@ -1485,7 +1479,7 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
                 )}
               </div>
 
-              <div className="space-y-2 pt-3 border-t border-white/5 bg-[#08080A]/60 shrink-0">
+              <div className="space-y-2 pt-3 border-t border-[var(--ed-border)] bg-[#08080A]/60 shrink-0">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-zinc-400 uppercase tracking-widest font-bold">CLUSTER WEIGHT:</span>
                   <span
@@ -1494,7 +1488,7 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
                         ? "bg-emerald-950/20 text-emerald-400 border border-emerald-500/20"
                         : selectedCluster.score < -15
                         ? "bg-rose-950/20 text-rose-455 border border-rose-500/20"
-                        : "bg-zinc-900 text-zinc-400 border border-white/5"
+                        : "bg-zinc-900 text-zinc-400 border border-[var(--ed-border)]"
                     }`}
                   >
                     {selectedCluster.score > 0 ? "+" : ""}
@@ -1504,7 +1498,7 @@ function NarrativeTrajectoriesPanel({ symbol }: { symbol: string }) {
               </div>
             </div>
           ) : (
-            <div className="border border-dashed border-white/5 rounded-2xl h-full flex items-center justify-center text-center p-6 text-zinc-500 text-sm">
+            <div className="border border-dashed border-[var(--ed-border)] rounded-2xl h-full flex items-center justify-center text-center p-6 text-zinc-500 text-sm">
               Click any node in the temporal filament map to retrieve granular AI vector narrative records.
             </div>
           )}
@@ -1551,11 +1545,9 @@ function LagCorrelationDocs() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
-          DOCUMENT OUTLINE
-        </span>
-        <nav className="flex flex-col gap-2 font-mono text-xs">
+      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4">
+        <span className="ed-micro">On this page</span>
+        <nav className="flex flex-col gap-0.5 text-[14px]">
           {[
             { id: "overview", label: "1. Core Objectives" },
             { id: "math", label: "2. Pearson Formula" },
@@ -1565,19 +1557,19 @@ function LagCorrelationDocs() {
             <button
               key={sec.id}
               onClick={() => scrollTo(sec.id)}
-              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
-                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              className={`ed-press flex items-center gap-2.5 text-left py-1.5 cursor-pointer transition-colors duration-300 ${
+                activeSec === sec.id ? "text-white" : "text-[var(--ed-fg-55)] hover:text-[var(--ed-fg-90)]"
               }`}
             >
+              <span className={`ed-square transition-colors duration-300 ${activeSec === sec.id ? "bg-[var(--ed-blue-label)]" : "shadow-[inset_0_0_0_1px_var(--ed-border)]"}`} />
               {sec.label}
             </button>
           ))}
         </nav>
       </aside>
-      <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+      <main className="lg:col-span-9 text-[var(--ed-fg-70)] text-[16px] leading-[1.7] tracking-[0.01em] max-w-3xl space-y-20">
         <section id="lag-overview" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             1. Core Concept & Objectives
           </h2>
           <p>
@@ -1588,14 +1580,13 @@ function LagCorrelationDocs() {
           </p>
         </section>
         <section id="lag-math" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             2. Pearson Correlation Formula
           </h2>
           <p>
             We calculate the Pearson product-moment correlation coefficient (<span className="font-mono text-zinc-200">r</span>) on rolling hourly intervals, introducing a temporal shift:
           </p>
-          <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-sm my-3 max-w-xl">
+          <div className="ed-bento p-4 text-center text-[var(--ed-fg-90)] font-mono text-[13px] my-3 max-w-xl">
             r_lag(L) = Cov(Sentiment_t, Price_t+L) / (σ_sent * σ_price)
           </div>
           <p>
@@ -1603,8 +1594,7 @@ function LagCorrelationDocs() {
           </p>
         </section>
         <section id="lag-interpretation" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             3. Coefficient Ranges
           </h2>
           <ul className="list-disc pl-5 space-y-2">
@@ -1614,8 +1604,7 @@ function LagCorrelationDocs() {
           </ul>
         </section>
         <section id="lag-application" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             4. Strategic Applications
           </h2>
           <p>
@@ -1660,11 +1649,9 @@ function NarrativeClusteringDocs() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
-          DOCUMENT OUTLINE
-        </span>
-        <nav className="flex flex-col gap-2 font-mono text-xs">
+      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4">
+        <span className="ed-micro">On this page</span>
+        <nav className="flex flex-col gap-0.5 text-[14px]">
           {[
             { id: "overview", label: "1. Core Objectives" },
             { id: "math", label: "2. Vectors & Clouds" },
@@ -1674,19 +1661,19 @@ function NarrativeClusteringDocs() {
             <button
               key={sec.id}
               onClick={() => scrollTo(sec.id)}
-              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
-                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              className={`ed-press flex items-center gap-2.5 text-left py-1.5 cursor-pointer transition-colors duration-300 ${
+                activeSec === sec.id ? "text-white" : "text-[var(--ed-fg-55)] hover:text-[var(--ed-fg-90)]"
               }`}
             >
+              <span className={`ed-square transition-colors duration-300 ${activeSec === sec.id ? "bg-[var(--ed-blue-label)]" : "shadow-[inset_0_0_0_1px_var(--ed-border)]"}`} />
               {sec.label}
             </button>
           ))}
         </nav>
       </aside>
-      <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+      <main className="lg:col-span-9 text-[var(--ed-fg-70)] text-[16px] leading-[1.7] tracking-[0.01em] max-w-3xl space-y-20">
         <section id="cluster-overview" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             1. Core Concept & Objectives
           </h2>
           <p>
@@ -1694,14 +1681,13 @@ function NarrativeClusteringDocs() {
           </p>
         </section>
         <section id="cluster-math" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             2. Embedding Vectors & Projections
           </h2>
           <p>
             Articles are embedded using the Nvidia NIM Llama 3.1 8B Instruct model to generate 1536-dimensional semantic coordinates:
           </p>
-          <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-sm my-3 max-w-xl">
+          <div className="ed-bento p-4 text-center text-[var(--ed-fg-90)] font-mono text-[13px] my-3 max-w-xl">
             V_post = Llama_3.1_Embed(Post_Content)
           </div>
           <p>
@@ -1709,8 +1695,7 @@ function NarrativeClusteringDocs() {
           </p>
         </section>
         <section id="cluster-interpretation" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             3. Narrative Centroids
           </h2>
           <p>
@@ -1718,8 +1703,7 @@ function NarrativeClusteringDocs() {
           </p>
         </section>
         <section id="cluster-application" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             4. Identifying Catalyst Shifts
           </h2>
           <p>
@@ -1764,11 +1748,9 @@ function EventPlaybackDocs() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
-          DOCUMENT OUTLINE
-        </span>
-        <nav className="flex flex-col gap-2 font-mono text-xs">
+      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4">
+        <span className="ed-micro">On this page</span>
+        <nav className="flex flex-col gap-0.5 text-[14px]">
           {[
             { id: "overview", label: "1. Core Objectives" },
             { id: "logic", label: "2. Sync Logic" },
@@ -1778,19 +1760,19 @@ function EventPlaybackDocs() {
             <button
               key={sec.id}
               onClick={() => scrollTo(sec.id)}
-              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
-                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              className={`ed-press flex items-center gap-2.5 text-left py-1.5 cursor-pointer transition-colors duration-300 ${
+                activeSec === sec.id ? "text-white" : "text-[var(--ed-fg-55)] hover:text-[var(--ed-fg-90)]"
               }`}
             >
+              <span className={`ed-square transition-colors duration-300 ${activeSec === sec.id ? "bg-[var(--ed-blue-label)]" : "shadow-[inset_0_0_0_1px_var(--ed-border)]"}`} />
               {sec.label}
             </button>
           ))}
         </nav>
       </aside>
-      <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+      <main className="lg:col-span-9 text-[var(--ed-fg-70)] text-[16px] leading-[1.7] tracking-[0.01em] max-w-3xl space-y-20">
         <section id="playback-overview" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             1. Machine Objectives
           </h2>
           <p>
@@ -1798,8 +1780,7 @@ function EventPlaybackDocs() {
           </p>
         </section>
         <section id="playback-logic" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             2. Timeline Synchronization Logic
           </h2>
           <p>
@@ -1807,8 +1788,7 @@ function EventPlaybackDocs() {
           </p>
         </section>
         <section id="playback-interpretation" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             3. Sentiment Phase Transitions
           </h2>
           <p>
@@ -1816,8 +1796,7 @@ function EventPlaybackDocs() {
           </p>
         </section>
         <section id="playback-application" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             4. Velocity Backtesting
           </h2>
           <p>
@@ -1862,11 +1841,9 @@ function WhaleVsRetailDocs() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
-          DOCUMENT OUTLINE
-        </span>
-        <nav className="flex flex-col gap-2 font-mono text-xs">
+      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4">
+        <span className="ed-micro">On this page</span>
+        <nav className="flex flex-col gap-0.5 text-[14px]">
           {[
             { id: "overview", label: "1. Core Objectives" },
             { id: "math", label: "2. Net Flow Logic" },
@@ -1876,19 +1853,19 @@ function WhaleVsRetailDocs() {
             <button
               key={sec.id}
               onClick={() => scrollTo(sec.id)}
-              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
-                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              className={`ed-press flex items-center gap-2.5 text-left py-1.5 cursor-pointer transition-colors duration-300 ${
+                activeSec === sec.id ? "text-white" : "text-[var(--ed-fg-55)] hover:text-[var(--ed-fg-90)]"
               }`}
             >
+              <span className={`ed-square transition-colors duration-300 ${activeSec === sec.id ? "bg-[var(--ed-blue-label)]" : "shadow-[inset_0_0_0_1px_var(--ed-border)]"}`} />
               {sec.label}
             </button>
           ))}
         </nav>
       </aside>
-      <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+      <main className="lg:col-span-9 text-[var(--ed-fg-70)] text-[16px] leading-[1.7] tracking-[0.01em] max-w-3xl space-y-20">
         <section id="whale-overview" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             1. Core Concept & Objectives
           </h2>
           <p>
@@ -1896,14 +1873,13 @@ function WhaleVsRetailDocs() {
           </p>
         </section>
         <section id="whale-math" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             2. Net Flow Calculation
           </h2>
           <p>
             Tracks the net balance of large wallet activity:
           </p>
-          <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-sm my-3 max-w-xl">
+          <div className="ed-bento p-4 text-center text-[var(--ed-fg-90)] font-mono text-[13px] my-3 max-w-xl">
             Whale_Net_Flow = Inflows_to_Exchanges - Outflows_to_Cold_Storage
           </div>
           <p>
@@ -1911,8 +1887,7 @@ function WhaleVsRetailDocs() {
           </p>
         </section>
         <section id="whale-interpretation" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             3. Divergence States
           </h2>
           <ul className="list-disc pl-5 space-y-2">
@@ -1921,8 +1896,7 @@ function WhaleVsRetailDocs() {
           </ul>
         </section>
         <section id="whale-application" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             4. Exit Liquidity Warning System
           </h2>
           <p>
@@ -1967,11 +1941,9 @@ function NarrativeTrajectoriesDocs() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
-          DOCUMENT OUTLINE
-        </span>
-        <nav className="flex flex-col gap-2 font-mono text-xs">
+      <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4">
+        <span className="ed-micro">On this page</span>
+        <nav className="flex flex-col gap-0.5 text-[14px]">
           {[
             { id: "overview", label: "1. Core Objectives" },
             { id: "math", label: "2. Cosine Similarity" },
@@ -1981,19 +1953,19 @@ function NarrativeTrajectoriesDocs() {
             <button
               key={sec.id}
               onClick={() => scrollTo(sec.id)}
-              className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
-                activeSec === sec.id ? "bg-white/5 border border-white/10 text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+              className={`ed-press flex items-center gap-2.5 text-left py-1.5 cursor-pointer transition-colors duration-300 ${
+                activeSec === sec.id ? "text-white" : "text-[var(--ed-fg-55)] hover:text-[var(--ed-fg-90)]"
               }`}
             >
+              <span className={`ed-square transition-colors duration-300 ${activeSec === sec.id ? "bg-[var(--ed-blue-label)]" : "shadow-[inset_0_0_0_1px_var(--ed-border)]"}`} />
               {sec.label}
             </button>
           ))}
         </nav>
       </aside>
-      <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+      <main className="lg:col-span-9 text-[var(--ed-fg-70)] text-[16px] leading-[1.7] tracking-[0.01em] max-w-3xl space-y-20">
         <section id="trajectory-overview" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             1. Core Concept & Objectives
           </h2>
           <p>
@@ -2001,14 +1973,13 @@ function NarrativeTrajectoriesDocs() {
           </p>
         </section>
         <section id="trajectory-math" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             2. Cosine Similarity Formula
           </h2>
           <p>
             Traces connections between daily leader clustering centroids using Cosine Similarity thresholds:
           </p>
-          <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-sm my-3 max-w-xl">
+          <div className="ed-bento p-4 text-center text-[var(--ed-fg-90)] font-mono text-[13px] my-3 max-w-xl">
             Cosine_Sim(A, B) = (A • B) / (||A|| * ||B||)
           </div>
           <p>
@@ -2016,8 +1987,7 @@ function NarrativeTrajectoriesDocs() {
           </p>
         </section>
         <section id="trajectory-interpretation" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             3. Filament Trajectory Paths
           </h2>
           <p>
@@ -2025,8 +1995,7 @@ function NarrativeTrajectoriesDocs() {
           </p>
         </section>
         <section id="trajectory-application" className="scroll-mt-28 space-y-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
             4. Tracking Long-Term Sentiment Lifecycles
           </h2>
           <p>

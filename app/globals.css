@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050505;
+  --background: #0d0d0f;
   --foreground: #ededed;
 
   /* Custom HUD Theme Variables */
-  --bg-deep: #050505;
+  --bg-deep: #0d0d0f;
   --bg-surface: #0c0c0e;
   --bg-elevated: #141416;
 
@@ -20,8 +20,10 @@
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui;
+  --font-sans: var(--font-bricolage), var(--font-geist-sans), ui-sans-serif, system-ui;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-display: var(--font-jersey), var(--font-bricolage), ui-sans-serif, system-ui;
+  --font-grotesk: var(--font-bricolage), var(--font-geist-sans), ui-sans-serif, system-ui;
 
   /* Marquee Custom Animations */
   --animate-marquee: marquee var(--duration, 40s) linear infinite;
@@ -136,4 +138,283 @@ body {
   transform: scale(0.98);
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Editorial Dark Glass (ed-*) — site-wide design system
+   Near-black surfaces, hairline rings, opacity steps of one white,
+   serif display + grotesk UI, one blue accent on hover.
+   Class rules live in @layer components so Tailwind utilities
+   (absolute, rounded-*, p-*) can still override them.
+   ───────────────────────────────────────────────────────────── */
 
+:root {
+  --ed-page: #0d0d0f;
+  --ed-card: #131314;
+  --ed-card-hover: #0f0f10;
+  --ed-border: oklch(27% 0 0);
+  --ed-fg: oklch(98.5% 0 0);
+  --ed-fg-90: oklch(87% 0 0);
+  --ed-fg-70: oklch(98.5% 0 0 / 0.7);
+  --ed-fg-65: oklch(98.5% 0 0 / 0.65);
+  --ed-fg-55: oklch(98.5% 0 0 / 0.55);
+  --ed-fg-50: oklch(98.5% 0 0 / 0.5);
+  --ed-fg-30: oklch(98.5% 0 0 / 0.3);
+  --ed-blue-label: oklch(78.5% 0.115 274.713);
+  --ed-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ed-grad-section: linear-gradient(288deg, #ff8000 0%, #ff00cc 53.24%, #0044ff 100%);
+  --ed-shadow-glass:
+    inset 0 -10px 18px -14px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 16px 36px -14px rgba(0, 0, 0, 0.75);
+  --ed-shadow-chip:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 0 0 0.5px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 4px 10px -4px rgba(0, 0, 0, 0.5);
+}
+
+/* Registered so the chip gradient can transition */
+@property --ed-chip-top {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: rgba(255, 255, 255, 0.24);
+}
+
+@keyframes ed-rise-in {
+  from { opacity: 0; transform: translateY(14px); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+/* Whale illustration: a coin stack slides along the isometric track and fades at the ends */
+@keyframes ed-wf-travel {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { transform: translate(var(--wf-dx), var(--wf-dy)); opacity: 0; }
+}
+
+@keyframes ed-mark-rise {
+  0% { opacity: 0; translate: 0 105%; }
+  45% { opacity: 1; }
+  100% { opacity: 1; translate: 0 0; }
+}
+
+@layer components {
+  .ed-page {
+    background: var(--ed-page);
+    color: var(--ed-fg);
+  }
+
+  /* Framed column — 1px rails down both sides, like a technical drawing */
+  .ed-frame {
+    border-inline: 0.8px solid var(--ed-border);
+  }
+
+  /* Section divider: faint diagonal hatch with square nodes on the rails */
+  .ed-hatch {
+    position: relative;
+    height: 43px;
+    border-block: 0.8px solid var(--ed-border);
+    background: repeating-linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--ed-fg) 6%, transparent) 0 1px,
+      transparent 1px 6px
+    );
+  }
+  .ed-hatch::before,
+  .ed-hatch::after {
+    content: "";
+    position: absolute;
+    top: -4px;
+    width: 7px;
+    height: 7px;
+    background: var(--ed-border);
+  }
+  .ed-hatch::before { left: -4px; }
+  .ed-hatch::after { right: -4px; }
+
+  /* Bento card shell — ring instead of border so it never shifts layout */
+  .ed-bento {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    background-color: var(--ed-card);
+    box-shadow: 0 0 0 1px var(--ed-border);
+    transition: background-color 0.3s var(--ed-ease);
+  }
+  .ed-bento:hover { background-color: var(--ed-card-hover); }
+
+  .ed-eyebrow {
+    font-family: var(--font-grotesk);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ed-fg-55);
+    transition: color 0.5s var(--ed-ease);
+  }
+  .ed-bento:hover .ed-eyebrow { color: var(--ed-blue-label); }
+
+  /* 10px tracked caps for instrument-panel density */
+  .ed-micro {
+    font-family: var(--font-grotesk);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ed-fg-70);
+  }
+
+  /* Colour key square (replaces glowing dots) */
+  .ed-square {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+  }
+
+  /* Display heading (Jersey 10) with a soft "lit" glow */
+  .ed-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: 0.005em;
+    line-height: 0.92;
+    text-shadow: 0 4px 8px rgba(255, 255, 255, 0.05), 0 8px 30px rgba(255, 255, 255, 0.2);
+  }
+
+  /* One accent word per heading, extruded like an embossed jersey number:
+     an off-white face over four stepped grey layers (~0.05em deep, so it
+     scales with the heading) and one soft contact shadow. Solid face on
+     purpose: text-shadow paints over a background-clip:text fill. */
+  .ed-accent {
+    color: #ededed;
+    text-shadow:
+      0.012em 0.012em 0 #8b8b91,
+      0.024em 0.024em 0 #5d5d63,
+      0.036em 0.036em 0 #3f3f44,
+      0.048em 0.048em 0 #2b2b2f,
+      0.06em 0.11em 0.14em rgba(0, 0, 0, 0.6);
+  }
+
+  /* Liquid-glass pill with gradient hairline edge */
+  .ed-glass {
+    position: relative;
+    border-radius: 9999px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0, transparent 55%),
+      rgba(40, 40, 44, 0.78);
+    backdrop-filter: blur(22px) saturate(185%);
+    box-shadow: var(--ed-shadow-glass);
+  }
+  .ed-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    pointer-events: none;
+    background: linear-gradient(172deg, rgba(255, 255, 255, 0.26) 0, rgba(255, 255, 255, 0.05) 42%, rgba(255, 255, 255, 0.1) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  /* Raised glass chip — buttons and sliding indicators */
+  .ed-chip {
+    --ed-chip-top: rgba(255, 255, 255, 0.17);
+    background-image: linear-gradient(180deg, var(--ed-chip-top), rgba(255, 255, 255, 0.08));
+    box-shadow: var(--ed-shadow-chip);
+    border-radius: 9999px;
+    transition: --ed-chip-top 0.15s var(--ed-ease), scale 0.15s var(--ed-ease), color 0.15s var(--ed-ease);
+  }
+  button.ed-chip:hover,
+  a.ed-chip:hover { --ed-chip-top: rgba(255, 255, 255, 0.3); }
+  .ed-chip:focus-visible { outline: none; box-shadow: var(--ed-shadow-chip), 0 0 0 2px rgb(255 255 255 / 0.25); }
+
+  /* Press feedback everywhere */
+  .ed-press { transition: scale 0.15s var(--ed-ease); }
+  .ed-press:active { scale: 0.98; }
+
+  /* Faint isometric grid behind feature cards */
+  .ed-iso {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='18'%3E%3Cpath d='M0 9 L18 0 L36 9 M0 9 L18 18 L36 9' fill='none' stroke='white' stroke-opacity='.06' stroke-width='.6'/%3E%3C/svg%3E");
+  }
+
+  /* Recessed plot well for charts (void-ui ChartTray): one tier darker, inset shadow */
+  .ed-tray {
+    position: relative;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: #0c0c0d;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* Pill tag with hairline ring */
+  .ed-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 9999px;
+    padding: 2px 9px;
+    font-family: var(--font-grotesk);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ed-fg-70);
+    box-shadow: 0 0 0 1px var(--ed-border);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  /* Hairline input/select well */
+  .ed-input {
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: 0 0 0 1px var(--ed-border);
+    color: var(--ed-fg);
+    transition: box-shadow 0.15s var(--ed-ease), background-color 0.15s var(--ed-ease);
+  }
+  .ed-input:focus,
+  .ed-input:focus-within {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--ed-blue-label), 0 0 0 4px oklch(78.5% 0.115 274.713 / 0.15);
+  }
+
+  .ed-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+  .ed-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
+
+  .ed-wf-coin {
+    animation: ed-wf-travel 4s linear infinite;
+  }
+
+  /* Mount reveal: rise + un-blur, staggered via --ed-delay. Pure CSS so content
+     can never get stuck invisible if an observer doesn't fire. */
+  .ed-rise {
+    animation: ed-rise-in 0.6s var(--ed-ease) both;
+    animation-delay: var(--ed-delay, 0s);
+  }
+
+  /* Giant footer wordmark: hairline-hatched serif that fades out downward */
+  .ed-wordmark {
+    font-family: var(--font-display);
+    font-size: clamp(88px, 17vw, 260px);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+  .ed-wordmark-wrap {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(#000 55%, transparent);
+    mask-image: linear-gradient(#000 55%, transparent);
+  }
+  /* Fill lives on each letter: background-clip:text on a parent does not
+     paint transformed inline-block children */
+  .ed-wordmark .ch {
+    display: inline-block;
+    background:
+      repeating-linear-gradient(160deg, oklch(98.5% 0 0 / 0.22) 0 1px, transparent 1px 3px),
+      linear-gradient(oklch(98.5% 0 0 / 0.06), oklch(98.5% 0 0 / 0.06));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: ed-mark-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(var(--i) * 45ms);
+  }
+}

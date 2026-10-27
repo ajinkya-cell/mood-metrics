@@ -246,7 +246,7 @@ export async function scrapeCoinGecko(
       if (content.length < 20) continue;
 
       try {
-        await db
+        const written = await db
           .insert(rawPosts)
           .values({
             tickerId: ticker.id,
@@ -259,9 +259,11 @@ export async function scrapeCoinGecko(
             upvotes: 0,
             postedAt: pubDate,
           })
-          .onConflictDoNothing();
+          .onConflictDoNothing()
+          .returning({ id: rawPosts.id })
+          .then((rows) => rows.length);
 
-        inserted++;
+        inserted += written;
       } catch {
         // duplicate
       }

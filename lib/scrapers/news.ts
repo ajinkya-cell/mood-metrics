@@ -321,8 +321,9 @@ export async function scrapeNewsRSS(ticker: Ticker, opts?: ScrapeOptions): Promi
     for (let i = 0; i < rowsToInsert.length; i += insertBatchSize) {
       const batch = rowsToInsert.slice(i, i + insertBatchSize);
       try {
-        await db.insert(rawPosts).values(batch).onConflictDoNothing();
-        inserted += batch.length;
+        // Count what was written: rows this ticker already has are skipped
+        const written = await db.insert(rawPosts).values(batch).onConflictDoNothing().returning({ id: rawPosts.id });
+        inserted += written.length;
       } catch (insertErr) {
         console.warn(`[NewsRSS] Batch insert warning for ${ticker.symbol}:`, insertErr);
       }

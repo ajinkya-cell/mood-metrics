@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Database,
   ShieldCheck,
   Funnel,
   ArrowLeft,
@@ -14,11 +13,18 @@ import {
   MagnifyingGlass,
   ChartLineUp,
   Brain,
+  CaretDown,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import BeveledCard from "../components/BeveledCard";
-import SectionEyebrow from "../components/SectionEyebrow";
+import SentimentChart from "../components/SentimentChart";
+import { PageShell, PageHero, Hatch, SectionHeading, GlassSegmented } from "../components/editorial";
+
+const SYMBOLS = ["ALL", "BTC", "ETH", "SOL"] as const;
+const COINS = ["BTC", "ETH", "SOL"] as const;
+type Coin = (typeof COINS)[number];
+type AssetFilter = (typeof SYMBOLS)[number];
 
 // Define Types
 type SentimentRecord = {
@@ -109,9 +115,8 @@ export default function SentimentRecordsPage() {
   // Collapsed states for reasoning details
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
 
-  // Chart hover scrubbing state
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const chartContainerRef = useRef<HTMLDivElement>(null);
+  // Which coin the timeline actually shows: the API falls back to BTC when the filter is "ALL"
+  const [timeseriesSymbol, setTimeseriesSymbol] = useState<string>("BTC");
 
   // Fetch data
   const fetchData = async () => {
@@ -137,6 +142,7 @@ export default function SentimentRecordsPage() {
       setRecords(data.records);
       setStats(data.stats);
       setTimeseries(data.timeseries);
+      setTimeseriesSymbol(data.meta?.tickerForTimeseries ?? (selectedSymbol === "ALL" ? "BTC" : selectedSymbol));
       setTickersList(data.tickers);
 
       // Fetch blended sentiment score for active symbol (or BTC as benchmark)
@@ -183,265 +189,6 @@ export default function SentimentRecordsPage() {
     fetchData();
   };
 
-  // Calculate coordinates for SVG timeseries chart
-  const getChartCoords = (
-    index: number,
-    score: number,
-    totalPoints: number,
-    width: number,
-    height: number,
-    paddingY: number
-  ) => {
-    const x = (index / (totalPoints - 1 || 1)) * width;
-    const yRange = height - paddingY * 2;
-    const y = height - paddingY - ((score + 100) / 200) * yRange;
-    return { x, y };
-  };
-
-  // Render SVG Timeseries Chart
-  const renderTimeseriesChart = () => {
-    if (!timeseries || timeseries.length === 0) {
-      return (
-        <div className="flex h-64 items-center justify-center text-xs text-zinc-500 font-mono">
-          NO HISTORICAL DATA AVAILABLE FOR CHOSEN FILTERS
-        </div>
-      );
-    }
-
-    const pointsData = [...timeseries].reverse();
-    const width = 800;
-    const height = 240;
-    const paddingY = 30;
-    const volumeHeight = 60;
-
-    const coords = pointsData.map((pt, i) =>
-      getChartCoords(i, pt.score, pointsData.length, width, height - volumeHeight - 10, paddingY)
-    );
-
-    let lineD = "";
-    let areaD = "";
-    if (coords.length > 0) {
-      lineD = `M ${coords[0].x} ${coords[0].y}`;
-      for (let i = 1; i < coords.length; i++) {
-        lineD += ` L ${coords[i].x} ${coords[i].y}`;
-      }
-      areaD = `${lineD} L ${coords[coords.length - 1].x} ${height - volumeHeight - 10} L ${coords[0].x} ${height - volumeHeight - 10} Z`;
-    }
-
-    const maxPosts = Math.max(...pointsData.map((p) => p.posts), 1);
-
-    const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-      if (!chartContainerRef.current) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const clientX = e.clientX - rect.left;
-      const pct = clientX / rect.width;
-      const idx = Math.min(
-        Math.max(Math.round(pct * (pointsData.length - 1)), 0),
-        pointsData.length - 1
-      );
-      setHoverIndex(idx);
-    };
-
-    const activePt = hoverIndex !== null ? pointsData[hoverIndex] : null;
-    const activeCoord = hoverIndex !== null ? coords[hoverIndex] : null;
-
-    return (
-      <div ref={chartContainerRef} className="w-full">
-        {/* Scrub tooltip */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-4 font-mono text-xs text-zinc-400">
-          <div>
-            <span className="text-[10px] text-zinc-500 uppercase tracking-widest block font-bold">
-              HISTORICAL TIMELINE
-            </span>
-            <span>
-              {activePt
-                ? new Date(activePt.time).toLocaleString([], {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "Hover to scrub hourly telemetry"}
-            </span>
-          </div>
-
-          {activePt && (
-            <div className="flex gap-4 bg-white/[0.03] border border-white/10 px-3 py-1.5 rounded-lg text-[11px]">
-              <div>
-                SCORE:{" "}
-                <span
-                  className={
-                    activePt.score > 20
-                      ? "text-emerald-400 font-bold"
-                      : activePt.score < -20
-                      ? "text-rose-400 font-bold"
-                      : "text-zinc-300"
-                  }
-                >
-                  {activePt.score > 0 ? "+" : ""}
-                  {activePt.score}
-                </span>
-              </div>
-              <div className="border-l border-white/10 pl-4">
-                POSTS: <span className="text-white font-bold">{activePt.posts}</span>
-              </div>
-              <div className="border-l border-white/10 pl-4 flex gap-2">
-                <span className="text-emerald-500 font-bold">▲{activePt.bullish}</span>
-                <span className="text-zinc-500 font-bold">●{activePt.neutral}</span>
-                <span className="text-rose-500 font-bold">▼{activePt.bearish}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* The SVG element */}
-        <div className="rounded-xl border border-white/5 bg-black/40 p-4 overflow-hidden relative">
-          <svg
-            viewBox={`0 0 ${width} ${height}`}
-            width="100%"
-            height="100%"
-            onMouseMove={handleMouseMove}
-            onMouseLeave={() => setHoverIndex(null)}
-            className="cursor-crosshair overflow-visible"
-          >
-            <defs>
-              <linearGradient id="scoreAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#10B981" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="#10B981" stopOpacity="0.0" />
-              </linearGradient>
-              <linearGradient id="scoreLineGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#059669" />
-                <stop offset="50%" stopColor="#34D399" />
-                <stop offset="100%" stopColor="#059669" />
-              </linearGradient>
-            </defs>
-
-            {/* Grid Lines */}
-            <line
-              x1="0"
-              y1={(height - volumeHeight - 10) / 2}
-              x2={width}
-              y2={(height - volumeHeight - 10) / 2}
-              stroke="rgba(255,255,255,0.06)"
-              strokeDasharray="4 4"
-            />
-            <line
-              x1="0"
-              y1={paddingY}
-              x2={width}
-              y2={paddingY}
-              stroke="rgba(255,255,255,0.03)"
-            />
-            <line
-              x1="0"
-              y1={height - volumeHeight - 10 - paddingY}
-              x2={width}
-              y2={height - volumeHeight - 10 - paddingY}
-              stroke="rgba(255,255,255,0.03)"
-            />
-
-            {/* Area Fill */}
-            {areaD && (
-              <path d={areaD} fill="url(#scoreAreaGrad)" className="pointer-events-none" />
-            )}
-
-            {/* Sentiment line */}
-            {lineD && (
-              <path
-                d={lineD}
-                fill="none"
-                stroke="url(#scoreLineGrad)"
-                strokeWidth="2"
-                className="pointer-events-none"
-              />
-            )}
-
-            {/* Volume Chart at bottom */}
-            <g transform={`translate(0, ${height - volumeHeight})`}>
-              <line
-                x1="0"
-                y1="0"
-                x2={width}
-                y2="0"
-                stroke="rgba(255,255,255,0.06)"
-              />
-              {pointsData.map((pt, idx) => {
-                const barWidth = Math.max(width / pointsData.length - 2, 2);
-                const x = (idx / (pointsData.length - 1 || 1)) * width - barWidth / 2;
-
-                const totalPostsVal = pt.posts || 1;
-                const bullPct = pt.bullish / totalPostsVal;
-                const bearPct = pt.bearish / totalPostsVal;
-                const neutPct = pt.neutral / totalPostsVal;
-
-                const barHeight = (pt.posts / maxPosts) * (volumeHeight - 10);
-
-                const bullHeight = barHeight * bullPct;
-                const neutHeight = barHeight * neutPct;
-                const bearHeight = barHeight * bearPct;
-
-                return (
-                  <g key={idx} className="opacity-60 hover:opacity-100 transition-opacity">
-                    {bullHeight > 0 && (
-                      <rect
-                        x={x}
-                        y={volumeHeight - bullHeight}
-                        width={barWidth}
-                        height={bullHeight}
-                        fill="#10B981"
-                      />
-                    )}
-                    {neutHeight > 0 && (
-                      <rect
-                        x={x}
-                        y={volumeHeight - bullHeight - neutHeight}
-                        width={barWidth}
-                        height={neutHeight}
-                        fill="#71717A"
-                      />
-                    )}
-                    {bearHeight > 0 && (
-                      <rect
-                        x={x}
-                        y={volumeHeight - bullHeight - neutHeight - bearHeight}
-                        width={barWidth}
-                        height={bearHeight}
-                        fill="#F43F5E"
-                      />
-                    )}
-                  </g>
-                );
-              })}
-            </g>
-
-            {/* Scrub guideline */}
-            {activeCoord && activePt && (
-              <g className="pointer-events-none">
-                <line
-                  x1={activeCoord.x}
-                  y1={0}
-                  x2={activeCoord.x}
-                  y2={height}
-                  stroke="rgba(255,255,255,0.2)"
-                  strokeWidth="1"
-                  strokeDasharray="3 3"
-                />
-                <circle
-                  cx={activeCoord.x}
-                  cy={activeCoord.y}
-                  r="4"
-                  fill="#10B981"
-                  stroke="#fff"
-                  strokeWidth="1.5"
-                />
-              </g>
-            )}
-          </svg>
-        </div>
-      </div>
-    );
-  };
-
   // Render AI Verdict Matrix (Scatter Plot of score vs confidence)
   const renderVerdictMatrix = () => {
     if (isLoading) return null;
@@ -454,16 +201,20 @@ export default function SentimentRecordsPage() {
       <BeveledCard className="p-6 h-full flex flex-col justify-between">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <Brain size={18} className="text-emerald-400" />
-            <h3 className="font-mono text-xs text-white uppercase tracking-wider font-bold">
-              AI VERDICT SCATTER MATRIX
+            <Brain size={14} className="text-[var(--ed-fg-55)]" />
+            <h3 className="ed-eyebrow">
+              Verdict scatter
             </h3>
           </div>
-          <p className="text-[11px] text-zinc-400 font-sans mb-4 leading-relaxed">
-            Distribution of scores (-1.0 to 1.0) vs model confidence (0 to 1.0).
+          <p className="text-[13px] text-[var(--ed-fg-55)] mb-2 leading-relaxed">
+            Each post: AI score (−1 to +1) against the model&apos;s confidence.
           </p>
+          <span className="ed-tag mb-4 inline-flex">
+            <span className="ed-square bg-[#F28C45]" />
+            {selectedSymbol === "ALL" ? "Posts from BTC · ETH · SOL" : `${selectedSymbol} posts only`}
+          </span>
 
-          <div className="rounded-xl border border-white/5 bg-black/40 p-2 flex items-center justify-center">
+          <div className="ed-tray p-2 flex items-center justify-center">
             <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%">
               <line
                 x1={width / 2}
@@ -484,8 +235,7 @@ export default function SentimentRecordsPage() {
                 y1={height / 2}
                 x2={width - padding}
                 y2={height / 2}
-                stroke="rgba(255,255,255,0.02)"
-                strokeDasharray="2 2"
+                stroke="rgba(255,255,255,0.045)"
               />
 
               {records.map((r, idx) => {
@@ -495,70 +245,50 @@ export default function SentimentRecordsPage() {
                 const xVal = padding + ((s + 1) / 2) * (width - padding * 2);
                 const yVal = height - padding - c * (height - padding * 2);
 
-                const color =
-                  r.label === "bullish"
-                    ? "#10B981"
-                    : r.label === "bearish"
-                    ? "#F43F5E"
-                    : "#71717A";
+                // void-ui pearls, each seated in a ring of the tray colour so overlaps stay
+                // legible. Bullish solid, bearish a hollow ring, neutral small and dim.
+                const bull = r.label === "bullish";
+                const bear = r.label === "bearish";
 
                 return (
-                  <circle
-                    key={r.id || idx}
-                    cx={xVal}
-                    cy={yVal}
-                    r="4"
-                    fill={color}
-                    opacity="0.75"
-                    className="hover:opacity-100 hover:scale-125 transition-all cursor-pointer"
-                  >
+                  <g key={r.id || idx} className="cursor-pointer">
                     <title>
-                      {r.tickerSymbol}: Score {s}, Conf {Math.round(c * 100)}%
+                      {r.tickerSymbol}: score {s}, confidence {Math.round(c * 100)}%
                     </title>
-                  </circle>
+                    <circle cx={xVal} cy={yVal} r={bull || bear ? 5.5 : 4} fill="#0c0c0d" />
+                    {bull ? (
+                      <circle cx={xVal} cy={yVal} r="3.5" fill="rgb(126 190 152)" />
+                    ) : bear ? (
+                      <circle cx={xVal} cy={yVal} r="2.8" fill="#0c0c0d" stroke="rgb(229 115 115)" strokeWidth="1.5" />
+                    ) : (
+                      <circle cx={xVal} cy={yVal} r="2" fill="rgba(255,255,255,0.3)" />
+                    )}
+                  </g>
                 );
               })}
 
-              <text
-                x={padding}
-                y={height - 5}
-                fill="#71717A"
-                fontSize="10"
-                fontFamily="monospace"
-              >
-                BEARISH
+              <text x={padding} y={height - 5} fill="rgb(115 115 115)" fontSize="10.5">
+                Bearish
               </text>
-              <text
-                x={width - padding - 45}
-                y={height - 5}
-                fill="#71717A"
-                fontSize="10"
-                fontFamily="monospace"
-              >
-                BULLISH
+              <text x={width - padding} y={height - 5} textAnchor="end" fill="rgb(115 115 115)" fontSize="10.5">
+                Bullish
               </text>
-              <text
-                x={width / 2 - 25}
-                y={padding - 5}
-                fill="#71717A"
-                fontSize="10"
-                fontFamily="monospace"
-              >
-                100% CONF
+              <text x={width / 2} y={padding - 5} textAnchor="middle" fill="rgb(115 115 115)" fontSize="10.5">
+                100% confidence
               </text>
             </svg>
           </div>
         </div>
 
-        <div className="border-t border-white/5 pt-3 mt-4 font-mono text-xs text-zinc-400 flex justify-between">
+        <div className="border-t border-[var(--ed-border)] pt-3 mt-4 text-[13px] text-[var(--ed-fg-55)] flex justify-between">
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" /> Bullish
+            <span className="w-2 h-2 rounded-full bg-[rgb(126_190_152)]" /> Bullish
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-zinc-500" /> Neutral
+            <span className="w-1.5 h-1.5 rounded-full bg-white/30" /> Neutral
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-rose-500" /> Bearish
+            <span className="w-2 h-2 rounded-full border-[1.5px] border-[rgb(229_115_115)]" /> Bearish
           </span>
         </div>
       </BeveledCard>
@@ -566,56 +296,35 @@ export default function SentimentRecordsPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 md:px-8 py-16 pt-24 select-none overflow-hidden pb-28 font-mono">
-      {/* Header section with Minimal Coin Selector Pill */}
-      <div className="mb-12 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 border-b border-white/5 pb-8">
-        <div className="space-y-2">
-          <SectionEyebrow icon={<Database size={15} className="text-emerald-400" />}>
-            QUANTITATIVE LEDGER
-          </SectionEyebrow>
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-white font-sans mt-1">
-            Detailed AI Sentiment Records
-          </h1>
-          <p className="text-zinc-400 text-sm md:text-base max-w-2xl font-sans leading-relaxed">
-            Browse through granular AI-classified records from Reddit and news feeds. Inspect confidence metrics, reasoning, and historical timeline trends.
-          </p>
-        </div>
-
-        {/* Minimal Coin Selector Pill */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500 font-mono tracking-wider">
-            FILTER:
-          </span>
-          <div className="flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/10 select-none">
-            {["ALL", "BTC", "ETH", "SOL"].map((sym) => {
-              const isActive = selectedSymbol === sym;
-              return (
-                <button
-                  key={sym}
-                  onClick={() => {
-                    setSelectedSymbol(sym);
-                    setPage(0);
-                  }}
-                  className={`cursor-pointer px-3.5 py-1 rounded-full text-xs font-mono font-bold tracking-wider transition-all duration-200 ${
-                    isActive
-                      ? "bg-white text-black shadow-sm"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  {sym}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+    <PageShell>
+      <PageHero
+        micro="Quantitative ledger · AI-classified posts"
+        lead="Every post the"
+        accent="AI"
+        tail=" has read."
+        description="Granular records from Reddit and news feeds, with the model's verdict, confidence and reasoning, plus the trends they add up to."
+        aside={
+          <>
+            <span className="ed-micro">Filter asset</span>
+            <GlassSegmented
+              options={SYMBOLS}
+              value={selectedSymbol as AssetFilter}
+              onChange={(sym) => {
+                setSelectedSymbol(sym);
+                setPage(0);
+              }}
+              layoutId="recordsSymbol"
+            />
+          </>
+        }
+      />
 
       {/* Grid of 6 Telemetry Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10 text-base">
+      <section className="px-4 md:px-5 pb-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 border-t border-[var(--ed-border)] pt-5">
         {/* Dashboard Blended Sentiment Score */}
-        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem]">
           <div>
-            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
+            <div className="ed-eyebrow mb-2 flex items-center justify-between">
               <span>BLENDED SENTIMENT</span>
               <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono font-bold uppercase">
                 {selectedSymbol === "ALL" ? "BTC Benchmark" : selectedSymbol}
@@ -623,7 +332,7 @@ export default function SentimentRecordsPage() {
             </div>
             <div className="flex items-baseline gap-2">
               <span
-                className={`text-5xl font-extrabold font-sans ${
+                className={`font-display text-6xl leading-none tracking-tight tabular-nums ${
                   blendedScore !== null
                     ? blendedScore > 20
                       ? "text-emerald-400"
@@ -644,23 +353,23 @@ export default function SentimentRecordsPage() {
               {!isLoading && blendedScore !== null && <span className="text-xs text-zinc-500 font-mono">(-100 to +100)</span>}
             </div>
           </div>
-          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-white/5 pt-3 flex flex-col gap-1">
+          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-[var(--ed-border)] pt-3 flex flex-col gap-1">
             <span>Weighted index combining social text, leverage, and Fear & Greed.</span>
-            <Link href="/methodology" className="text-xs text-emerald-400 hover:text-emerald-300 underline font-mono font-semibold mt-0.5">
+            <Link href="/methodology" className="text-[13px] text-[var(--ed-fg-70)] hover:text-white transition-colors mt-0.5">
               READ METHODOLOGY →
             </Link>
           </div>
         </BeveledCard>
 
         {/* Average Sentiment Score */}
-        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem]">
           <div>
-            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2">
+            <div className="ed-eyebrow mb-2">
               AVERAGE TEXT SENTIMENT
             </div>
             <div className="flex items-baseline gap-2">
               <span
-                className={`text-5xl font-extrabold font-sans ${
+                className={`font-display text-6xl leading-none tracking-tight tabular-nums ${
                   stats.avgScore > 0.2
                     ? "text-emerald-400"
                     : stats.avgScore < -0.2
@@ -674,38 +383,38 @@ export default function SentimentRecordsPage() {
               <span className="text-xs text-zinc-500 font-mono">(-100 to +100)</span>
             </div>
           </div>
-          <div className="mt-4 text-xs leading-relaxed text-zinc-400 font-sans border-t border-white/5 pt-3 flex flex-col gap-1">
+          <div className="mt-4 text-xs leading-relaxed text-zinc-400 font-sans border-t border-[var(--ed-border)] pt-3 flex flex-col gap-1">
             <span>
               <span className="text-amber-400 font-mono font-semibold">NOTE:</span> Measures raw text. Blended score incorporates contrarian indicators.
             </span>
-            <Link href="/methodology" className="text-xs text-emerald-400 hover:text-emerald-300 underline font-mono font-semibold mt-0.5">
+            <Link href="/methodology" className="text-[13px] text-[var(--ed-fg-70)] hover:text-white transition-colors mt-0.5">
               READ METHODOLOGY →
             </Link>
           </div>
         </BeveledCard>
 
         {/* AI Confidence */}
-        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem]">
           <div>
-            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2">
+            <div className="ed-eyebrow mb-2">
               AI CLASSIFIER CONFIDENCE
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-extrabold font-sans text-white">
+              <span className="font-display text-6xl leading-none tracking-tight tabular-nums text-white">
                 {Math.round(stats.avgConfidence * 100)}%
               </span>
               <span className="text-xs text-zinc-500 font-mono">ACCURACY BIAS</span>
             </div>
           </div>
-          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-white/5 pt-3">
-            Confidence average declared by Nvidia Llama 3.1.
+          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-[var(--ed-border)] pt-3">
+            Average confidence the AI model reports for its calls.
           </div>
         </BeveledCard>
 
         {/* Signals Distribution */}
-        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem]">
           <div>
-            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2">
+            <div className="ed-eyebrow mb-2">
               LABEL RATIO MATRIX
             </div>
             <div className="space-y-1.5 mt-2 font-mono text-xs">
@@ -729,38 +438,38 @@ export default function SentimentRecordsPage() {
               </div>
             </div>
           </div>
-          <div className="mt-4 text-xs text-zinc-500 font-sans border-t border-white/5 pt-3">
+          <div className="mt-4 text-xs text-zinc-500 font-sans border-t border-[var(--ed-border)] pt-3">
             Ratio metrics for sentiment label slices.
           </div>
         </BeveledCard>
 
         {/* Total Volume */}
-        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem]">
           <div>
-            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2">
+            <div className="ed-eyebrow mb-2">
               TOTAL INGESTED LOGS
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-extrabold font-sans text-white">
+              <span className="font-display text-6xl leading-none tracking-tight tabular-nums text-white">
                 {stats.totalCount}
               </span>
               <span className="text-xs text-zinc-500 font-mono">RECORDS</span>
             </div>
           </div>
-          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-white/5 pt-3">
+          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-[var(--ed-border)] pt-3">
             Total records meeting the active query criteria.
           </div>
         </BeveledCard>
 
         {/* Fear & Greed Index */}
-        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200">
+        <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem]">
           <div>
-            <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-2">
+            <div className="ed-eyebrow mb-2">
               FEAR & GREED INDEX
             </div>
             <div className="flex items-baseline justify-between mb-2">
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-extrabold font-sans text-white">
+                <span className="font-display text-6xl leading-none tracking-tight tabular-nums text-white">
                   {isLoading ? (
                     <span className="text-xl text-zinc-500 animate-pulse font-mono">LOADING...</span>
                   ) : fearGreed !== null ? (
@@ -771,7 +480,7 @@ export default function SentimentRecordsPage() {
                 </span>
                 {!isLoading && fearGreed !== null && <span className="text-xs text-zinc-500 font-mono">/ 100</span>}
               </div>
-              <span className="text-xs font-mono font-semibold uppercase px-2.5 py-0.5 rounded-full border border-white/10 bg-white/[0.03] text-zinc-300">
+              <span className="text-xs font-mono font-semibold uppercase px-2.5 py-0.5 rounded-full border border-[var(--ed-border)] bg-white/[0.03] text-zinc-300">
                 {isLoading ? "LOADING" : fearGreed !== null ? fearGreed.label : "N/A"}
               </span>
             </div>
@@ -791,30 +500,54 @@ export default function SentimentRecordsPage() {
               </div>
             </div>
           </div>
-          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-white/5 pt-3 flex flex-col gap-1">
+          <div className="mt-4 text-xs text-zinc-400 font-sans border-t border-[var(--ed-border)] pt-3 flex flex-col gap-1">
             <span>Global indicator measuring market leverage and sentiment.</span>
             <a 
               href="https://alternative.me/crypto/fear-and-greed-index/" 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="text-xs text-emerald-400 hover:text-emerald-300 underline font-mono font-semibold"
+              className="text-[13px] text-[var(--ed-fg-70)] hover:text-white transition-colors"
             >
               ALTERNATIVE.ME SOURCE →
             </a>
           </div>
         </BeveledCard>
-      </div>
+      </section>
 
-      {/* Main Content Layout Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10">
+      <Hatch />
+
+      <SectionHeading
+        eyebrow="Trends"
+        lead="Seven days of"
+        accent="verdicts"
+        aside="One coin's hourly sentiment over the last week, and how confident the model was in each call."
+      />
+      <section className="px-4 md:px-5 pb-5 grid grid-cols-1 lg:grid-cols-12 gap-3">
         {/* Left main grid: Chronological chart */}
         <div className="lg:col-span-8 flex flex-col gap-6">
           <BeveledCard className="p-7">
-            <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-3">
-              <h2 className="text-base md:text-lg font-bold text-white flex items-center gap-2.5">
-                <ChartLineUp size={20} className="text-emerald-400" />
-                HISTORICAL SENTIMENT TIMELINE (7D)
-              </h2>
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-5 border-b border-[var(--ed-border)] pb-4">
+              <div className="flex flex-col gap-1.5">
+                <h2 className="ed-eyebrow flex items-center gap-2">
+                  <ChartLineUp size={14} />
+                  Sentiment timeline · {timeseriesSymbol} · 7 days
+                </h2>
+                <p className="text-[12.5px] text-[var(--ed-fg-55)]">
+                  {selectedSymbol === "ALL"
+                    ? `One coin at a time, not a combined line. Showing ${timeseriesSymbol}; pick another to switch.`
+                    : `${timeseriesSymbol} only. The records below are filtered to it too.`}
+                </p>
+              </div>
+              {/* Per-chart coin picker; it also sets the page's asset filter */}
+              <GlassSegmented
+                options={COINS}
+                value={timeseriesSymbol as Coin}
+                onChange={(sym) => {
+                  setSelectedSymbol(sym);
+                  setPage(0);
+                }}
+                layoutId="timelineSymbol"
+              />
             </div>
 
             {isLoading ? (
@@ -822,8 +555,31 @@ export default function SentimentRecordsPage() {
                 RETRIEVING HISTORICAL TELEMETRY MATRIX...
               </div>
             ) : (
-              renderTimeseriesChart()
+              <SentimentChart data={timeseries} />
             )}
+
+            <details className="group mt-6 rounded-xl shadow-[0_0_0_1px_var(--ed-border)] overflow-hidden">
+              <summary className="flex justify-between items-center px-4 py-3 cursor-pointer select-none list-none">
+                <span className="ed-eyebrow">What is this chart?</span>
+                <CaretDown size={12} className="text-[var(--ed-fg-50)] transition-transform duration-300 group-open:rotate-180" />
+              </summary>
+              <div className="px-4 pb-4 pt-1 text-[14px] leading-relaxed text-[var(--ed-fg-70)] space-y-3">
+                <p>
+                  Every Reddit post and news article about <span className="text-white">{timeseriesSymbol}</span> gets a score from the AI, from
+                  −100 (very bearish) to +100 (very bullish). Each hour&apos;s posts are averaged, weighted by engagement, into one number.
+                </p>
+                <ul className="space-y-1.5">
+                  <li><span className="text-white">Thin line</span>: the raw hourly score. It jumps around because some hours have only a few posts.</li>
+                  <li><span className="text-white">Bold line</span>: a rolling average of those hours, so the trend is easy to follow.</li>
+                  <li><span className="text-[#F28C45]">Orange area</span>: the trend is above zero (net bullish). The faint area below zero is net bearish.</li>
+                  <li><span className="text-white">Bars at the bottom</span>: how many posts were scored that hour. A spike on a tall bar carries more weight than one on a short bar.</li>
+                </ul>
+                <p>
+                  Switch 24H / 3D / 7D to zoom, and hover for any hour&apos;s exact score and post count. Timelines are kept per coin because
+                  BTC, ETH and SOL often move on different news, so averaging them would hide that.
+                </p>
+              </div>
+            </details>
           </BeveledCard>
         </div>
 
@@ -831,71 +587,80 @@ export default function SentimentRecordsPage() {
         <div className="lg:col-span-4">
           {renderVerdictMatrix()}
         </div>
-      </div>
+      </section>
 
-      {/* Filter Coordinate Matrix (Minimal Clean Control Deck) */}
-      <BeveledCard className="p-7 mb-10 text-base">
-        <h2 className="text-base md:text-lg font-bold text-white flex items-center gap-2 mb-6 border-b border-white/5 pb-3 font-sans">
-          <Funnel size={18} className="text-emerald-400" />
-          FILTER COORDINATE MATRIX
+      <Hatch />
+
+      <SectionHeading
+        eyebrow="Ledger"
+        lead="Search the"
+        accent="records"
+        aside="Filter by verdict and source, or switch to AI semantic search to find posts by meaning."
+      />
+      <section className="px-4 md:px-5 pb-5 space-y-3">
+      {/* Filter deck */}
+      <BeveledCard className="p-6 md:p-7">
+        <h2 className="ed-eyebrow flex items-center gap-2 mb-5">
+          <Funnel size={14} />
+          Filters
         </h2>
 
         <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
           {/* Label Selector */}
           <div className="md:col-span-3 flex flex-col gap-1.5">
-            <label className="text-xs text-zinc-400 font-mono uppercase tracking-wider font-semibold">LABEL</label>
+            <label className="ed-eyebrow">LABEL</label>
             <select
               value={selectedLabel}
               onChange={(e) => {
                 setSelectedLabel(e.target.value);
                 setPage(0);
               }}
-              className="bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full cursor-pointer transition-colors font-mono"
+              className="bg-white/[0.03] border border-[var(--ed-border)] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full cursor-pointer transition-colors font-mono"
             >
-              <option value="ALL" className="bg-[#0C0C0E]">ALL LABELS</option>
-              <option value="BULLISH" className="bg-[#0C0C0E]">BULLISH</option>
-              <option value="NEUTRAL" className="bg-[#0C0C0E]">NEUTRAL</option>
-              <option value="BEARISH" className="bg-[#0C0C0E]">BEARISH</option>
+              <option value="ALL" className="bg-[#131314]">ALL LABELS</option>
+              <option value="BULLISH" className="bg-[#131314]">BULLISH</option>
+              <option value="NEUTRAL" className="bg-[#131314]">NEUTRAL</option>
+              <option value="BEARISH" className="bg-[#131314]">BEARISH</option>
             </select>
           </div>
 
           {/* Source Selector */}
           <div className="md:col-span-3 flex flex-col gap-1.5">
-            <label className="text-xs text-zinc-400 font-mono uppercase tracking-wider font-semibold">SOURCE</label>
+            <label className="ed-eyebrow">SOURCE</label>
             <select
               value={selectedSource}
               onChange={(e) => {
                 setSelectedSource(e.target.value);
                 setPage(0);
               }}
-              className="bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full cursor-pointer transition-colors font-mono"
+              className="bg-white/[0.03] border border-[var(--ed-border)] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full cursor-pointer transition-colors font-mono"
             >
-              <option value="ALL" className="bg-[#0C0C0E]">ALL SOURCES</option>
-              <option value="REDDIT" className="bg-[#0C0C0E]">REDDIT BOARDS</option>
-              <option value="COINGECKO" className="bg-[#0C0C0E]">COINGECKO</option>
-              <option value="NEWS_RSS" className="bg-[#0C0C0E]">NEWS HEADLINES</option>
+              <option value="ALL" className="bg-[#131314]">ALL SOURCES</option>
+              <option value="REDDIT" className="bg-[#131314]">REDDIT BOARDS</option>
+              <option value="COINGECKO" className="bg-[#131314]">COINGECKO</option>
+              <option value="NEWS_RSS" className="bg-[#131314]">NEWS HEADLINES</option>
             </select>
           </div>
 
           {/* Search Mode Selector */}
           <div className="md:col-span-2 flex flex-col gap-1.5">
-            <label className="text-xs text-zinc-400 font-mono uppercase tracking-wider font-semibold">MODE</label>
+            <label className="ed-eyebrow">MODE</label>
             <select
               value={searchType}
               onChange={(e) => {
                 setSearchType(e.target.value);
                 setPage(0);
               }}
-              className="bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full cursor-pointer transition-colors font-mono"
+              className="bg-white/[0.03] border border-[var(--ed-border)] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full cursor-pointer transition-colors font-mono"
             >
-              <option value="text" className="bg-[#0C0C0E]">KEYWORD</option>
-              <option value="semantic" className="bg-[#0C0C0E]">AI SEMANTIC</option>
+              <option value="text" className="bg-[#131314]">KEYWORD</option>
+              <option value="semantic" className="bg-[#131314]">AI SEMANTIC</option>
             </select>
           </div>
 
           {/* Text Search Input */}
           <div className="md:col-span-3 flex flex-col gap-1.5 relative">
-            <label className="text-xs text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+            <label className="ed-eyebrow">
               {searchType === "semantic" ? "AI PROMPT" : "KEYWORD"}
             </label>
             <div className="relative">
@@ -904,7 +669,7 @@ export default function SentimentRecordsPage() {
                 placeholder={searchType === "semantic" ? "Ask AI e.g. 'etf flows'..." : "Search titles/content..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full placeholder-zinc-600 font-sans transition-colors"
+                className="bg-white/[0.03] border border-[var(--ed-border)] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-white/30 w-full placeholder-zinc-600 font-sans transition-colors"
               />
               {searchType === "semantic" ? (
                 <Brain size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
@@ -918,22 +683,22 @@ export default function SentimentRecordsPage() {
           <div className="md:col-span-1">
             <button
               type="submit"
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold py-2.5 px-3 rounded-xl transition-colors cursor-pointer"
+              className="ed-chip ed-press w-full py-2.5 px-3 text-[13.5px] font-medium text-white cursor-pointer"
             >
-              FILTER
+              Apply
             </button>
           </div>
         </form>
       </BeveledCard>
 
       {/* Granular records list */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {isLoading ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
-                className="h-32 rounded-2xl bg-zinc-900/40 border border-white/5 animate-pulse"
+                className="h-32 ed-bento animate-pulse"
               />
             ))}
           </div>
@@ -954,8 +719,8 @@ export default function SentimentRecordsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <BeveledCard className="w-full p-6 md:p-7 hover:-translate-y-0.5 transition-all duration-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2.5 mb-3 text-xs text-zinc-400">
+                <BeveledCard className="w-full p-6 md:p-7">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--ed-border)] pb-2.5 mb-3 text-xs text-zinc-400">
                     <div className="flex flex-wrap items-center gap-2.5">
                       {isReddit ? (
                         <RedditLogo size={15} className="text-rose-400" />
@@ -965,7 +730,7 @@ export default function SentimentRecordsPage() {
                       <span className="font-bold uppercase text-zinc-300 text-[11px] tracking-wider">
                         [{item.sourceType.replace("_", " ")}]
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/5 text-zinc-300 text-[11px] font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-white/5 border border-[var(--ed-border)] text-zinc-300 text-[11px] font-bold">
                         {item.tickerSymbol}
                       </span>
                       <span className="text-[11px] text-zinc-500 font-medium">
@@ -990,10 +755,10 @@ export default function SentimentRecordsPage() {
 
                   <div className="flex flex-col md:flex-row gap-5 md:items-start justify-between">
                     <div className="flex-1 space-y-1.5">
-                      <h3 className="text-base md:text-lg font-bold text-white leading-snug font-sans tracking-tight hover:text-emerald-400 transition-colors">
+                      <h3 className="text-[1.15rem] font-medium leading-snug tracking-[-0.02em] text-[var(--ed-fg-90)]">
                         {item.postTitle || "HEADLINE ANALYSIS"}
                       </h3>
-                      <p className="text-sm text-zinc-400 leading-relaxed font-sans">
+                      <p className="text-[14px] text-[var(--ed-fg-55)] leading-relaxed">
                         {(() => {
                           const cleaned = cleanHtmlText(item.postContent);
                           return cleaned.length > 450
@@ -1004,7 +769,7 @@ export default function SentimentRecordsPage() {
                     </div>
 
                     {/* AI Verdict Summary Column */}
-                    <div className="flex items-center gap-4 py-2 px-3.5 rounded-xl border border-white/5 bg-white/[0.01] font-mono shrink-0 mt-3 md:mt-0">
+                    <div className="flex items-center gap-4 py-2 px-3.5 rounded-xl border border-[var(--ed-border)] bg-white/[0.01] font-mono shrink-0 mt-3 md:mt-0">
                       <div className="text-center min-w-[70px]">
                         <span className="text-[10px] text-zinc-500 block uppercase font-medium mb-0.5">
                           VERDICT
@@ -1022,7 +787,7 @@ export default function SentimentRecordsPage() {
                         </span>
                       </div>
 
-                      <div className="text-center min-w-[50px] border-l border-white/10 pl-3.5">
+                      <div className="text-center min-w-[50px] border-l border-[var(--ed-border)] pl-3.5">
                         <span className="text-[10px] text-zinc-500 block uppercase font-medium mb-0.5">
                           SCORE
                         </span>
@@ -1040,7 +805,7 @@ export default function SentimentRecordsPage() {
                         </span>
                       </div>
 
-                      <div className="text-center min-w-[50px] border-l border-white/10 pl-3.5">
+                      <div className="text-center min-w-[50px] border-l border-[var(--ed-border)] pl-3.5">
                         <span className="text-[10px] text-zinc-500 block uppercase font-medium mb-0.5">
                           CONF
                         </span>
@@ -1052,7 +817,7 @@ export default function SentimentRecordsPage() {
                   </div>
 
                   {/* Collapsible reasoning bar */}
-                  <div className="mt-4 pt-3 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div className="mt-4 pt-3 border-t border-[var(--ed-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                     <button
                       onClick={() => setExpandedRecordId(isExpanded ? null : item.id)}
                       className="flex items-center gap-1.5 text-zinc-400 hover:text-white font-medium transition-colors cursor-pointer"
@@ -1074,10 +839,10 @@ export default function SentimentRecordsPage() {
                   </div>
 
                   {isExpanded && (
-                    <div className="mt-3 border-l border-emerald-500/40 pl-3 py-2 text-xs md:text-sm text-zinc-300 font-sans leading-relaxed bg-white/[0.01] rounded-r-lg">
-                      <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-[11px] font-bold mb-1.5">
-                        <Brain size={14} />
-                        LLAMA-3.1 CLASSIFICATION ANALYSIS:
+                    <div className="mt-3 border-l border-[var(--ed-blue-label)] pl-3 py-1 text-[14px] text-[var(--ed-fg-70)] leading-relaxed">
+                      <div className="ed-eyebrow flex items-center gap-1.5 mb-1.5">
+                        <Brain size={13} />
+                        AI reasoning
                       </div>
                       {item.reasoning || "No reasoning details returned by model."}
                     </div>
@@ -1091,7 +856,7 @@ export default function SentimentRecordsPage() {
 
       {/* Minimal Pagination controls */}
       {!isLoading && records.length > 0 && (
-        <div className="flex items-center justify-between mt-10 border-t border-white/5 pt-6 text-xs text-zinc-400">
+        <div className="flex items-center justify-between mt-6 border-t border-[var(--ed-border)] pt-5 text-[13px] text-[var(--ed-fg-55)]">
           <span>
             SHOWING {page * limit + 1} - {Math.min((page + 1) * limit, stats.totalCount)} OF{" "}
             {stats.totalCount} RECORDS
@@ -1101,28 +866,29 @@ export default function SentimentRecordsPage() {
             <button
               onClick={() => setPage((p) => Math.max(p - 1, 0))}
               disabled={page === 0}
-              className={`px-3.5 py-1.5 rounded-full border border-white/10 flex items-center gap-1 transition-all text-xs font-mono font-medium ${
+              className={`ed-chip ed-press px-4 py-1.5 flex items-center gap-1.5 text-[13px] font-medium ${
                 page === 0
                   ? "opacity-40 cursor-not-allowed"
-                  : "text-zinc-300 hover:text-white hover:bg-white/5 cursor-pointer"
+                  : "text-white cursor-pointer"
               }`}
             >
-              <ArrowLeft size={12} /> PREV
+              <ArrowLeft size={12} /> Prev
             </button>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={(page + 1) * limit >= stats.totalCount}
-              className={`px-3.5 py-1.5 rounded-full border border-white/10 flex items-center gap-1 transition-all text-xs font-mono font-medium ${
+              className={`ed-chip ed-press px-4 py-1.5 flex items-center gap-1.5 text-[13px] font-medium ${
                 (page + 1) * limit >= stats.totalCount
                   ? "opacity-40 cursor-not-allowed"
-                  : "text-zinc-300 hover:text-white hover:bg-white/5 cursor-pointer"
+                  : "text-white cursor-pointer"
               }`}
             >
-              NEXT <ArrowRight size={12} />
+              Next <ArrowRight size={12} />
             </button>
           </div>
         </div>
       )}
-    </div>
+      </section>
+    </PageShell>
   );
 }

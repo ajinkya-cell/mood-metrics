@@ -80,7 +80,8 @@ export const rawPosts = pgTable("raw_posts", {
   index("raw_posts_ticker_idx").on(t.tickerId),
   index("raw_posts_posted_at_idx").on(t.postedAt),
   index("raw_posts_source_idx").on(t.sourceType),
-  uniqueIndex("raw_posts_external_id_unique").on(t.externalId, t.sourceType),
+  // Per ticker: one r/CryptoCurrency post or news URL can be about BTC and ETH and SOL
+  uniqueIndex("raw_posts_external_id_ticker_unique").on(t.externalId, t.sourceType, t.tickerId),
 ]);
 
 // ─── Sentiment Records ────────────────────────────────────────────────────────

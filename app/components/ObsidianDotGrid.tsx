@@ -209,25 +209,26 @@ export default function ObsidianDotGrid() {
   const selectedNode = messages.find((m) => m.id === selectedId);
 
   return (
-    <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch mt-12">
+    <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch font-grotesk">
       {/* Left Column: Form Section */}
-      <div className="lg:col-span-5 flex flex-col justify-between bg-[#0C0C0E]/50 border border-white/5 rounded-2xl p-6 md:p-8 backdrop-blur-md">
+      <div className="lg:col-span-5 ed-bento flex flex-col justify-between p-6 md:p-7">
         <div>
-          <h3 className="text-lg font-bold text-white font-sans mb-1">
-            Leave a Note
+          <p className="ed-eyebrow">Guestbook</p>
+          <h3 className="text-[1.25rem] font-medium tracking-[-0.025em] text-[var(--ed-fg-90)] mt-2 mb-1">
+            Leave a note
           </h3>
-          <p className="text-xs text-zinc-500 font-sans leading-relaxed mb-6">
+          <p className="text-[14px] text-[var(--ed-fg-55)] leading-relaxed mb-6">
             Type your message below. It will anchor onto the network grid.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name..."
-              className="bg-transparent border-b border-white/10 focus:border-zinc-500 py-2.5 text-xs font-mono w-full transition-all outline-none text-zinc-200 placeholder-zinc-700"
+              className="ed-input px-3.5 py-2.5 text-[14px] w-full placeholder:text-[var(--ed-fg-30)]"
             />
             <textarea
               required
@@ -235,19 +236,19 @@ export default function ObsidianDotGrid() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Write a message..."
-              className="bg-transparent border-b border-white/10 focus:border-zinc-500 py-2.5 text-xs font-mono w-full transition-all outline-none text-zinc-200 placeholder-zinc-700 resize-none"
+              className="ed-input px-3.5 py-2.5 text-[14px] w-full placeholder:text-[var(--ed-fg-30)] resize-none"
             />
             <button
               type="submit"
-              className="w-full py-3 bg-zinc-900 hover:bg-zinc-850 border-t border-white/10 border-x border-zinc-800 border-b-[3px] border-zinc-950 active:border-b-[1px] active:translate-y-[2px] text-zinc-200 hover:text-white text-xs font-mono font-bold tracking-wider rounded-xl transition-all duration-150 cursor-pointer shadow-[0_2px_4px_rgba(0,0,0,0.4)] active:shadow-none"
+              className="ed-chip ed-press w-full py-2.5 text-[13.5px] font-medium text-white cursor-pointer"
             >
-              Post to Grid
+              Post to grid
             </button>
           </form>
         </div>
 
         {/* Selected Details area */}
-        <div className="mt-8 pt-6 border-t border-white/5 min-h-[90px]">
+        <div className="mt-8 pt-6 border-t border-[var(--ed-border)] min-h-[90px]">
           <AnimatePresence mode="wait">
             {selectedNode ? (
               <motion.div
@@ -278,7 +279,7 @@ export default function ObsidianDotGrid() {
       </div>
 
       {/* Right Column: Obsidian Dot Grid Visual Graph */}
-      <div className="lg:col-span-7 relative bg-[#0C0C0E]/50 border border-white/5 rounded-2xl overflow-hidden min-h-[350px] flex items-center justify-center p-4">
+      <div className="lg:col-span-7 ed-bento min-h-[350px] flex items-center justify-center p-4">
         {/* Prominent grid pattern background */}
         <div className="absolute inset-0 z-0 opacity-40 pointer-events-none">
           <svg width="100%" height="100%">
@@ -395,7 +396,7 @@ export default function ObsidianDotGrid() {
         </div>
 
         {/* Float Zoom Controls Panel */}
-        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1 bg-[#0C0C0E]/90 border border-white/10 rounded-lg p-1 shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md select-none">
+        <div className="ed-glass absolute bottom-4 right-4 z-20 flex items-center gap-1 p-1 select-none">
           <button
             onClick={() => setZoom((z) => Math.max(0.6, z - 0.15))}
             className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 active:scale-90 transition-all cursor-pointer"

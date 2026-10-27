@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import Link from "next/link";
 import {
   CaretUp,
   CaretDown,
   CaretRight,
   ArrowClockwise,
-  Terminal,
+  ChartLineUp,
   ShieldCheck,
   ArrowSquareOut,
   Newspaper,
@@ -16,10 +15,25 @@ import {
   Coins,
 } from "@phosphor-icons/react";
 import SentimentChart from "./SentimentChart";
-import HorizontalScale from "./HorizontalScale";
-import TerminalLoader from "./TerminalLoader";
-import BeveledCard from "./BeveledCard";
-import Meter, { getSentimentColorClass } from "./meter";
+import SentimentLoader from "./SentimentLoader";
+import { getSentimentColorClass, getSentimentStroke } from "./meter";
+import HairlineFigure from "./HairlineFigure";
+import WhaleTide from "./WhaleTide";
+import LayerInfoModal from "./LayerInfoModal";
+import BlendBreakdown from "./BlendBreakdown";
+
+// Obsidian + burnished orange strokes for the dashboard's coin Hairline figure
+const COIN_PALETTE = {
+  "--hairline-plate": "#131314",
+  "--hairline-hi": "#F28C45",
+  "--hairline-edge": "#77736E",
+  "--hairline-mid": "#4a4643",
+  "--hairline-lo": "#2e2c2a",
+} as React.CSSProperties;
+import { PageShell, Hatch, Reveal, SectionHeading, StatCell, GlassSegmented, EASE } from "./editorial";
+
+const COINS = ["BTC", "ETH", "SOL"] as const;
+type Coin = (typeof COINS)[number];
 
 function getRelativeTime(timestamp: string) {
   const ms = Date.now() - new Date(timestamp).getTime();
@@ -106,6 +120,8 @@ function staleAge(lastScrapeAt: string | null, maxAgeHours: number): string | nu
 
 export default function Dashboard() {
   const [activeSymbol, setActiveSymbol] = useState("BTC");
+  const [openLayer, setOpenLayer] = useState<string | null>(null);
+  const closeLayer = React.useCallback(() => setOpenLayer(null), []);
   const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -181,233 +197,389 @@ export default function Dashboard() {
   };
 
   if (isAnalyzing) {
-    return <TerminalLoader symbol={activeSymbol} />;
+    return <SentimentLoader symbol={activeSymbol} />;
   }
 
   if (loading && !data) {
     return <LoadingSkeleton />;
   }
 
+  const s = data?.sentiment;
+  const dataAge = data?.meta.lastFlashScrapeAt ? getRelativeTime(data.meta.lastFlashScrapeAt) : null;
+
+  // The four signal layers: card content plus the plain-language explainer each one opens
+  const layers =
+    data && s
+      ? [
+      {
+        tag: "L1",
+        name: "Flash news",
+        weight: "45%",
+        color: "#34d399",
+        score: s.flashScore,
+        icon: <Newspaper size={15} className="text-[var(--ed-fg-55)]" />,
+        source: "CoinGecko + RSS",
+        detail: "Real-time news ingestion",
+        info: {
+          what: "What the news is saying about this coin right now. Headlines move fast and often move the price first, so this layer carries the most weight.",
+          how: [
+            "Every CoinGecko news item and article from 15 RSS feeds that mentions the coin in the last 48 hours is collected.",
+            "The AI reads each one and scores it from −1 (very bearish) to +1 (very bullish).",
+            "The layer score is the plain average of those scores, shown ×100. If there's no news in 48 hours it borrows the Reddit score instead.",
+          ],
+          formula: "flash = average(AI score of each news item, last 48h) × 100",
+          now: [
+            { label: "Items scored (48h)", value: `${data.meta.flashPostsUsed}` },
+            { label: "Last news fetch", value: data.meta.lastFlashScrapeAt ? getRelativeTime(data.meta.lastFlashScrapeAt) : "—" },
+            { label: "Refreshes", value: "about every hour" },
+          ],
+          read: "Above 0 means the news is net positive, below 0 net negative. Around ±20 or less is mostly noise; past ±50 the coverage is strongly one-sided.",
+        },
+        stats: [
+          { label: "Feed", value: <Freshness lastAt={data.meta.lastFlashScrapeAt} maxHours={2} freshLabel="Fresh" /> },
+          { label: "Used", value: <span className="font-mono text-[var(--ed-fg-90)]">{data.meta.flashPostsUsed} items</span> },
+        ],
+      },
+      {
+        tag: "L2",
+        name: "Historic Reddit",
+        weight: "35%",
+        color: "#38bdf8",
+        score: s.historicScore,
+        icon: <RedditLogo size={15} className="text-[var(--ed-fg-55)]" />,
+        source: "Subreddit discussions",
+        detail: "AI-analyzed via Arctic Shift",
+        info: {
+          what: "What crypto Reddit has been saying about this coin over the last day. It's slower than news but shows what ordinary traders actually think.",
+          how: [
+            "Posts from 12+ crypto subreddits are pulled through Arctic Shift (a Reddit archive).",
+            "The AI scores each post from −1 to +1.",
+            "Posts are grouped by hour. Each hour's score weights newer posts, more credible sources and well-upvoted posts a little more (upvotes on a log scale, so one viral post can't dominate).",
+            "The layer score is the average of the last 24 hourly buckets, shown ×100.",
+          ],
+          formula: "reddit = average(last 24 hourly weighted scores) × 100",
+          now: [
+            { label: "Posts analyzed (7d)", value: s.totalPostsAnalyzed.toLocaleString() },
+            { label: "Last Reddit fetch", value: data.meta.lastRedditScrapeAt ? getRelativeTime(data.meta.lastRedditScrapeAt) : "—" },
+            { label: "Refreshes", value: "about every 6 hours" },
+          ],
+          read: "A steady reading here is a mood, not a reaction. When it disagrees with flash news, the crowd hasn't caught up with the headlines yet, or doesn't believe them.",
+        },
+        stats: [
+          { label: "Feed", value: <Freshness lastAt={data.meta.lastRedditScrapeAt} maxHours={12} freshLabel="Arctic Shift" /> },
+          { label: "Analyzed", value: <span className="font-mono text-[var(--ed-fg-90)]">{s.totalPostsAnalyzed} posts</span> },
+        ],
+      },
+      {
+        tag: "L3",
+        name: "Funding rates",
+        weight: "15%",
+        color: "#fbbf24",
+        score: s.fundingScore,
+        icon: <ChartLineUp size={15} className="text-[var(--ed-fg-55)]" />,
+        source: "Binance futures",
+        detail: "Perpetual leverage positioning",
+        info: {
+          what: "How traders using borrowed money are betting. On futures exchanges, the side that's more crowded pays the other side a small fee every 8 hours: the funding rate.",
+          how: [
+            "The latest 8-hour funding rate for the coin's perpetual future is read from Binance.",
+            "A positive rate means longs (betting up) are paying shorts, so more traders are leveraged long. Negative means the opposite.",
+            "The rate is scaled so +0.10% per 8h = +100 and −0.10% = −100, capped at both ends.",
+          ],
+          formula: "funding = clamp(rate ÷ 0.001, −1, +1) × 100",
+          now: [
+            { label: "Funding rate (8h)", value: `${(s.fundingRate.rate * 100).toFixed(4)}%` },
+            { label: "Classification", value: s.fundingRate.label.replace(/_/g, " ") },
+          ],
+          read: "Mildly positive is normal in a healthy market. Very high readings mean many traders are over-leveraged long, which can unwind sharply, so extremes are a warning sign as much as a bullish one.",
+        },
+        stats: [
+          { label: "Rate (8h)", value: <span className="font-mono text-[var(--ed-fg-90)]">{(s.fundingRate.rate * 100).toFixed(4)}%</span> },
+          { label: "Class", value: <span className="ed-tag">{s.fundingRate.label.replace(/_/g, " ")}</span> },
+        ],
+      },
+      {
+        tag: "L4",
+        name: "Fear & greed",
+        weight: "5%",
+        color: "#a78bfa",
+        score: s.fearGreedScore,
+        icon: <ShieldCheck size={15} className="text-[var(--ed-fg-55)]" />,
+        source: "Market sentiment",
+        detail: "Alternative.me index",
+        info: {
+          what: "A single 0–100 gauge of the whole crypto market's emotion, published daily by Alternative.me. It's market-wide, not specific to this coin.",
+          how: [
+            "Alternative.me combines volatility, trading volume, social media, Bitcoin dominance and search trends into one number from 0 (extreme fear) to 100 (extreme greed).",
+            "We take the latest value and recentre it so 50 (neutral) = 0, 0 = −100 and 100 = +100.",
+          ],
+          formula: "fear & greed = (index − 50) ÷ 50 × 100",
+          now: [
+            { label: "Index", value: `${s.fearGreed.value} / 100` },
+            { label: "State", value: s.fearGreed.label },
+            { label: "Updates", value: "once a day" },
+          ],
+          read: "It only gets 5% of the blend because it's slow and market-wide. Extreme fear has historically been a better time to buy than extreme greed, so treat the extremes as context, not a signal on their own.",
+        },
+        stats: [
+          { label: "Index", value: <span className="font-mono text-[var(--ed-fg-90)]">{s.fearGreed.value}/100</span> },
+          { label: "State", value: <span className="ed-tag">{s.fearGreed.label}</span> },
+        ],
+      },
+        ]
+      : [];
+  const openInfo = layers.find((l) => l.tag === openLayer);
+
   return (
-    <div className="min-h-[100dvh] w-full pt-20 bg-[#050505] text-zinc-100 font-sans antialiased overflow-x-hidden pb-16">
-      <main className="max-w-7xl mx-auto px-4 pt-6">
-        {/* Minimal Dashboard Header */}
-        <div className="mb-8 pb-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+    <PageShell>
+        {/* ── HERO ── */}
+        <section className="px-5 md:px-8 pt-12 md:pt-16 pb-10 grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-8 items-end">
           <div>
-            <span className="text-[10px] text-zinc-500 font-mono tracking-[0.2em] uppercase block">
-              QUANTITATIVE TELEMETRY
-            </span>
-            <div className="flex items-baseline gap-4 mt-1">
-              <h1 className="text-2xl md:text-3xl font-extrabold text-white font-sans tracking-tight">
-                Market Sentiment
-              </h1>
-            </div>
+            <p className="ed-micro">
+              Quantitative telemetry · {data?.ticker.name ?? activeSymbol}
+              {dataAge && ` · Data ${dataAge}`}
+            </p>
+            <h1 className="ed-display text-5xl md:text-7xl mt-4">
+              <span className="sr-only">MoodMetrics sentiment dashboard: </span>
+              The market&apos;s <span className="ed-accent">mood</span>,
+              <br />
+              read in real time.
+            </h1>
+            <p className="mt-5 max-w-xl text-[17px] leading-relaxed tracking-[0.01em] text-[var(--ed-fg-70)]">
+              News, Reddit, leverage and fear &amp; greed, scored by AI and blended into one number. Whale flows on the side.
+            </p>
           </div>
 
-          {/* Minimal Coin Selector Pill */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500 font-mono tracking-wider hidden sm:inline-block">
-              COIN:
-            </span>
-            <div className="flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/10 select-none">
-              {["BTC", "ETH", "SOL"].map((sym) => {
-                const isActive = activeSymbol === sym;
-                return (
-                  <button
-                    key={sym}
-                    onClick={() => setActiveSymbol(sym)}
-                    className={`cursor-pointer px-3.5 py-1 rounded-full text-xs font-mono font-bold tracking-wider transition-all duration-200 ${
-                      isActive
-                        ? "bg-white text-black shadow-sm"
-                        : "text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    {sym}
-                  </button>
-                );
-              })}
+          <div className="flex flex-col items-start md:items-end gap-3">
+            {/* The selected asset as a coin, its mark in relief; leans toward the pointer */}
+            <HairlineFigure
+              key={activeSymbol}
+              name="mint"
+              autoplay={false}
+              coin={activeSymbol.toLowerCase()}
+              className="w-[260px] md:w-[340px] aspect-[5/4] -mt-10 -mb-8 md:-mr-8"
+              style={COIN_PALETTE}
+            />
+            <span className="ed-micro">Select asset</span>
+            <div className="flex items-center gap-2">
+              <GlassSegmented options={COINS} value={activeSymbol as Coin} onChange={setActiveSymbol} layoutId="coinIndicator" />
+              <button
+                onClick={triggerForceRefresh}
+                disabled={refreshing}
+                aria-label="Refresh data"
+                className="ed-chip ed-press flex items-center gap-2 px-4 py-2 text-[13.5px] font-medium text-white cursor-pointer disabled:opacity-40"
+              >
+                <ArrowClockwise size={13} className={refreshing ? "animate-spin" : ""} />
+                {refreshing ? "Syncing" : "Sync"}
+              </button>
             </div>
           </div>
-        </div>
+        </section>
 
         <AnimatePresence>
           {error && (
             <motion.div
-              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -12, filter: "blur(4px)" }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-rose-950/20 border border-rose-500/20 rounded-xl px-5 py-3.5 flex items-center justify-between text-sm font-mono text-rose-400 mb-6"
+              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+              transition={{ duration: 0.35, ease: EASE }}
+              className="mx-5 md:mx-8 mb-6 ed-bento px-5 py-3.5 flex items-center justify-between text-sm"
             >
-              <span>[SYSTEM ERROR] {error}</span>
-              <button onClick={() => setError(null)} className="text-zinc-500 hover:text-zinc-300 cursor-pointer">
+              <span className="flex items-center gap-2.5 text-[var(--ed-fg-90)]">
+                <span className="ed-square bg-rose-500" />
+                {error}
+              </span>
+              <button onClick={() => setError(null)} aria-label="Dismiss" className="ed-press text-[var(--ed-fg-50)] hover:text-white cursor-pointer">
                 ✕
               </button>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {data && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            {/* ── LEFT COLUMN: GAUGE + INGESTION FEED (lg:col-span-5) ── */}
-            <div className="lg:col-span-5 flex flex-col gap-6 w-full animate-[fadeIn_0.6s_ease-out] h-full">
-              {/* GAUGE PANEL */}
-              <BeveledCard className="w-full">
-                <div className="p-7">
-                  <div className="flex justify-between items-start mb-6 font-mono text-xs text-zinc-500 tracking-wider">
-                    <div>
-                      <span className="block uppercase text-zinc-300 font-bold">
-                        {data.ticker.name} Telemetry
-                      </span>
-                      <span className="text-[11px] text-zinc-500">ORACLE NODE / DEPLOYED</span>
-                    </div>
+        {data && s && (
+          <>
+            {/* ── STATUS STRIP ── */}
+            <section className="grid grid-cols-2 md:grid-cols-4 border-t border-[var(--ed-border)]">
+              <StatCell
+                color="#34d399"
+                label="Price"
+                value={data.price ? `$${data.price.usd.toLocaleString()}` : "N/A"}
+                sub="USD · CoinGecko spot"
+              />
+              <StatCell
+                color={data.price && data.price.change24hPercent < 0 ? "#fb7185" : "#34d399"}
+                label="24h change"
+                value={
+                  data.price ? (
+                    <span className={`inline-flex items-center gap-1.5 ${data.price.change24hPercent >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {data.price.change24hPercent >= 0 ? <CaretUp size={18} weight="bold" /> : <CaretDown size={18} weight="bold" />}
+                      {Math.abs(data.price.change24hPercent).toFixed(2)}%
+                    </span>
+                  ) : (
+                    "N/A"
+                  )
+                }
+                sub="Versus this time yesterday"
+                className="border-l border-[var(--ed-border)]"
+              />
+              <StatCell
+                color="#38bdf8"
+                label="Blended score"
+                value={
+                  <span className={getSentimentColorClass(s.score)}>
+                    {s.score > 0 ? "+" : ""}
+                    {s.score}
+                  </span>
+                }
+                sub={`${s.label.charAt(0).toUpperCase()}${s.label.slice(1)} · 45 / 35 / 15 / 5 blend`}
+                className="border-t md:border-t-0 md:border-l border-[var(--ed-border)]"
+              />
+              <StatCell
+                color="#a78bfa"
+                label="Posts analyzed"
+                value={s.totalPostsAnalyzed.toLocaleString()}
+                sub="Reddit + news · last 7 days"
+                className="border-t md:border-t-0 border-l border-[var(--ed-border)]"
+              />
+            </section>
 
-                    {/* Minimal SYNC Button */}
-                    <button
-                      onClick={triggerForceRefresh}
-                      disabled={refreshing}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white hover:bg-white/5 transition-all cursor-pointer disabled:opacity-40 select-none"
-                    >
-                      <ArrowClockwise size={11} className={refreshing ? "animate-spin text-emerald-400" : ""} />
-                      <span>{refreshing ? "REFRESHING" : "SYNC"}</span>
-                    </button>
+            <Hatch />
+
+            {/* ── COMPOSITE + LAYERS ── */}
+            <section className="p-4 md:p-5 grid grid-cols-1 lg:grid-cols-12 gap-3">
+              <Reveal className="lg:col-span-5">
+                <div className="ed-bento ed-iso h-full p-6 md:p-7 flex flex-col">
+                  <div className="flex items-center justify-between mb-6">
+                    <span className="ed-eyebrow">{data.ticker.name} · Composite</span>
                   </div>
-
-                  {/* Live Conversion Price readout */}
-                  <div className="flex items-baseline justify-between mb-8">
-                    <div>
-                      <span className="text-[10px] text-zinc-500 font-mono tracking-widest block uppercase">
-                        LIVE CONVERSION
-                      </span>
-                      <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mt-1 font-sans">
-                        ${data.price ? data.price.usd.toLocaleString() : "N/A"}{" "}
-                        <span className="text-xs text-zinc-500 font-mono font-normal">USD</span>
-                      </h1>
-                    </div>
-
-                    {data.price && (
-                      <div
-                        className={`flex items-center gap-1 font-mono text-xs px-2.5 py-1 rounded-full border ${
-                          data.price.change24hPercent >= 0
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                            : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                        }`}
-                      >
-                        {data.price.change24hPercent >= 0 ? (
-                          <CaretUp size={11} weight="bold" />
-                        ) : (
-                          <CaretDown size={11} weight="bold" />
-                        )}
-                        <span>{data.price.change24hPercent >= 0 ? "+" : ""}
-                        {data.price.change24hPercent.toFixed(2)}%</span>
-                      </div>
-                    )}
+                  <div className="flex-1 flex items-center">
+                    <BlendBreakdown
+                      score={s.score}
+                      label={s.label}
+                      rows={layers.map((l) => ({ tag: l.tag, name: l.name, color: l.color, weight: parseFloat(l.weight) / 100, score: l.score }))}
+                      onOpen={setOpenLayer}
+                    />
                   </div>
-
-                  <Meter
-                    score={data.sentiment.score}
-                    label={data.sentiment.label}
-                    className="mt-6"
-                  />
                 </div>
-              </BeveledCard>
+              </Reveal>
 
-              {/* INGESTION FEED PANEL */}
-              <BeveledCard className="w-full flex-grow flex flex-col min-h-[480px]">
-                <div className="p-6 flex flex-col flex-1">
-                  <div className="flex items-center justify-between mb-4 font-mono text-zinc-400 text-xs tracking-widest border-b border-white/5 pb-3">
-                    <div className="flex items-center gap-2">
-                      <Terminal size={15} className="text-emerald-400" />
-                      <span className="font-bold text-white">INGESTION LOG — LIVE</span>
+              <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {layers.map((layer, i) => (
+                  <Reveal key={layer.tag} delay={0.06 * (i + 1)}>
+                    <LayerCard {...layer} onOpen={() => setOpenLayer(layer.tag)} />
+                  </Reveal>
+                ))}
+              </div>
+            </section>
+
+            <Hatch />
+
+            {/* ── TIMELINE + INGESTION LOG ── */}
+            <SectionHeading
+              eyebrow="Timeline"
+              lead="Sentiment,"
+              accent="hour by hour"
+              aside="Hourly volume-weighted score from every analyzed post, alongside the latest signals the AI has read."
+            />
+            <section className="px-4 md:px-5 pb-5 grid grid-cols-1 lg:grid-cols-12 gap-3">
+              <Reveal className="lg:col-span-7">
+                <div className="ed-bento h-full p-6 md:p-7 flex flex-col">
+                  <div className="flex items-center justify-between mb-5">
+                    <span className="ed-eyebrow">Blended timeline · hourly</span>
+                    <span className="ed-tag">{data.timeseries.length} buckets</span>
+                  </div>
+                  <div className="flex-1">
+                    <SentimentChart data={data.timeseries} />
+                  </div>
+
+                  <details className="group mt-6 rounded-xl shadow-[0_0_0_1px_var(--ed-border)] overflow-hidden">
+                    <summary className="flex justify-between items-center px-4 py-3 cursor-pointer select-none list-none">
+                      <span className="ed-eyebrow">How is this calculated?</span>
+                      <CaretDown size={12} className="text-[var(--ed-fg-50)] transition-transform duration-300 group-open:rotate-180" />
+                    </summary>
+                    <div className="px-4 pb-4 pt-1 text-[14px] leading-relaxed text-[var(--ed-fg-70)] space-y-4">
+                      <p>
+                        The line plots hourly sentiment from −100 to +100. Volume bars split each hour into{" "}
+                        <span className="text-emerald-400">bullish</span>, <span className="text-rose-400">bearish</span> and{" "}
+                        <span className="text-zinc-300">neutral</span> posts.
+                      </p>
+                      <p>
+                        Each post is weighted by source credibility (news 1.0, CoinGecko 0.9, Reddit 0.7), a log upvote boost and a 12-hour recency decay.
+                      </p>
+                      <pre className="font-mono text-[11px] text-[var(--ed-fg-90)] bg-black/40 rounded-lg p-3 overflow-x-auto shadow-[0_0_0_1px_var(--ed-border)]">
+                        {"score = Σ(post × source × upvotes × recency) / posts"}
+                      </pre>
                     </div>
-                    <span className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      STREAM ACTIVE
+                  </details>
+                </div>
+              </Reveal>
+
+              <Reveal className="lg:col-span-5" delay={0.06}>
+                <div className="ed-bento h-full p-6 flex flex-col min-h-[460px] max-h-[640px]">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="ed-eyebrow">Ingestion log</span>
+                    <span className="ed-tag">
+                      <span className="ed-square bg-emerald-400 animate-pulse" />
+                      Live
                     </span>
                   </div>
 
-                  {/* Clean Feed List */}
-                  <div className="flex-1 overflow-y-auto font-mono text-xs space-y-1 pr-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                  <div className="flex-1 overflow-y-auto ed-scroll -mx-2 pr-1">
                     {data.recentSignals.map((sig, i) => {
                       const isExpanded = expandedIndex === i;
-                      const isBullish = sig.label === "bullish";
-                      const isBearish = sig.label === "bearish";
                       const scoreVal = parseFloat(sig.score);
-
                       return (
                         <div
                           key={i}
-                          className={`rounded-lg transition-colors border-b border-white/[0.04] last:border-0 ${
-                            isExpanded ? "bg-white/[0.03]" : "hover:bg-white/[0.02]"
-                          }`}
+                          className={`rounded-lg transition-colors duration-300 ${isExpanded ? "bg-white/[0.04]" : "hover:bg-white/[0.025]"}`}
                         >
-                          <div
+                          <button
                             onClick={() => setExpandedIndex(isExpanded ? null : i)}
-                            className="p-2.5 flex items-center justify-between cursor-pointer text-zinc-400 hover:text-zinc-200"
+                            aria-expanded={isExpanded}
+                            className="w-full text-left px-2 py-2.5 flex items-center gap-3 cursor-pointer"
                           >
-                            <div className="flex items-center gap-2 overflow-hidden mr-3">
-                              <motion.span
-                                animate={{ rotate: isExpanded ? 90 : 0 }}
-                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                className="shrink-0 text-zinc-500"
-                              >
-                                <CaretRight size={10} />
-                              </motion.span>
-                              <span className="text-zinc-500 font-bold shrink-0 text-[10px] tracking-wider">
-                                [{sig.source.toUpperCase().replace("_", " ")}]
-                              </span>
-                              <span className="text-zinc-300 truncate text-xs font-sans">
-                                {sig.title}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span
-                                className={`font-bold px-2 py-0.5 rounded text-[11px] font-mono ${
-                                  isBullish
-                                    ? "text-emerald-400"
-                                    : isBearish
-                                    ? "text-rose-400"
-                                    : "text-zinc-400"
-                                }`}
-                              >
-                                {scoreVal > 0 ? "+" : ""}
-                                {scoreVal.toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
+                            <motion.span
+                              animate={{ rotate: isExpanded ? 90 : 0 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                              className="shrink-0 text-[var(--ed-fg-50)]"
+                            >
+                              <CaretRight size={10} />
+                            </motion.span>
+                            <span className="ed-tag shrink-0">{sig.source.replace("_", " ")}</span>
+                            <span className="flex-1 min-w-0 truncate text-[14px] text-[var(--ed-fg-90)]">{sig.title}</span>
+                            <span
+                              className={`shrink-0 font-mono text-xs tabular-nums ${
+                                sig.label === "bullish" ? "text-emerald-400" : sig.label === "bearish" ? "text-rose-400" : "text-[var(--ed-fg-55)]"
+                              }`}
+                            >
+                              {scoreVal > 0 ? "+" : ""}
+                              {scoreVal.toFixed(2)}
+                            </span>
+                          </button>
 
-                          <AnimatePresence>
+                          <AnimatePresence initial={false}>
                             {isExpanded && (
                               <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden px-4 pb-3 pt-1 border-t border-white/5"
+                                initial={{ height: 0, opacity: 0, filter: "blur(4px)" }}
+                                animate={{ height: "auto", opacity: 1, filter: "blur(0px)" }}
+                                exit={{ height: 0, opacity: 0, filter: "blur(4px)" }}
+                                transition={{ duration: 0.3, ease: EASE }}
+                                className="overflow-hidden"
                               >
-                                <div className="border-l border-emerald-500/40 pl-3 py-1 text-xs text-zinc-300 space-y-1.5">
-                                  <div>
-                                    <span className="text-emerald-400 font-mono text-[10px] font-bold">
-                                      ANALYSIS:
-                                    </span>{" "}
-                                    {sig.reasoning || "No explanation provided."}
-                                  </div>
-                                  <div className="flex justify-between items-center text-[10px] text-zinc-500 pt-1 font-mono">
+                                <div className="mb-3 mr-2 ml-7 pl-3 border-l border-[var(--ed-blue-label)] text-[13.5px] leading-relaxed text-[var(--ed-fg-70)]">
+                                  {sig.reasoning || "No explanation provided."}
+                                  <div className="flex justify-between items-center mt-2 font-mono text-[11px] text-[var(--ed-fg-50)]">
                                     <span>
-                                      {new Date(sig.postedAt).toLocaleString([], {
-                                        month: "short",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
+                                      {new Date(sig.postedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                                     </span>
                                     {sig.url && (
                                       <a
                                         href={sig.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-1 text-zinc-400 hover:text-emerald-400 underline"
+                                        className="flex items-center gap-1 hover:text-white transition-colors duration-150"
                                       >
-                                        VIEW SOURCE <ArrowSquareOut size={8} />
+                                        Source <ArrowSquareOut size={10} />
                                       </a>
                                     )}
                                   </div>
@@ -420,394 +592,240 @@ export default function Dashboard() {
                     })}
                   </div>
                 </div>
-              </BeveledCard>
-            </div>
+              </Reveal>
+            </section>
 
-            {/* ── RIGHT COLUMN: 4-LAYER BENTO + CHART (lg:col-span-7) ── */}
-            <div className="lg:col-span-7 flex flex-col gap-6 w-full animate-[fadeIn_0.6s_ease-out_delay-100ms] h-full">
-              {/* Bento Grid */}
-              {/* Bento Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* L1 Flash News */}
-                <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200 group">
-                  <div>
-                    {/* Top Header Row */}
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-xs text-zinc-400 font-mono tracking-wider font-semibold uppercase flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-                        L1 — FLASH NEWS
-                      </span>
-                      <span className="text-xs text-zinc-400 font-mono font-bold px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/10">
-                        45% WT
-                      </span>
-                    </div>
+            <Hatch />
 
-                    {/* Middle Score & Source Row */}
-                    <div className="flex justify-between items-baseline gap-2 mb-2">
-                      <span
-                        className={`font-mono text-4xl sm:text-5xl font-extrabold tracking-tight ${getSentimentColorClass(
-                          data.sentiment.flashScore
-                        )}`}
-                      >
-                        {data.sentiment.flashScore > 0 ? "+" : ""}
-                        {data.sentiment.flashScore}
+            {/* ── WHALES ── */}
+            <SectionHeading
+              eyebrow="On-chain · L5"
+              lead="Where the"
+              accent="whales"
+              tail="move"
+              aside="Large-address flows to and from exchanges over the last 24 hours. Shown for context, not part of the blend."
+            />
+            <section className="px-4 md:px-5 pb-5">
+              <Reveal>
+                <div className="ed-bento group">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1.25fr] border-b border-[var(--ed-border)]">
+                    {/* Summary: extruded score + label chip on one baseline, then aligned key/value rows */}
+                    <div className="p-5 md:p-6 flex flex-col">
+                      <span className="ed-eyebrow flex items-center gap-2">
+                        <Coins size={14} />
+                        Net exchange flow
                       </span>
-                      <div className="text-right">
-                        <span className="text-sm sm:text-base text-zinc-100 flex items-center justify-end gap-1.5 font-sans font-medium">
-                          <Newspaper size={17} className="text-emerald-400" />
-                          CoinGecko + RSS
+                      <div className="mt-5 flex items-end gap-3 flex-wrap">
+                        <span className="ed-display ed-accent text-7xl leading-[0.8] tabular-nums">
+                          {s.whaleScore > 0 ? "+" : ""}
+                          {s.whaleScore}
                         </span>
-                        <span className="text-xs text-zinc-400 font-mono mt-0.5 block">
-                          Real-time news ingestion
+                        <span className="ed-tag mb-1">
+                          <span className="ed-square" style={{ background: getSentimentStroke(s.whaleScore) }} />
+                          {s.whaleLabel.replace(/_/g, " ")}
                         </span>
                       </div>
+                      <p className="mt-4 text-[14px] leading-relaxed text-[var(--ed-fg-70)]">
+                        {s.whaleScore > 0
+                          ? "Big holders moved more coins off exchanges than onto them. Coins in cold storage aren't for sale, so this usually reads as holding."
+                          : s.whaleScore < 0
+                            ? "Big holders moved more coins onto exchanges than off them. Coins on an exchange are ready to sell, so this usually reads as selling pressure."
+                            : "Big holders moved about as much onto exchanges as off them: no clear signal."}
+                      </p>
+                      <dl className="mt-4 text-[14px] divide-y divide-[var(--ed-border)] border-t border-[var(--ed-border)]">
+                        {[
+                          {
+                            k: "Net flow",
+                            v: `${s.whaleNetFlowUsd >= 0 ? "+" : "−"}$${Math.abs(s.whaleNetFlowUsd / 1e6).toFixed(2)}M`,
+                          },
+                          {
+                            k: "Direction",
+                            v: s.whaleScore > 0 ? "Off exchanges · accumulating" : s.whaleScore < 0 ? "Onto exchanges · distributing" : "Balanced",
+                          },
+                          { k: "Transactions · 24h", v: String(s.whaleTransactions.length) },
+                        ].map(({ k, v }) => (
+                          <div key={k} className="flex items-baseline justify-between gap-4 py-2.5">
+                            <dt className="text-[var(--ed-fg-55)]">{k}</dt>
+                            <dd className="font-mono text-[13px] tabular-nums text-[var(--ed-fg-90)] text-right">{v}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+
+                    <div className="ed-iso border-t md:border-t-0 md:border-l border-[var(--ed-border)]">
+                      <WhaleTide score={s.whaleScore} />
                     </div>
                   </div>
 
-                  {/* Bottom Metadata Badges */}
-                  <div className="border-t border-white/[0.06] pt-3.5 font-mono text-xs text-zinc-400 flex items-center justify-between mt-4">
-                    <span className="flex items-center gap-2">
-                      <span className="text-zinc-500">Status:</span>
-                      {staleAge(data.meta.lastFlashScrapeAt, 2) ? (
-                        <span className="text-amber-400 font-medium bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 text-[11px]">
-                          Stale · {staleAge(data.meta.lastFlashScrapeAt, 2)}
-                        </span>
-                      ) : (
-                        <span className="text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 text-[11px]">
-                          Fresh Feed
-                        </span>
-                      )}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-zinc-500">Used:</span>
-                      <span className="text-zinc-200 font-semibold">{data.meta.flashPostsUsed} items</span>
-                    </span>
-                  </div>
-                </BeveledCard>
-
-                {/* L2 Historic Reddit */}
-                <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200 group">
-                  <div>
-                    {/* Top Header Row */}
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-xs text-zinc-400 font-mono tracking-wider font-semibold uppercase flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
-                        L2 — HISTORIC REDDIT
-                      </span>
-                      <span className="text-xs text-zinc-400 font-mono font-bold px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/10">
-                        35% WT
-                      </span>
-                    </div>
-
-                    {/* Middle Score & Source Row */}
-                    <div className="flex justify-between items-baseline gap-2 mb-2">
-                      <span
-                        className={`font-mono text-4xl sm:text-5xl font-extrabold tracking-tight ${getSentimentColorClass(
-                          data.sentiment.historicScore
-                        )}`}
-                      >
-                        {data.sentiment.historicScore > 0 ? "+" : ""}
-                        {data.sentiment.historicScore}
-                      </span>
-                      <div className="text-right">
-                        <span className="text-sm sm:text-base text-zinc-100 flex items-center justify-end gap-1.5 font-sans font-medium">
-                          <RedditLogo size={17} className="text-cyan-400" />
-                          Subreddit Discussions
-                        </span>
-                        <span className="text-xs text-zinc-400 font-mono mt-0.5 block">
-                          AI Analyzed sentiment
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bottom Metadata Badges */}
-                  <div className="border-t border-white/[0.06] pt-3.5 font-mono text-xs text-zinc-400 flex items-center justify-between mt-4">
-                    <span className="flex items-center gap-2">
-                      <span className="text-zinc-500">Source:</span>
-                      {staleAge(data.meta.lastRedditScrapeAt, 12) ? (
-                        <span className="text-amber-400 font-medium bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 text-[11px]">
-                          Stale · {staleAge(data.meta.lastRedditScrapeAt, 12)}
-                        </span>
-                      ) : (
-                        <span className="text-zinc-300 font-medium bg-white/[0.04] px-2 py-0.5 rounded border border-white/10 text-[11px]">
-                          Arctic Shift
-                        </span>
-                      )}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-zinc-500">Analyzed:</span>
-                      <span className="text-zinc-200 font-semibold">{data.sentiment.totalPostsAnalyzed} posts</span>
-                    </span>
-                  </div>
-                </BeveledCard>
-
-                {/* L3 Funding Rates */}
-                <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200 group">
-                  <div>
-                    {/* Top Header Row */}
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-xs text-zinc-400 font-mono tracking-wider font-semibold uppercase flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
-                        L3 — FUNDING RATES
-                      </span>
-                      <span className="text-xs text-zinc-400 font-mono font-bold px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/10">
-                        15% WT
-                      </span>
-                    </div>
-
-                    {/* Middle Score & Source Row */}
-                    <div className="flex justify-between items-baseline gap-2 mb-2">
-                      <span
-                        className={`font-mono text-4xl sm:text-5xl font-extrabold tracking-tight ${getSentimentColorClass(
-                          data.sentiment.fundingScore
-                        )}`}
-                      >
-                        {data.sentiment.fundingScore > 0 ? "+" : ""}
-                        {data.sentiment.fundingScore}
-                      </span>
-                      <div className="text-right">
-                        <span className="text-sm sm:text-base text-zinc-100 flex items-center justify-end gap-2 font-sans font-medium">
-                          <span className="relative flex h-2 w-2">
-                            <span
-                              className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                                data.sentiment.fundingRate.rate >= 0.0001
-                                  ? "bg-emerald-400"
-                                  : data.sentiment.fundingRate.rate <= -0.0001
-                                  ? "bg-rose-400"
-                                  : "bg-zinc-400"
-                              }`}
-                            />
-                            <span
-                              className={`relative inline-flex rounded-full h-2 w-2 ${
-                                data.sentiment.fundingRate.rate >= 0.0001
-                                  ? "bg-emerald-500"
-                                  : data.sentiment.fundingRate.rate <= -0.0001
-                                  ? "bg-rose-500"
-                                  : "bg-zinc-500"
-                              }`}
-                            />
-                          </span>
-                          Binance Futures
-                        </span>
-                        <span className="text-xs text-zinc-400 font-mono mt-0.5 block">
-                          Perpetual leverage positioning
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bottom Metadata Badges */}
-                  <div className="border-t border-white/[0.06] pt-3.5 font-mono text-xs text-zinc-400 flex items-center justify-between mt-4">
-                    <span className="flex items-center gap-2">
-                      <span className="text-zinc-500">Rate (8h):</span>
-                      <span className="text-white font-semibold font-mono">
-                        {(data.sentiment.fundingRate.rate * 100).toFixed(4)}%
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-zinc-500">Class:</span>
-                      <span className="uppercase text-amber-300 font-medium bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 text-[11px]">
-                        {data.sentiment.fundingRate.label.replace(/_/g, " ")}
-                      </span>
-                    </span>
-                  </div>
-                </BeveledCard>
-
-                {/* L4 Global Fear & Greed */}
-                <BeveledCard className="p-6 flex flex-col justify-between min-h-[14rem] hover:-translate-y-0.5 transition-all duration-200 group">
-                  <div>
-                    {/* Top Header Row */}
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-xs text-zinc-400 font-mono tracking-wider font-semibold uppercase flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_6px_rgba(167,139,250,0.8)]" />
-                        L4 — GLOBAL FEAR & GREED
-                      </span>
-                      <span className="text-xs text-zinc-400 font-mono font-bold px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/10">
-                        5% WT
-                      </span>
-                    </div>
-
-                    {/* Middle Score & Source Row */}
-                    <div className="flex justify-between items-baseline gap-2 mb-2">
-                      <span
-                        className={`font-mono text-4xl sm:text-5xl font-extrabold tracking-tight ${getSentimentColorClass(
-                          data.sentiment.fearGreedScore
-                        )}`}
-                      >
-                        {data.sentiment.fearGreedScore > 0 ? "+" : ""}
-                        {data.sentiment.fearGreedScore}
-                      </span>
-                      <div className="text-right">
-                        <span className="text-sm sm:text-base text-zinc-100 flex items-center justify-end gap-1.5 font-sans font-medium">
-                          <ShieldCheck size={17} className="text-violet-400" />
-                          Market Sentiment
-                        </span>
-                        <span className="text-xs text-zinc-400 font-mono mt-0.5 block">
-                          Alternative.me index
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bottom Metadata Badges */}
-                  <div className="border-t border-white/[0.06] pt-3.5 font-mono text-xs text-zinc-400 flex items-center justify-between mt-4">
-                    <span className="flex items-center gap-2">
-                      <span className="text-zinc-500">Index Value:</span>
-                      <span className="text-white font-semibold font-mono">
-                        {data.sentiment.fearGreed.value}/100
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-zinc-500">State:</span>
-                      <span className="uppercase text-violet-300 font-medium bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20 text-[11px]">
-                        {data.sentiment.fearGreed.label}
-                      </span>
-                    </span>
-                  </div>
-                </BeveledCard>
-
-                {/* L5 Whale Movement Layer */}
-                <BeveledCard className="md:col-span-2 p-6 flex flex-col justify-between min-h-[14rem]">
-                  <div className="flex justify-between items-start border-b border-white/5 pb-3">
-                    <div>
-                      <span className="text-[10px] text-zinc-500 font-mono tracking-widest block uppercase font-bold">
-                        L5 — WHALE MOVEMENT LAYER
-                      </span>
-                      <span className="text-sm text-zinc-200 flex items-center gap-2 mt-1 font-medium">
-                        <Coins size={16} className="text-zinc-400" />
-                        On-Chain Large Address Net Inflows
-                      </span>
-                    </div>
-                    <div className="text-right font-mono">
-                      <span className={`text-2xl font-extrabold ${getSentimentColorClass(data.sentiment.whaleScore)}`}>
-                        {data.sentiment.whaleScore > 0 ? "+" : ""}{data.sentiment.whaleScore}
-                      </span>
-                      <span className="block text-[11px] text-zinc-400 mt-0.5 font-medium">
-                        NET: {data.sentiment.whaleNetFlowUsd >= 0 ? "+" : ""}${(data.sentiment.whaleNetFlowUsd / 1e6).toFixed(2)}M
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Clean Transaction List */}
-                  <div className="mt-4 flex-1">
-                    <span className="text-[10px] text-zinc-500 font-bold uppercase font-mono tracking-wider block mb-2">
-                      RECENT BLOCKCHAIN MOVEMENT (24H)
-                    </span>
-                    <div className="max-h-40 overflow-y-auto space-y-1 font-mono text-xs pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent select-text">
-                      {data.sentiment.whaleTransactions && data.sentiment.whaleTransactions.length > 0 ? (
-                        data.sentiment.whaleTransactions.map((tx: any, idx: number) => {
-                          const isAccum = tx.type === "outflow";
-                          const isSell = tx.type === "inflow";
-                          return (
-                            <div
-                              key={idx}
-                              className="flex justify-between items-center py-2 px-2 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] rounded transition-colors"
-                            >
-                              <div className="flex flex-col min-w-0">
-                                <span className="truncate text-zinc-300 font-sans text-xs max-w-[160px] sm:max-w-[260px]">
-                                  {tx.fromAddress} → {tx.toAddress}
-                                </span>
-                                <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                                  {getRelativeTime(tx.timestamp)}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3 shrink-0">
-                                <span className="text-zinc-400 text-xs font-mono">
-                                  {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} {activeSymbol} (${(tx.amountUsd / 1e6).toFixed(2)}M)
-                                </span>
-                                <span
-                                  className={`font-bold text-[10px] uppercase px-2 py-0.5 rounded ${
-                                    isAccum
-                                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                      : isSell
-                                      ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                                      : "bg-zinc-800 text-zinc-400"
-                                  }`}
-                                >
-                                  {tx.type}
-                                </span>
-                              </div>
+                  <div className="p-4 md:p-5">
+                    <span className="ed-eyebrow px-2">Recent movement · 24h</span>
+                    <div className="mt-3 max-h-56 overflow-y-auto ed-scroll">
+                      {s.whaleTransactions.length > 0 ? (
+                        s.whaleTransactions.map((tx, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between gap-3 px-2 py-2.5 rounded-lg hover:bg-white/[0.025] transition-colors duration-300"
+                          >
+                            <div className="min-w-0">
+                              <span className="block truncate text-[14px] text-[var(--ed-fg-90)] max-w-[180px] sm:max-w-[340px]">
+                                {tx.fromAddress} → {tx.toAddress}
+                              </span>
+                              <span className="font-mono text-[11px] text-[var(--ed-fg-50)]">{getRelativeTime(tx.timestamp)}</span>
                             </div>
-                          );
-                        })
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="hidden sm:inline font-mono text-xs text-[var(--ed-fg-70)] tabular-nums">
+                                {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} {activeSymbol} · ${(tx.amountUsd / 1e6).toFixed(2)}M
+                              </span>
+                              <span className="ed-tag">
+                                <span
+                                  className={`ed-square ${tx.type === "outflow" ? "bg-[rgb(126_190_152)]" : tx.type === "inflow" ? "bg-[rgb(229_115_115)]" : "bg-white/30"}`}
+                                />
+                                {tx.type}
+                              </span>
+                            </div>
+                          </div>
+                        ))
                       ) : (
-                        <div className="text-center py-4 text-zinc-600 text-xs font-mono">
-                          NO SIGNIFICANT WHALE ACTIVITY DETECTED IN THIS BLOCK
-                        </div>
+                        <p className="px-2 py-6 text-center text-sm text-[var(--ed-fg-50)]">No significant whale activity in this window.</p>
                       )}
                     </div>
                   </div>
-                </BeveledCard>
-              </div>
-
-              {/* Sentiment Chart Panel */}
-              <BeveledCard className="w-full">
-                <div className="p-7">
-                  <div className="mb-6">
-                    <SentimentChart data={data.timeseries} />
-                  </div>
-
-                  {/* Clean In-Depth Calculation Dropdown */}
-                  <details className="group border border-white/5 rounded-xl bg-white/[0.01] overflow-hidden transition-all duration-200">
-                    <summary className="flex justify-between items-center px-4 py-3 text-xs font-mono text-zinc-400 hover:text-white cursor-pointer select-none transition-colors border-b border-transparent group-open:border-white/5">
-                      <span className="flex items-center gap-2 font-bold">HOW IS THIS CALCULATED?</span>
-                      <span className="text-[10px] text-zinc-500 transition-transform duration-200 group-open:rotate-180">
-                        ▼
-                      </span>
-                    </summary>
-                    <div className="p-4 text-xs text-zinc-400 leading-relaxed font-mono space-y-3">
-                      <div>
-                        <h4 className="font-bold text-white mb-1.5 text-[11px] uppercase tracking-wider text-emerald-400">
-                          1. Trend & Volume
-                        </h4>
-                        <p>
-                          The trend line plots hourly sentiment (-100 to +100). The bottom volume bars show total post volume segmented by <span className="text-emerald-400 font-semibold">Bullish</span>, <span className="text-rose-400 font-semibold">Bearish</span>, and <span className="text-zinc-400 font-semibold">Neutral</span> posts.
-                        </p>
-                      </div>
-
-                      <div className="border-t border-white/5 pt-3">
-                        <h4 className="font-bold text-white mb-1.5 text-[11px] uppercase tracking-wider text-emerald-400">
-                          2. Weighting Formula
-                        </h4>
-                        <p className="mb-2">
-                          Calculated as a volume-weighted average incorporating source credibility (News: 1.0, CoinGecko: 0.9, Reddit: 0.7), log upvote boosts, and recency decay.
-                        </p>
-                        <div className="bg-black/50 p-2.5 rounded text-[10px] text-zinc-300 font-mono overflow-x-auto whitespace-pre">
-{`Hourly Score = ∑ (Post Score × Source Weight × Upvote Boost × Recency Weight) / Total Posts`}
-                        </div>
-                      </div>
-                    </div>
-                  </details>
                 </div>
-              </BeveledCard>
-            </div>
-          </div>
+              </Reveal>
+            </section>
+          </>
         )}
-      </main>
+      <LayerInfoModal
+        layer={
+          openInfo
+            ? { ...openInfo.info, tag: openInfo.tag, name: openInfo.name, color: openInfo.color, score: openInfo.score, weight: parseFloat(openInfo.weight) / 100 }
+            : null
+        }
+        onClose={closeLayer}
+      />
+    </PageShell>
+  );
+}
+
+// ── Dashboard-only primitives ─────────────────────────────────────────────
+
+function Freshness({ lastAt, maxHours, freshLabel }: { lastAt: string | null; maxHours: number; freshLabel: string }) {
+  const age = staleAge(lastAt, maxHours);
+  return age ? (
+    <span className="ed-tag" style={{ color: "#fcd34d" }}>
+      <span className="ed-square bg-amber-400" />
+      Stale · {age}
+    </span>
+  ) : (
+    <span className="ed-tag">
+      <span className="ed-square bg-emerald-400" />
+      {freshLabel}
+    </span>
+  );
+}
+
+function LayerCard({
+  tag,
+  name,
+  weight,
+  color,
+  score,
+  icon,
+  source,
+  detail,
+  stats,
+  onOpen,
+}: {
+  tag: string;
+  name: string;
+  weight: string;
+  color: string;
+  score: number;
+  icon: React.ReactNode;
+  source: string;
+  detail: string;
+  stats: { label: string; value: React.ReactNode }[];
+  onOpen?: () => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-haspopup="dialog"
+      aria-label={`${name}: what it is and how it's calculated`}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen?.();
+        }
+      }}
+      className="group ed-bento ed-press h-full p-5 flex flex-col justify-between min-h-[13.5rem] cursor-pointer outline-none focus-visible:shadow-[0_0_0_1px_rgba(255,255,255,0.4)]"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="ed-eyebrow flex items-center gap-2">
+          <span className="ed-square" style={{ background: color }} />
+          {tag} · {name}
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="hidden sm:inline text-[10px] uppercase tracking-[0.12em] text-[var(--ed-fg-30)] transition-colors duration-300 group-hover:text-[#F28C45]">
+            What&apos;s this?
+          </span>
+          <span className="ed-tag">{weight} wt</span>
+        </span>
+      </div>
+
+      <div className="flex items-end justify-between gap-3 mt-6">
+        <span className={`font-display text-6xl leading-none tracking-tight tabular-nums ${getSentimentColorClass(score)}`}>
+          {score > 0 ? "+" : ""}
+          {score}
+        </span>
+        <div className="text-right min-w-0">
+          <span className="flex items-center justify-end gap-1.5 text-[15px] font-medium tracking-[-0.02em] text-[var(--ed-fg-90)]">
+            {icon}
+            {source}
+          </span>
+          <span className="block text-[13px] text-[var(--ed-fg-55)] mt-0.5">{detail}</span>
+        </div>
+      </div>
+
+      <div className="mt-5 pt-3.5 border-t border-[var(--ed-border)] flex items-center justify-between gap-2 text-[13px]">
+        {stats.map((st) => (
+          <span key={st.label} className="flex items-center gap-2 min-w-0">
+            <span className="text-[var(--ed-fg-50)]">{st.label}</span>
+            {st.value}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
 
 function LoadingSkeleton() {
   return (
-    <div className="min-h-[100dvh] w-full bg-[#050505] p-6 animate-pulse space-y-6">
-      <div className="h-12 w-full max-w-7xl mx-auto rounded-full bg-zinc-900/60 border border-white/5 mt-4" />
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto items-start">
-        {/* Left column skeleton */}
-        <div className="lg:col-span-5 flex flex-col gap-6 w-full">
-          <div className="h-[28rem] rounded-2xl bg-zinc-900/60 border border-white/5" />
-          <div className="h-[21rem] rounded-2xl bg-zinc-900/60 border border-white/5" />
+    <div className="ed-page min-h-[100dvh] w-full pt-20">
+      <div className="max-w-7xl mx-auto ed-frame animate-pulse">
+        <div className="px-5 md:px-8 pt-16 pb-10 space-y-4">
+          <div className="h-3 w-56 rounded bg-white/[0.06]" />
+          <div className="h-16 w-full max-w-xl rounded-lg bg-white/[0.05]" />
+          <div className="h-16 w-full max-w-md rounded-lg bg-white/[0.05]" />
         </div>
-        {/* Right column skeleton */}
-        <div className="lg:col-span-7 flex flex-col gap-6 w-full">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="h-[12rem] rounded-2xl bg-zinc-900/60 border border-white/5" />
-            <div className="h-[12rem] rounded-2xl bg-zinc-900/60 border border-white/5" />
-            <div className="h-[12rem] rounded-2xl bg-zinc-900/60 border border-white/5" />
-            <div className="h-[12rem] rounded-2xl bg-zinc-900/60 border border-white/5" />
+        <div className="grid grid-cols-2 md:grid-cols-4 border-t border-[var(--ed-border)]">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-28 px-7 py-6 border-l first:border-l-0 border-[var(--ed-border)]">
+              <div className="h-3 w-20 rounded bg-white/[0.06]" />
+              <div className="h-8 w-28 rounded bg-white/[0.05] mt-4" />
+            </div>
+          ))}
+        </div>
+        <div className="ed-hatch" />
+        <div className="p-5 grid grid-cols-1 lg:grid-cols-12 gap-3">
+          <div className="lg:col-span-5 h-[26rem] ed-bento" />
+          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-[13.5rem] ed-bento" />
+            ))}
           </div>
-          <div className="h-[25rem] rounded-2xl bg-zinc-900/60 border border-white/5" />
         </div>
       </div>
     </div>

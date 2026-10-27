@@ -3,8 +3,9 @@ import { db } from "@/lib/db/client";
 import { tickers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { fetchCoinPrice } from "@/lib/scrapers/coingecko";
-import { Coins, CaretUp, CaretDown } from "@phosphor-icons/react/dist/ssr";
+import { CaretUp, CaretDown } from "@phosphor-icons/react/dist/ssr";
 import DoubleBezel from "../components/DoubleBezel";
+import { PageShell, PageHero } from "../components/editorial";
 
 export const metadata = {
   title: "Quantitative Market Analysis | MoodMetrics",
@@ -31,21 +32,9 @@ export default async function MarketsPage() {
   );
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-12 select-none overflow-hidden pb-20 font-mono">
-      {/* Header */}
-      <div className="mb-10">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/5 bg-[#0C0C0E] text-[10px] uppercase tracking-[0.2em] font-mono text-zinc-500 font-bold mb-4">
-          <Coins size={12} />
-          QUANTITATIVE METRICS BOARD
-        </div>
-        <h1 className="text-4xl font-extrabold tracking-tight text-white font-sans">
-          Market Intelligence
-        </h1>
-        <p className="text-zinc-500 text-sm mt-1 max-w-2xl font-sans">
-          Comparative overview of capitalization, trading activity, volume momentum ratios, and community metrics.
-        </p>
-      </div>
-
+    <PageShell>
+      <PageHero micro="Quantitative metrics board" lead="Market" accent="intelligence" description="Capitalization, trading activity, volume momentum and community metrics, side by side." />
+      <div className="px-4 md:px-5 py-5 border-t border-[var(--ed-border)]">
       {/* Quantitative Grid Table */}
       <div className="space-y-6">
         {marketRecords.map(({ ticker, stats }) => {
@@ -67,7 +56,7 @@ export default async function MarketsPage() {
                     ASSET CORE
                   </span>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-zinc-900 border border-white/5 flex items-center justify-center text-xs font-bold text-white">
+                    <div className="w-6 h-6 rounded bg-zinc-900 border border-[var(--ed-border)] flex items-center justify-center text-xs font-bold text-white">
                       {ticker.symbol}
                     </div>
                     <div>
@@ -161,5 +150,6 @@ export default async function MarketsPage() {
         })}
       </div>
     </div>
+    </PageShell>
   );
 }

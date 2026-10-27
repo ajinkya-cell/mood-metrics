@@ -1,25 +1,30 @@
 "use client";
 
-import React from "react";
-import { motion } from "motion/react";
+import React, { useEffect, useState } from "react";
+import { useMotionValueEvent, useReducedMotion, useSpring } from "motion/react";
 import Link from "next/link";
+
+// Machined segment gauge (void-ui Gauge language): an arc of short segments
+// around a recessed face. Segments between 0 and the score rise to a raised
+// near-white finish, and the leading one runs long in the sentiment colour as
+// the needle. The arc sweeps from 0 on mount.
 
 export interface MeterProps {
   /** Numerical sentiment score (typically -100 to +100) */
   score: number;
-  /** Label describing current sentiment (e.g. "NEUTRAL", "BULLISH", "BEARISH") */
+  /** Label describing current sentiment (e.g. "neutral", "bullish", "bearish") */
   label?: string;
-  /** Title text above score (default: "BLENDED SENTIMENT") */
+  /** Eyebrow above the readout (default: "Blended sentiment") */
   title?: string;
-  /** Sub-status badge text next to label (default: "COCKPIT GREEN") */
+  /** Optional extra text beside the status chip */
   statusTag?: string;
-  /** Breakdown text (default: "Blended components weighted: 45/35/15/5") */
+  /** Breakdown text under the readout */
   weightingText?: string;
   /** Methodology link destination (default: "/methodology") */
   methodologyUrl?: string;
-  /** Methodology link text (default: "METHODOLOGY READ MORE →") */
+  /** Methodology link text */
   methodologyText?: string;
-  /** Scale tick marks (default: [-100, -50, 0, 50, 100]) */
+  /** Labelled scale values (default: [-100, -50, 0, 50, 100]) */
   ticks?: number[];
   /** Minimum score boundary (default: -100) */
   minScore?: number;
@@ -27,26 +32,6 @@ export interface MeterProps {
   maxScore?: number;
   /** Optional custom container CSS classes */
   className?: string;
-}
-
-export function getNeedleCoordinates(
-  score: number,
-  minScore = -100,
-  maxScore = 100
-) {
-  // Normalize score between minScore and maxScore to -100..100 scale for geometry math
-  const clamped = Math.max(minScore, Math.min(maxScore, score));
-  const normalizedScore =
-    ((clamped - minScore) / (maxScore - minScore)) * 200 - 100;
-
-  const angleInDegrees = -90 + (normalizedScore / 100) * 135;
-  const angleInRadians = (angleInDegrees * Math.PI) / 180;
-  const radius = 52;
-  const cx = 90;
-  const cy = 90;
-  const x = cx + radius * Math.cos(angleInRadians);
-  const y = cy + radius * Math.sin(angleInRadians);
-  return { x, y };
 }
 
 export function getSentimentColorClass(score: number) {
@@ -61,160 +46,135 @@ export function getSentimentStroke(score: number) {
   return "#71717A";
 }
 
+// Geometry: 270° sweep with the gap at the bottom, centred on (100, 100)
+const SEGMENTS = 41; // odd, so one segment sits exactly on 0
+const SWEEP = 270;
+const R_IN = 70;
+const R_OUT = 84;
+const R_NEEDLE_IN = 58;
+const R_NEEDLE_OUT = 90;
+
+const angleFor = (v: number, min: number, max: number) => -90 + ((v - min) / (max - min) - 0.5) * SWEEP;
+const polar = (deg: number, r: number) => {
+  const rad = (deg * Math.PI) / 180;
+  return { x: 100 + r * Math.cos(rad), y: 100 + r * Math.sin(rad) };
+};
+
 export function Meter({
   score,
-  label = "NEUTRAL",
-  title = "BLENDED SENTIMENT",
-  statusTag = "COCKPIT GREEN",
-  weightingText = "Blended components weighted: 45/35/15/5",
+  label = "neutral",
+  title = "Blended sentiment",
+  statusTag,
+  weightingText = "News 45 · Reddit 35 · Funding 15 · Fear & Greed 5",
   methodologyUrl = "/methodology",
-  methodologyText = "METHODOLOGY READ MORE →",
+  methodologyText = "How it's calculated →",
   ticks = [-100, -50, 0, 50, 100],
   minScore = -100,
   maxScore = 100,
   className = "",
 }: MeterProps) {
-  const sentimentColor = getSentimentColorClass(score);
-  const strokeColor = getSentimentStroke(score);
-  const needleCoords = getNeedleCoordinates(score, minScore, maxScore);
+  const clamped = Math.max(minScore, Math.min(maxScore, score));
+  const stroke = getSentimentStroke(score);
+  const reduceMotion = useReducedMotion();
+
+  // Sweep the arc from 0 to the score; jump straight there for reduced motion
+  const spring = useSpring(0, { stiffness: 90, damping: 18, mass: 0.8 });
+  const [shown, setShown] = useState(0);
+  useMotionValueEvent(spring, "change", (v) => setShown(v));
+  useEffect(() => {
+    if (reduceMotion) spring.jump(clamped);
+    else spring.set(clamped);
+  }, [clamped, reduceMotion, spring]);
+
+  const step = (maxScore - minScore) / (SEGMENTS - 1);
+  // Index of the segment nearest the animated value = the needle
+  const lead = Math.round((shown - minScore) / step);
+  const zero = Math.round((0 - minScore) / step);
 
   return (
-    <div
-      className={`grid grid-cols-1 md:grid-cols-2 gap-6 items-center w-full ${className}`}
-    >
-      {/* Left: The clean, uncluttered dial gauge */}
-      <div className="relative w-48 h-48 mx-auto flex items-center justify-center">
-        <svg
-          viewBox="0 0 180 180"
-          className="w-full h-full overflow-visible"
-        >
-          {/* Background Dial Track */}
-          <path
-            d="M 40.5 139.5 A 70 70 0 1 1 139.5 139.5"
-            fill="none"
-            stroke="rgba(255,255,255,0.03)"
-            strokeWidth="10"
-            strokeLinecap="round"
-          />
-          {/* Colored Active Sentiment Track Outline */}
-          <path
-            d="M 40.5 139.5 A 70 70 0 1 1 139.5 139.5"
-            fill="none"
-            stroke={strokeColor}
-            strokeWidth="2"
-            strokeOpacity="0.25"
-            strokeLinecap="round"
-          />
+    <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 items-center w-full ${className}`}>
+      <div className="relative w-52 h-52 mx-auto">
+        <svg viewBox="0 0 200 200" className="w-full h-full overflow-visible" role="img" aria-label={`${title}: ${score}`}>
+          <defs>
+            <radialGradient id="meterFace" cx="50%" cy="38%" r="65%">
+              <stop offset="0%" stopColor="#111113" />
+              <stop offset="100%" stopColor="#09090a" />
+            </radialGradient>
+          </defs>
 
-          {/* Dial Scale Tick Marks & Numbers */}
-          {ticks.map((val) => {
-            const normalizedVal =
-              ((val - minScore) / (maxScore - minScore)) * 200 - 100;
-            const angle = -90 + (normalizedVal / 100) * 135;
-            const rad = (angle * Math.PI) / 180;
+          {/* Recessed face: dark well with an inner hairline and a lit lower lip */}
+          <circle cx="100" cy="100" r="60" fill="url(#meterFace)" />
+          <circle cx="100" cy="100" r="60" fill="none" stroke="rgba(0,0,0,0.8)" strokeWidth="3" />
+          <circle cx="100" cy="100" r="61.5" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
 
-            // Ticks coordinates
-            const tx1 = 90 + 64 * Math.cos(rad);
-            const ty1 = 90 + 64 * Math.sin(rad);
-            const tx2 = 90 + 72 * Math.cos(rad);
-            const ty2 = 90 + 72 * Math.sin(rad);
-
-            // Numbers placement
-            const lx = 90 + 84 * Math.cos(rad);
-            const ly = 90 + 84 * Math.sin(rad);
-
+          {/* Machined segments */}
+          {Array.from({ length: SEGMENTS }, (_, i) => {
+            const v = minScore + i * step;
+            const a = angleFor(v, minScore, maxScore);
+            const isLead = i === lead;
+            const lit = lead >= zero ? i >= zero && i < lead : i <= zero && i > lead;
+            const p1 = polar(a, isLead ? R_NEEDLE_IN : R_IN);
+            const p2 = polar(a, isLead ? R_NEEDLE_OUT : R_OUT);
             return (
-              <g
-                key={val}
-                className="font-mono text-[8.5px] fill-zinc-500 select-none"
-              >
-                <line
-                  x1={tx1}
-                  y1={ty1}
-                  x2={tx2}
-                  y2={ty2}
-                  stroke="rgba(255, 255, 255, 0.12)"
-                  strokeWidth="1.2"
-                />
-                <text x={lx} y={ly + 3} textAnchor="middle">
-                  {val > 0 ? `+${val}` : val}
-                </text>
-              </g>
+              <line
+                key={i}
+                x1={p1.x}
+                y1={p1.y}
+                x2={p2.x}
+                y2={p2.y}
+                strokeLinecap="round"
+                strokeWidth={isLead ? 3.2 : 2.4}
+                stroke={isLead ? stroke : lit ? "#e9e9ea" : "rgba(255,255,255,0.08)"}
+                style={isLead ? { filter: `drop-shadow(0 0 3px ${stroke})` } : undefined}
+              />
             );
           })}
 
-          {/* Animated Spring Needle */}
-          <motion.line
-            x1="90"
-            y1="90"
-            initial={{ x2: 90, y2: 38 }}
-            animate={{ x2: needleCoords.x, y2: needleCoords.y }}
-            transition={{
-              type: "spring",
-              stiffness: 100,
-              damping: 15,
-              mass: 0.8,
-            }}
-            stroke={strokeColor}
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            style={{ filter: "drop-shadow(0 0 3px currentColor)" }}
-          />
-          <circle
-            cx="90"
-            cy="90"
-            r="5"
-            fill="#0C0C0E"
-            stroke="#71717A"
-            strokeWidth="1.5"
-          />
+          {/* Scale labels outside the arc */}
+          {ticks.map((t) => {
+            const p = polar(angleFor(t, minScore, maxScore), 98);
+            return (
+              <text
+                key={t}
+                x={p.x}
+                y={p.y + 3}
+                textAnchor="middle"
+                fontSize="8"
+                fill="oklch(98.5% 0 0 / 0.4)"
+                style={{ fontFamily: "var(--font-grotesk)" }}
+              >
+                {t > 0 ? `+${t}` : t}
+              </text>
+            );
+          })}
         </svg>
+
+        {/* Score in the face, extruded */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <span className="ed-display ed-accent text-[3.4rem] leading-none tabular-nums">
+            {score > 0 ? "+" : ""}
+            {score}
+          </span>
+          <span className="ed-micro text-[9px] mt-1 text-[var(--ed-fg-50)]">of ±100</span>
+        </div>
       </div>
 
-      {/* Right: The big, score metrics & labels */}
-      <div className="flex flex-col items-center md:items-start text-center md:text-left justify-center font-mono">
-        {title && (
-          <span className="text-xs text-zinc-500 tracking-[0.2em] uppercase">
-            {title}
+      <div className="flex flex-col items-center md:items-start text-center md:text-left">
+        <span className="ed-eyebrow">{title}</span>
+        <div className="flex items-center gap-2 mt-3">
+          <span className="ed-tag text-[11px]">
+            <span className="ed-square" style={{ background: stroke }} />
+            {label}
           </span>
-        )}
-
-        <motion.span
-          key={score}
-          initial={{ x: -15, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 100, damping: 15 }}
-          className={`text-6xl md:text-7xl font-bold tracking-tighter ${sentimentColor} my-1`}
-        >
-          {score > 0 ? "+" : ""}
-          {score}
-        </motion.span>
-
-        <div className="flex items-center gap-2 mt-1">
-          {label && (
-            <span
-              className={`text-xs uppercase font-bold px-2.5 py-1 rounded bg-white/5 border border-white/5 ${sentimentColor}`}
-            >
-              {label}
-            </span>
-          )}
-          {statusTag && (
-            <span className="text-xs text-zinc-500">{statusTag}</span>
-          )}
+          {statusTag && <span className="text-[13px] text-[var(--ed-fg-55)]">{statusTag}</span>}
         </div>
-
-        {/* Short subtext breakdown */}
         {weightingText && (
-          <span className="text-xs text-zinc-500 mt-6 max-w-[200px] leading-relaxed border-t border-white/5 pt-3">
+          <p className="mt-5 pt-4 border-t border-[var(--ed-border)] max-w-[220px] text-[13px] leading-relaxed text-[var(--ed-fg-55)]">
             {weightingText}
-          </span>
+          </p>
         )}
-
         {methodologyUrl && methodologyText && (
-          <Link
-            href={methodologyUrl}
-            className="text-[10px] text-emerald-400 hover:text-emerald-300 underline font-bold mt-2 font-mono tracking-wider transition-colors duration-200"
-          >
+          <Link href={methodologyUrl} className="mt-2 text-[13px] text-[var(--ed-fg-70)] hover:text-white transition-colors duration-150">
             {methodologyText}
           </Link>
         )}

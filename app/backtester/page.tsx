@@ -2,20 +2,17 @@
 
 import React, { useState } from "react";
 import {
-  Sliders,
   Play,
   ChartLineUp,
-  Percent,
   Coins,
   ShieldCheck,
-  ArrowRight,
   Info,
   Spinner,
-  BookOpen,
 } from "@phosphor-icons/react";
 import DoubleBezel from "../components/DoubleBezel";
-import GlowCard from "../components/GlowCard";
-import SectionEyebrow from "../components/SectionEyebrow";
+import { PageShell, PageHero, Hatch, SectionHeading } from "../components/editorial";
+import { LineChart } from "../components/charts/LineChart";
+import { compact } from "../components/charts/scale";
 
 type BacktestResult = {
   totalReturn: number;
@@ -215,130 +212,60 @@ export default function BacktesterPage() {
   };
 
   // Render SVG Chart for Backtester
+  // Strategy (popout line) against holding (dashed), void-ui line chart
   const renderEquityCurve = () => {
     if (!result) return null;
-
-    const data = result.equityCurve;
-    const width = 600;
-    const height = 200;
-    const padding = 20;
-
-    // Find min and max valuations to scale graph
-    const allVals = data.flatMap((d) => [d.strategy, d.benchmark]);
-    const maxVal = Math.max(...allVals, initialCapital);
-    const minVal = Math.min(...allVals, initialCapital);
-    const valRange = maxVal - minVal || 1;
-
-    const getCoords = (day: number, val: number) => {
-      const x = padding + ((day - 1) / (data.length - 1)) * (width - padding * 2);
-      const y = height - padding - ((val - minVal) / valRange) * (height - padding * 2);
-      return { x, y };
-    };
-
-    let stratPath = "";
-    let benchPath = "";
-
-    if (data.length > 0) {
-      const startStrat = getCoords(data[0].day, data[0].strategy);
-      const startBench = getCoords(data[0].day, data[0].benchmark);
-
-      stratPath = `M ${startStrat.x} ${startStrat.y}`;
-      benchPath = `M ${startBench.x} ${startBench.y}`;
-
-      for (let i = 1; i < data.length; i++) {
-        const strat = getCoords(data[i].day, data[i].strategy);
-        const bench = getCoords(data[i].day, data[i].benchmark);
-        stratPath += ` L ${strat.x} ${strat.y}`;
-        benchPath += ` L ${bench.x} ${bench.y}`;
-      }
-    }
-
+    const hourly = result.isReal;
     return (
-      <div className="border border-white/5 bg-[#08080A] rounded-2xl p-4 overflow-hidden relative">
-        <div className="flex justify-between items-baseline mb-4 font-mono text-[10px] text-zinc-500 uppercase">
-          <span>EQUITY CURVE ({result.isReal ? `REAL TELEMETRY • ${result.equityCurve.length}h` : "30D SIMULATED"})</span>
-          <span className="flex gap-4">
-            <span className="text-emerald-400 font-bold">▲ STRATEGY</span>
-            <span className="text-zinc-500 font-bold">■ HODL BENCHMARK</span>
-          </span>
-        </div>
-
-        <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%">
-          {/* Grid line at Initial Capital */}
-          {minVal < initialCapital && maxVal > initialCapital && (
-            <line
-              x1={padding}
-              y1={getCoords(1, initialCapital).y}
-              x2={width - padding}
-              y2={getCoords(1, initialCapital).y}
-              stroke="rgba(255,255,255,0.06)"
-              strokeDasharray="4 4"
-            />
-          )}
-
-          {/* Benchmark line (zinc/rose) */}
-          {benchPath && (
-            <path
-              d={benchPath}
-              fill="none"
-              stroke="#71717A"
-              strokeWidth="1.5"
-              strokeDasharray="2 2"
-              className="opacity-60"
-            />
-          )}
-
-          {/* Strategy line (emerald) */}
-          {stratPath && (
-            <path
-              d={stratPath}
-              fill="none"
-              stroke="#10B981"
-              strokeWidth="2.5"
-              style={{ filter: "drop-shadow(0 0 4px rgba(16,185,129,0.3))" }}
-            />
-          )}
-        </svg>
-      </div>
+      <LineChart
+        bare
+        size="fluid"
+        label={`Equity curve · ${hourly ? `${result.equityCurve.length}h of real history` : "30-day simulation"}`}
+        data={result.equityCurve}
+        xKey="day"
+        series={[
+          { key: "strategy", label: "Strategy" },
+          { key: "benchmark", label: "Hold" },
+        ]}
+        height={220}
+        formatValue={(v) => `$${compact(v)}`}
+        formatX={(d) => `${hourly ? "H" : "D"}${d}`}
+        tooltipTitle={(i) => `${hourly ? "Hour" : "Day"} ${result.equityCurve[i]?.day}`}
+      />
     );
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 pt-25 py-12 select-none overflow-hidden pb-20 font-mono">
-      {/* Header */}
-      <div className="mb-10 border-b border-white/5 pb-8">
-        <SectionEyebrow icon={<Sliders size={12} className="text-emerald-400" />}>
-          BACKTEST LABELS
-        </SectionEyebrow>
-        <h1 className="text-4xl font-extrabold tracking-tight text-white font-sans mt-2">
-          Strategy Backtester
-        </h1>
-        <p className="text-zinc-500 text-sm mt-1 max-w-2xl font-sans leading-relaxed">
-          Simulate trading rules on historical sentiment data parameters. Set entry limits based on bullish sentiment surges and exit conditions to avoid capital drawdown.
-        </p>
-      </div>
+    <PageShell>
+      <PageHero
+        micro="Backtest · Strategy simulator"
+        lead="Would sentiment have"
+        accent="paid"
+        tail="?"
+        description="Simulate trading rules on historical sentiment. Enter when the crowd surges, exit before the drawdown, and compare against simply holding."
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <section className="px-4 md:px-5 pt-5 pb-5 grid grid-cols-1 lg:grid-cols-12 gap-3 border-t border-[var(--ed-border)]">
         {/* Left Side: Strategy Configurations */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
+        <div className="lg:col-span-5 flex flex-col gap-3">
           <DoubleBezel className="p-6">
-            <h2 className="text-sm font-bold text-white flex items-center gap-1.5 mb-6 border-b border-white/5 pb-4">
-              <Coins className="text-emerald-400" /> Parameter Configurations
+            <h2 className="ed-eyebrow flex items-center gap-2 mb-5">
+              <Coins size={14} /> Strategy parameters
             </h2>
 
             <div className="space-y-4">
               {loadError && (
-                <div className="text-[10px] text-rose-400 bg-rose-950/20 border border-rose-500/25 p-3 rounded-lg leading-relaxed font-sans">
+                <div className="text-[13px] text-rose-300 p-3 rounded-[10px] shadow-[0_0_0_1px_rgba(251,113,133,0.3)] leading-relaxed">
                   Telemetry Alert: {loadError}. Simulation will use simulated Monte Carlo fallback.
                 </div>
               )}
               {/* Target Component */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] text-zinc-500 font-bold uppercase">Asset Component</label>
+                <label className="ed-eyebrow">Asset Component</label>
                 <select
                   value={ticker}
                   onChange={(e) => setTicker(e.target.value)}
-                  className="bg-black border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-white/10 w-full"
+                  className="ed-input px-3.5 py-2.5 text-[14px] w-full"
                 >
                   <option value="BTC">BTC — Bitcoin</option>
                   <option value="ETH">ETH — Ethereum</option>
@@ -348,11 +275,11 @@ export default function BacktesterPage() {
 
               {/* Strategy Select */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] text-zinc-500 font-bold uppercase">Strategy Archetype</label>
+                <label className="ed-eyebrow">Strategy Archetype</label>
                 <select
                   value={strategy}
                   onChange={(e) => setStrategy(e.target.value)}
-                  className="bg-black border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-white/10 w-full"
+                  className="ed-input px-3.5 py-2.5 text-[14px] w-full"
                 >
                   <option value="trend_following">Trend Following (Buy High Sentiment)</option>
                   <option value="contrarian">Contrarian Reversion (Buy Panic Lows)</option>
@@ -362,7 +289,7 @@ export default function BacktesterPage() {
               {/* Threshold limits */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] text-zinc-500 font-bold uppercase">Entry Threshold</label>
+                  <label className="ed-eyebrow">Entry Threshold</label>
                   <input
                     type="number"
                     min="-100"
@@ -372,11 +299,11 @@ export default function BacktesterPage() {
                       const val = parseInt(e.target.value, 10);
                       setEntryThreshold(isNaN(val) ? 0 : val);
                     }}
-                    className="bg-black border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-white/10 w-full text-center"
+                    className="ed-input px-3.5 py-2.5 text-[14px] w-full text-center"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] text-zinc-500 font-bold uppercase">Exit Threshold</label>
+                  <label className="ed-eyebrow">Exit Threshold</label>
                   <input
                     type="number"
                     min="-100"
@@ -386,14 +313,14 @@ export default function BacktesterPage() {
                       const val = parseInt(e.target.value, 10);
                       setExitThreshold(isNaN(val) ? 0 : val);
                     }}
-                    className="bg-black border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-white/10 w-full text-center"
+                    className="ed-input px-3.5 py-2.5 text-[14px] w-full text-center"
                   />
                 </div>
               </div>
 
               {/* Initial Capital */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] text-zinc-500 font-bold uppercase">Initial Capital (USD)</label>
+                <label className="ed-eyebrow">Initial Capital (USD)</label>
                 <input
                   type="number"
                   value={isNaN(initialCapital) ? "" : initialCapital}
@@ -401,7 +328,7 @@ export default function BacktesterPage() {
                     const val = parseInt(e.target.value, 10);
                     setInitialCapital(isNaN(val) ? 0 : val);
                   }}
-                  className="bg-black border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-white/10 w-full text-left"
+                  className="ed-input px-3.5 py-2.5 text-[14px] w-full text-left"
                 />
               </div>
 
@@ -409,19 +336,19 @@ export default function BacktesterPage() {
                 type="button"
                 onClick={runSimulation}
                 disabled={isSimulating || isLoadingData}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-850 disabled:text-zinc-600 text-black text-xs font-bold uppercase rounded-lg flex items-center justify-center gap-2 transition-all duration-300 active:scale-98 shadow-[0_0_15px_rgba(16,185,129,0.2)] disabled:cursor-not-allowed"
+                className="ed-chip ed-press w-full py-3 text-[14px] font-medium text-white flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isLoadingData ? (
                   <>
-                    <Spinner className="animate-spin" size={14} /> LOADING TELEMETRY...
+                    <Spinner className="animate-spin" size={14} /> Loading history…
                   </>
                 ) : isSimulating ? (
                   <>
-                    <Spinner className="animate-spin" size={14} /> COMPUTING HISTORICAL TRADES...
+                    <Spinner className="animate-spin" size={14} /> Computing trades…
                   </>
                 ) : (
                   <>
-                    <Play size={10} /> EXECUTE SIMULATION
+                    <Play size={11} weight="fill" /> Run simulation
                   </>
                 )}
               </button>
@@ -430,11 +357,11 @@ export default function BacktesterPage() {
         </div>
 
         {/* Right Side: Backtest Dashboard Results */}
-        <div className="lg:col-span-7 flex flex-col gap-6">
+        <div className="lg:col-span-7 flex flex-col gap-3">
           <DoubleBezel className="p-6 h-full flex flex-col justify-between">
             <div>
-              <h2 className="text-sm font-bold text-white flex items-center gap-1.5 mb-6 border-b border-white/5 pb-4">
-                <ChartLineUp className="text-emerald-400" /> Backtest Telemetry Readout
+              <h2 className="ed-eyebrow flex items-center gap-2 mb-5">
+                <ChartLineUp size={14} /> Results
               </h2>
 
               {isSimulating ? (
@@ -445,44 +372,44 @@ export default function BacktesterPage() {
               ) : result ? (
                 <div className="space-y-6">
                   {/* Grid of basic performance widgets */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
                     {/* Strategy Return */}
-                    <div className={`border-l-2 pl-3 py-1 bg-white/[0.005] ${result.totalReturn > 0 ? "border-emerald-500/40" : "border-rose-500/40"}`}>
-                      <span className="text-[8px] text-zinc-500 uppercase font-bold block mb-1">STRATEGY RETURN</span>
-                      <span className={`text-lg font-extrabold ${result.totalReturn > 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    <div className={`border-l pl-3.5 py-1 ${result.totalReturn > 0 ? "border-emerald-500/40" : "border-rose-500/40"}`}>
+                      <span className="ed-eyebrow block mb-2">STRATEGY RETURN</span>
+                      <span className={`font-display text-4xl leading-none tracking-tight tabular-nums ${result.totalReturn > 0 ? "text-emerald-400" : "text-rose-400"}`}>
                         {result.totalReturn > 0 ? "+" : ""}
                         {result.totalReturn.toFixed(1)}%
                       </span>
                     </div>
 
                     {/* Benchmark Return */}
-                    <div className={`border-l-2 pl-3 py-1 bg-white/[0.005] ${result.benchmarkReturn > 0 ? "border-zinc-500/40" : "border-rose-500/40"}`}>
-                      <span className="text-[8px] text-zinc-500 uppercase font-bold block mb-1">HODL BENCHMARK</span>
-                      <span className={`text-lg font-bold ${result.benchmarkReturn > 0 ? "text-zinc-300" : "text-rose-400"}`}>
+                    <div className={`border-l pl-3.5 py-1 ${result.benchmarkReturn > 0 ? "border-zinc-500/40" : "border-rose-500/40"}`}>
+                      <span className="ed-eyebrow block mb-2">HODL BENCHMARK</span>
+                      <span className={`font-display text-4xl leading-none tracking-tight tabular-nums ${result.benchmarkReturn > 0 ? "text-zinc-300" : "text-rose-400"}`}>
                         {result.benchmarkReturn > 0 ? "+" : ""}
                         {result.benchmarkReturn.toFixed(1)}%
                       </span>
                     </div>
 
                     {/* Sharpe Ratio */}
-                    <div className="border-l-2 border-zinc-500/40 pl-3 py-1 bg-white/[0.005]">
-                      <span className="text-[8px] text-zinc-500 uppercase font-bold block mb-1">SHARPE RATIO</span>
-                      <span className="text-lg font-bold text-white">
+                    <div className="border-l border-zinc-500/40 pl-3.5 py-1">
+                      <span className="ed-eyebrow block mb-2">SHARPE RATIO</span>
+                      <span className="font-display text-4xl leading-none tracking-tight tabular-nums text-white">
                         {result.sharpeRatio.toFixed(2)}
                       </span>
                     </div>
 
                     {/* Max Drawdown */}
-                    <div className="border-l-2 border-rose-500/40 pl-3 py-1 bg-white/[0.005]">
-                      <span className="text-[8px] text-zinc-500 uppercase font-bold block mb-1">MAX DRAWDOWN</span>
-                      <span className="text-lg font-bold text-rose-400">
+                    <div className="border-l border-rose-500/40 pl-3.5 py-1">
+                      <span className="ed-eyebrow block mb-2">MAX DRAWDOWN</span>
+                      <span className="font-display text-4xl leading-none tracking-tight tabular-nums text-rose-400">
                         -{result.maxDrawdown.toFixed(1)}%
                       </span>
                     </div>
                   </div>
 
                   {/* Details stats lists */}
-                  <div className="border-t border-b border-white/5 py-4 font-sans text-xs text-zinc-400 space-y-3">
+                  <div className="border-t border-b border-[var(--ed-border)] py-4 text-[14px] text-[var(--ed-fg-55)] space-y-3">
                     <div className="flex justify-between">
                       <span>Total Executed Trades:</span>
                       <span className="text-white font-mono font-bold">{result.tradesCount} positions</span>
@@ -507,7 +434,7 @@ export default function BacktesterPage() {
                   {renderEquityCurve()}
                 </div>
               ) : (
-                <div className="text-center py-28 text-zinc-500 text-xs font-sans flex flex-col items-center justify-center gap-2">
+                <div className="text-center py-28 text-[var(--ed-fg-55)] text-[14px] flex flex-col items-center justify-center gap-2">
                   <Info size={16} className="text-zinc-600" />
                   <span>Configure options on the left and execute backtest to review quantitative simulation metrics.</span>
                 </div>
@@ -515,7 +442,7 @@ export default function BacktesterPage() {
             </div>
 
             {result && (
-              <div className="mt-6 border-t border-white/5 pt-4 text-[9px] text-zinc-500 flex justify-between items-center font-sans">
+              <div className="mt-6 border-t border-[var(--ed-border)] pt-4 text-[12px] text-[var(--ed-fg-50)] flex justify-between items-center">
                 <span className="flex items-center gap-1">
                   <ShieldCheck size={12} className="text-emerald-400" /> {result.isReal ? "Backtest executed on real database history" : "Backtest executed on simulated telemetry fallback"}
                 </span>
@@ -524,27 +451,21 @@ export default function BacktesterPage() {
             )}
           </DoubleBezel>
         </div>
-      </div>
+      </section>
 
       {/* Detailed In-depth Backtest Reference Manual with Sticky TOC Sidebar */}
-      <DoubleBezel className="w-full mt-12 p-8 font-sans">
-        <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
-          <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">
-            <BookOpen size={20} />
-          </div>
-          <div>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight font-sans">BACKTEST: USER MANUAL & MATHEMATICAL REFERENCE</h2>
-            <span className="text-xs text-zinc-500 font-mono">MOODMETRICS SIMULATION HANDBOOK • SPECIFICATION v2.0</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <Hatch />
+      <SectionHeading
+        eyebrow="Handbook · Specification v2.0"
+        lead="The maths behind the"
+        accent="backtest"
+        aside="How the strategies decide, and how returns, Sharpe ratio and drawdown are computed."
+      />
+        <div className="px-5 md:px-8 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           {/* TOC Sidebar */}
-          <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4 border-r border-white/5 pr-6">
-            <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest font-mono">
-              DOCUMENT OUTLINE
-            </span>
-            <nav className="flex flex-col gap-2 font-mono text-xs">
+          <aside className="lg:col-span-3 sticky top-28 hidden lg:flex flex-col gap-4">
+            <span className="ed-micro">In this handbook</span>
+            <nav className="flex flex-col gap-0.5 text-[14px]">
               {[
                 { id: "concept", label: "1. Core Philosophy" },
                 { id: "layers", label: "2. Ingestion Matrix" },
@@ -556,12 +477,15 @@ export default function BacktesterPage() {
                 <button
                   key={sec.id}
                   onClick={() => scrollToDocSection(sec.id)}
-                  className={`text-left py-1.5 px-3 rounded transition-all cursor-pointer ${
-                    activeDocSection === sec.id
-                      ? "bg-white/5 border border-white/10 text-white font-bold"
-                      : "text-zinc-500 hover:text-zinc-300"
+                  className={`ed-press flex items-center gap-2.5 text-left py-1.5 cursor-pointer transition-colors duration-300 ${
+                    activeDocSection === sec.id ? "text-white" : "text-[var(--ed-fg-55)] hover:text-[var(--ed-fg-90)]"
                   }`}
                 >
+                  <span
+                    className={`ed-square transition-colors duration-300 ${
+                      activeDocSection === sec.id ? "bg-[var(--ed-blue-label)]" : "shadow-[inset_0_0_0_1px_var(--ed-border)]"
+                    }`}
+                  />
                   {sec.label}
                 </button>
               ))}
@@ -569,10 +493,9 @@ export default function BacktesterPage() {
           </aside>
 
           {/* Doc Articles */}
-          <main className="lg:col-span-9 text-zinc-300 font-sans text-sm md:text-base leading-relaxed max-w-3xl space-y-16 pl-4">
+          <main className="lg:col-span-9 text-[var(--ed-fg-70)] text-[16px] leading-[1.7] tracking-[0.01em] max-w-3xl space-y-20">
             <section id="doc-concept" className="scroll-mt-28 space-y-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
                 1. Narrative Reflexivity
               </h2>
               <p>
@@ -584,14 +507,13 @@ export default function BacktesterPage() {
             </section>
 
             <section id="doc-layers" className="scroll-mt-28 space-y-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
                 2. The 5-Layer Sentiment Formula
               </h2>
               <p>
                 Our blended sentiment score <span className="font-mono text-zinc-300">S_t</span> dynamically combines five orthogonal telemetry streams:
               </p>
-              <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-5 text-xs text-zinc-400 font-mono space-y-2 max-w-xl">
+              <div className="ed-bento ed-iso p-5 text-[14px] text-[var(--ed-fg-70)] space-y-2 max-w-xl">
                 <div className="flex justify-between">
                   <span className="text-emerald-400">L1 News Inflow</span>
                   <span className="text-zinc-500">45% Weight</span>
@@ -608,7 +530,7 @@ export default function BacktesterPage() {
                   <span className="text-emerald-400">L4 Fear & Greed Index</span>
                   <span className="text-zinc-500">5% Weight</span>
                 </div>
-                <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1">
+                <div className="flex justify-between border-t border-[var(--ed-border)] pt-1.5 mt-1">
                   <span className="text-white font-bold">L5 Whale Flow Telemetry</span>
                   <span className="text-emerald-400">Additive Overlay</span>
                 </div>
@@ -616,14 +538,13 @@ export default function BacktesterPage() {
             </section>
 
             <section id="doc-trend" className="scroll-mt-28 space-y-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
                 3. Trend Following Archetype
               </h2>
               <p>
                 The <strong>Trend Following</strong> archetype assumes that sentiment drives strong directional momentum. A buy trigger opens a long trade when the sentiment exceeds a bullish threshold, capturing macro appreciation.
               </p>
-              <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-xs text-zinc-400 font-mono space-y-1.5 max-w-xl">
+              <div className="ed-bento p-4 text-[14px] text-[var(--ed-fg-70)] space-y-1.5 max-w-xl">
                 <div>• Buy: <span className="text-emerald-400">Sentiment_t &ge; Entry_Threshold</span></div>
                 <div>• Exit: <span className="text-rose-400">Sentiment_t &le; Exit_Threshold</span></div>
                 <div>• Risk: Sideways consolidation triggers frequent whipsaws.</div>
@@ -631,14 +552,13 @@ export default function BacktesterPage() {
             </section>
 
             <section id="doc-contrarian" className="scroll-mt-28 space-y-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
                 4. Contrarian Mean Reversion
               </h2>
               <p>
                 The <strong>Contrarian</strong> archetype exploits overreactions. Markets tend to exhaust themselves at extremes of panic (extreme negative sentiment) and euphoria (extreme positive sentiment).
               </p>
-              <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-xs text-zinc-400 font-mono space-y-1.5 max-w-xl">
+              <div className="ed-bento p-4 text-[14px] text-[var(--ed-fg-70)] space-y-1.5 max-w-xl">
                 <div>• Buy: <span className="text-emerald-400">Sentiment_t &le; Entry_Threshold (Panic)</span></div>
                 <div>• Exit: <span className="text-rose-400">Sentiment_t &ge; Exit_Threshold (Euphoria)</span></div>
                 <div>• Risk: Prone to early entry during severe liquidation dumps.</div>
@@ -646,14 +566,13 @@ export default function BacktesterPage() {
             </section>
 
             <section id="doc-sharpe" className="scroll-mt-28 space-y-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
                 5. Risk Adjusted Returns (Sharpe)
               </h2>
               <p>
                 Returns are meaningless without factoring the volatility risk endured to earn them. The Sharpe Ratio evaluates risk-adjusted yield:
               </p>
-              <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-xs my-3 max-w-xl">
+              <div className="ed-bento p-4 text-center text-[var(--ed-fg-90)] font-mono text-xs my-3 max-w-xl">
                 Sharpe = (R_strategy - R_riskfree) / Volatility
               </div>
               <p>
@@ -662,14 +581,13 @@ export default function BacktesterPage() {
             </section>
 
             <section id="doc-drawdown" className="scroll-mt-28 space-y-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-white font-sans border-b border-white/5 pb-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <h2 className="ed-display text-4xl md:text-[2.75rem] text-white pb-4 border-b border-[var(--ed-border)]">
                 6. Max Drawdown (MDD) Control
               </h2>
               <p>
                 Maximum Drawdown measures the maximum percentage loss observed from a peak to a trough of portfolio equity before a new peak is attained.
               </p>
-              <div className="bg-[#0A0A0C] border border-white/5 rounded-xl p-4 text-center text-white font-mono text-xs my-3 max-w-xl">
+              <div className="ed-bento p-4 text-center text-[var(--ed-fg-90)] font-mono text-xs my-3 max-w-xl">
                 Drawdown_t = (Peak_Equity - Current_Equity) / Peak_Equity
               </div>
               <p>
@@ -678,7 +596,6 @@ export default function BacktesterPage() {
             </section>
           </main>
         </div>
-      </DoubleBezel>
-    </div>
+    </PageShell>
   );
 }

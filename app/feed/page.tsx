@@ -3,8 +3,9 @@ import Link from "next/link";
 import { db } from "@/lib/db/client";
 import { rawPosts, tickers } from "@/lib/db/schema";
 import { desc, eq, and } from "drizzle-orm";
-import { Database, ArrowSquareOut, Newspaper, RedditLogo } from "@phosphor-icons/react/dist/ssr";
+import { ArrowSquareOut, Newspaper, RedditLogo } from "@phosphor-icons/react/dist/ssr";
 import DoubleBezel from "../components/DoubleBezel";
+import { PageShell, PageHero } from "../components/editorial";
 
 export const metadata = {
   title: "Raw Ingestion Feed | MoodMetrics",
@@ -54,29 +55,11 @@ export default async function FeedPage({ searchParams }: PageProps) {
     .limit(50);
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-12 select-none overflow-hidden pb-20 font-mono">
-      {/* Header */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/5 bg-[#0C0C0E] text-[10px] uppercase tracking-[0.2em] font-mono text-zinc-500 font-bold mb-4">
-            <Database size={12} />
-            RAW DATABASE INGEST
-          </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-white font-sans">
-            System Ingestion Feed
-          </h1>
-          <p className="text-zinc-500 text-sm mt-1 max-w-2xl font-sans">
-            Direct real-time view of raw posts and publications ingested by our crawlers prior to AI labeling.
-          </p>
-        </div>
-
-        <span className="text-[10px] text-zinc-600 bg-white/5 border border-white/5 px-3 py-1.5 rounded-full font-bold">
-          TOTAL DISPLAYED: {feedItems.length} ITEMS
-        </span>
-      </div>
-
+    <PageShell>
+      <PageHero micro="Raw database ingest" lead="Straight from the" accent="crawlers" description="Raw posts and publications exactly as the crawlers ingested them, before AI labelling." aside={<span className="ed-tag">{feedItems.length} items</span>} />
+      <div className="px-4 md:px-5 py-5 border-t border-[var(--ed-border)]">
       {/* Filter Tabs */}
-      <div className="flex flex-col gap-4 mb-8 bg-zinc-950/20 p-4 border border-white/5 rounded-2xl">
+      <div className="flex flex-col gap-4 mb-8 ed-bento p-4">
         {/* Tickers Filter */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] text-zinc-600 font-bold uppercase mr-3">
@@ -88,8 +71,8 @@ export default async function FeedPage({ searchParams }: PageProps) {
               href={`/feed?symbol=${sym}&source=${activeSource}`}
               className={`px-3 py-1 rounded-md text-[10.5px] border transition-all duration-300 ${
                 activeSymbol === sym
-                  ? "bg-white/10 border-white/10 text-white font-bold"
-                  : "bg-black/40 border-white/5 text-zinc-500 hover:text-zinc-300"
+                  ? "bg-white/10 border-[var(--ed-border)] text-white font-bold"
+                  : "bg-black/40 border-[var(--ed-border)] text-zinc-500 hover:text-zinc-300"
               }`}
             >
               {sym}
@@ -98,7 +81,7 @@ export default async function FeedPage({ searchParams }: PageProps) {
         </div>
 
         {/* Sources Filter */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
+        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--ed-border)] pt-3">
           <span className="text-[10px] text-zinc-600 font-bold uppercase mr-3">
             FEED INGESTION CHANNELS:
           </span>
@@ -108,8 +91,8 @@ export default async function FeedPage({ searchParams }: PageProps) {
               href={`/feed?symbol=${activeSymbol}&source=${src}`}
               className={`px-3 py-1 rounded-md text-[10.5px] border transition-all duration-300 ${
                 activeSource === src
-                  ? "bg-white/10 border-white/10 text-white font-bold"
-                  : "bg-black/40 border-white/5 text-zinc-500 hover:text-zinc-300"
+                  ? "bg-white/10 border-[var(--ed-border)] text-white font-bold"
+                  : "bg-black/40 border-[var(--ed-border)] text-zinc-500 hover:text-zinc-300"
               }`}
             >
               {src.replace("_", " ")}
@@ -121,7 +104,7 @@ export default async function FeedPage({ searchParams }: PageProps) {
       {/* Ingestion feed stream */}
       <div className="space-y-4">
         {feedItems.length === 0 ? (
-          <div className="text-center py-20 text-zinc-500 border border-white/5 rounded-2xl bg-[#0C0C0E]/40 font-sans text-xs">
+          <div className="text-center py-20 text-zinc-500 border border-[var(--ed-border)] rounded-2xl bg-[var(--ed-card)]/40 font-sans text-xs">
             No database records found matching the active coordinate query parameters.
           </div>
         ) : (
@@ -130,7 +113,7 @@ export default async function FeedPage({ searchParams }: PageProps) {
 
             return (
               <DoubleBezel key={item.id} className="w-full">
-                <div className="flex justify-between items-start mb-2 text-[10px] text-zinc-600 border-b border-white/5 pb-2">
+                <div className="flex justify-between items-start mb-2 text-[10px] text-zinc-600 border-b border-[var(--ed-border)] pb-2">
                   <div className="flex items-center gap-2">
                     {isReddit ? (
                       <RedditLogo size={10} className="text-rose-500" />
@@ -140,7 +123,7 @@ export default async function FeedPage({ searchParams }: PageProps) {
                     <span className="font-bold uppercase text-zinc-500">
                       [{item.sourceType.replace("_", " ")}]
                     </span>
-                    <span className="px-1.5 py-0.5 rounded bg-zinc-900 border border-white/5 text-zinc-400">
+                    <span className="px-1.5 py-0.5 rounded bg-zinc-900 border border-[var(--ed-border)] text-zinc-400">
                       {item.tickerSymbol}
                     </span>
                   </div>
@@ -182,5 +165,6 @@ export default async function FeedPage({ searchParams }: PageProps) {
         )}
       </div>
     </div>
+    </PageShell>
   );
 }

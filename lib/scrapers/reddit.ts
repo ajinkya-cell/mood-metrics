@@ -380,8 +380,9 @@ export async function scrapeReddit(ticker: Ticker, opts?: ScrapeRedditOptions): 
     for (let i = 0; i < rowsToInsert.length; i += batchSize) {
       const batch = rowsToInsert.slice(i, i + batchSize);
       try {
-        await db.insert(rawPosts).values(batch).onConflictDoNothing();
-        inserted += batch.length;
+        // Count what was written: rows this ticker already has are skipped
+        const written = await db.insert(rawPosts).values(batch).onConflictDoNothing().returning({ id: rawPosts.id });
+        inserted += written.length;
       } catch (insertErr) {
         console.warn(`[Reddit] Batch insert warning for ${ticker.symbol}:`, insertErr);
       }

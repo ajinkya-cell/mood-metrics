@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sliders, BookOpen } from "@phosphor-icons/react";
+import { BookOpen } from "@phosphor-icons/react";
 import DoubleBezel from "../components/DoubleBezel";
+import { PageShell, PageHero } from "../components/editorial";
+import { LineChart } from "../components/charts/LineChart";
 
 type SimulatePoint = {
   time: string;
@@ -85,62 +87,15 @@ export default function SimulatorPage() {
     };
   });
 
-  // SVG drawing configuration
-  const width = 500;
-  const height = 150;
-  const paddingY = 20;
-
-  const getCoords = (index: number, score: number) => {
-    const x = (index / (simulatedData.length - 1)) * width;
-    const yRange = height - paddingY * 2;
-    const y = height - paddingY - ((score + 100) / 200) * yRange;
-    return { x, y };
-  };
-
-  const points = simulatedData.map((pt, i) => getCoords(i, pt.score));
-  let pathD = "";
-  let areaD = "";
-  if (points.length > 0) {
-    pathD = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      pathD += ` L ${points[i].x} ${points[i].y}`;
-    }
-    areaD = `${pathD} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
-  }
-
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clientX = e.clientX - rect.left;
-    const pct = clientX / rect.width;
-    const idx = Math.min(
-      Math.max(Math.round(pct * (simulatedData.length - 1)), 0),
-      simulatedData.length - 1
-    );
-    setHoverIndex(idx);
-  };
-
   const hoveredPoint = hoverIndex !== null ? simulatedData[hoverIndex] : null;
-  const hoveredCoord = hoverIndex !== null ? points[hoverIndex] : null;
   const hoveredBaseline = hoverIndex !== null ? baseline[hoverIndex] : null;
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-12 select-none overflow-hidden pb-20 font-mono">
-      {/* Header */}
-      <div className="mb-10">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/5 bg-[#0C0C0E] text-xs uppercase tracking-[0.2em] font-mono text-zinc-500 font-bold mb-4">
-          <Sliders size={12} />
-          FORMULA WORKSHOP
-        </div>
-        <h1 className="text-4xl font-extrabold tracking-tight text-white font-sans">
-          Weight Simulator
-        </h1>
-        <p className="text-zinc-500 text-sm mt-1 max-w-2xl font-sans">
-          Experiment with math weights and watch the simulated historical sentiment curves adjust in real-time.
-        </p>
-      </div>
-
+    <PageShell>
+      <PageHero micro="Formula workshop" lead="Tune the" accent="weights" description="Experiment with the blend weights and watch the simulated historical sentiment curve respond in real time." />
+      <div className="px-4 md:px-5 py-5 border-t border-[var(--ed-border)]">
       {/* Concept Explanation Card */}
-      <div className="border-l-2 border-emerald-500/40 bg-emerald-500/[0.015] rounded-r-2xl pl-6 pr-5 py-5 flex flex-col md:flex-row gap-4 items-start font-sans text-xs leading-relaxed max-w-7xl shadow-[0_2px_12px_-3px_rgba(16,185,129,0.01)] mb-8">
+      <div className="ed-bento p-5 flex flex-col md:flex-row gap-4 items-start text-[15px] leading-relaxed mb-3">
         <div className="p-2.5 bg-emerald-500/5 border border-emerald-500/10 text-emerald-400 rounded-xl shrink-0">
           <BookOpen size={16} />
         </div>
@@ -151,7 +106,7 @@ export default function SimulatorPage() {
               The Weight Simulator is an interactive modeling sandbox where users can adjust mathematical weights of the four primary sentiment layers to customize the blended telemetry formula. By sliding individual weights, you modify the system's baseline focus (e.g., placing more importance on institutional perp rates versus retail reddit chatter).
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-white/5 pt-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-[var(--ed-border)] pt-3">
             <div>
               <h3 className="text-zinc-200 font-bold uppercase tracking-wider text-[9px] mb-1 font-mono">How it is calculated</h3>
               <p className="text-[11px] text-zinc-500">
@@ -183,7 +138,7 @@ export default function SimulatorPage() {
         {/* Sliders Control Panel (col-5) */}
         <div className="lg:col-span-5">
           <DoubleBezel className="p-6">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-widest block mb-4 border-b border-white/5 pb-2">
+            <span className="text-[10px] text-zinc-500 uppercase tracking-widest block mb-4 border-b border-[var(--ed-border)] pb-2">
               TUNING WORK BENCH (SUM: 100%)
             </span>
 
@@ -258,7 +213,7 @@ export default function SimulatorPage() {
         {/* Live Simulation Graph (col-7) */}
         <div className="lg:col-span-7 flex flex-col gap-4">
           {/* Chart visual container */}
-          <div className="border border-white/5 bg-[#0C0C0E] rounded-3xl p-6">
+          <div className="border border-[var(--ed-border)] bg-[var(--ed-card)] rounded-3xl p-6">
             <div className="flex justify-between items-baseline mb-4 h-12">
               <div>
                 <span className="text-[10px] text-zinc-500 uppercase tracking-widest block">
@@ -303,58 +258,22 @@ export default function SimulatorPage() {
               )}
             </div>
 
-            {/* SVG Visual */}
-            <div className="relative border border-white/5 bg-zinc-950/20 rounded-xl overflow-hidden p-1">
-              <svg
-                viewBox={`0 0 ${width} ${height}`}
-                width="100%"
-                height="100%"
-                onMouseMove={handleMouseMove}
-                onMouseLeave={() => setHoverIndex(null)}
-                className="cursor-crosshair overflow-visible"
-              >
-                <defs>
-                  <linearGradient id="simAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10B981" stopOpacity="0.1" />
-                    <stop offset="100%" stopColor="#10B981" stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
-
-                {/* Zero line */}
-                <line
-                  x1="0"
-                  y1={height / 2}
-                  x2={width}
-                  y2={height / 2}
-                  stroke="rgba(255,255,255,0.03)"
-                  strokeDasharray="4 4"
-                />
-
-                {/* Area under path */}
-                {areaD && <path d={areaD} fill="url(#simAreaGrad)" className="pointer-events-none" />}
-
-                {/* Simulated wave line path */}
-                {pathD && (
-                  <path d={pathD} fill="none" stroke="#10B981" strokeWidth="2" className="pointer-events-none" />
-                )}
-
-                {/* Scrubber tracker indicators */}
-                {hoveredCoord && hoveredPoint && (
-                  <g className="pointer-events-none">
-                    <line
-                      x1={hoveredCoord.x}
-                      y1={0}
-                      x2={hoveredCoord.x}
-                      y2={height}
-                      stroke="rgba(255,255,255,0.15)"
-                      strokeWidth="1"
-                      strokeDasharray="2 2"
-                    />
-                    <circle cx={hoveredCoord.x} cy={hoveredCoord.y} r="4" fill="#10B981" stroke="#fff" strokeWidth="1.5" />
-                  </g>
-                )}
-              </svg>
-            </div>
+            {/* Simulated curve (void-ui area chart); hover drives the contribution panel below */}
+            <LineChart
+              bare
+              size="fluid"
+              variant="area"
+              data={simulatedData.map((d, i) => ({ ...d, i }))}
+              xKey="i"
+              series={[{ key: "score", label: "Simulated" }]}
+              yMin={-100}
+              yMax={100}
+              height={180}
+              legend={false}
+              formatValue={(v) => `${v > 0 ? "+" : ""}${Math.round(v)}`}
+              formatX={(i) => new Date(simulatedData[Number(i)]?.time ?? 0).toLocaleDateString([], { day: "numeric", month: "short" })}
+              onActiveChange={setHoverIndex}
+            />
           </div>
 
           {/* Layer Contribution analysis during hover */}
@@ -395,5 +314,6 @@ export default function SimulatorPage() {
         </div>
       </div>
     </div>
+    </PageShell>
   );
 }

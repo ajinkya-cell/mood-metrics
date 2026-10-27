@@ -4,43 +4,38 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import {
-  Gauge,
-  Database,
-  TrendUp,
-  Cpu,
-  BookOpen,
-  Heart,
-  GithubLogo,
-  XLogo,
-  List,
-  X,
-} from "@phosphor-icons/react";
+import { GithubLogo, XLogo, List, X } from "@phosphor-icons/react";
 
 const NAV_LINKS = [
-  { href: "/dashboard", label: "Dashboard", icon: Gauge },
-  { href: "/records", label: "Records", icon: Database },
-  { href: "/backtester", label: "Backtest", icon: TrendUp },
-  { href: "/advanced", label: "Tools", icon: Cpu },
-  { href: "/methodology", label: "How It Works", icon: BookOpen },
-  { href: "/support", label: "Support", icon: Heart },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/records", label: "Records" },
+  { href: "/backtester", label: "Backtest" },
+  { href: "/advanced", label: "Tools" },
+  { href: "/methodology", label: "How it works" },
+  { href: "/support", label: "Support" },
 ];
+
+const SPRING = { type: "spring", stiffness: 500, damping: 35, mass: 0.6 } as const;
 
 export default function GlobalNav() {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
+  // The menu remembers the page it was opened on, so any navigation closes it
+  const [openOnPath, setOpenOnPath] = useState<string | null>(null);
+  const isOpen = openOnPath === pathname;
+  const setIsOpen = (open: boolean) => setOpenOnPath(open ? pathname : null);
+  const [hovered, setHovered] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click or Escape key
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (navRef.current && !navRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        setOpenOnPath(null);
       }
     }
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setIsOpen(false);
+        setOpenOnPath(null);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -51,117 +46,100 @@ export default function GlobalNav() {
     };
   }, []);
 
-  // Auto-close on route change
-  useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
+  const activeHref = NAV_LINKS.find((l) => pathname === l.href || pathname.startsWith(`${l.href}/`))?.href ?? null;
+  // The indicator sits under the hovered link, else the current page
+  const indicatorHref = hovered ?? activeHref;
 
   return (
-    <header className="fixed top-0 z-50 w-full px-4 pt-4 pb-2">
+    <header className="fixed top-0 z-50 w-full px-4 pt-[18px] pb-2 font-grotesk">
       <div ref={navRef} className="relative max-w-4xl mx-auto">
-        {/* Floating Capsule Pill */}
-        <div className="flex items-center justify-between rounded-full border border-white/10 bg-[#0C0C0E]/80 backdrop-blur-xl px-5 py-2 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] transition-all duration-300">
-          <Link href="/" className="flex items-center group transition-all duration-200">
-            <img
-              src="/logo-moody.png"
-              alt="MoodMetrics Logo"
-              className="h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
-            />
+        <div className="ed-glass flex items-center justify-between pl-4 pr-1.5 py-1.5">
+          <Link href="/" className="ed-press flex items-center shrink-0" aria-label="MoodMetrics home">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-moody.png" alt="MoodMetrics" className="h-7 w-auto object-contain" />
           </Link>
 
-          {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center gap-2">
+          {/* Desktop links with a sliding glass indicator */}
+          <nav className="hidden lg:flex items-center" onMouseLeave={() => setHovered(null)}>
             {NAV_LINKS.map((link) => {
-              const Icon = link.icon;
-              const isActive = pathname === link.href;
+              const lit = indicatorHref === link.href;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-1.5 py-1.5 px-3 rounded-full text-[13px] font-sans font-medium transition-all duration-200 ${
-                    isActive
-                      ? "text-white font-semibold bg-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)]"
-                      : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  onMouseEnter={() => setHovered(link.href)}
+                  aria-current={activeHref === link.href ? "page" : undefined}
+                  className={`relative ed-press px-[15px] py-[7px] rounded-full text-[13.5px] font-medium transition-colors duration-150 ${
+                    lit ? "text-white" : "text-[var(--ed-fg-65)]"
                   }`}
                 >
-                  <Icon
-                    size={14}
-                    weight={isActive ? "fill" : "regular"}
-                    className={isActive ? "text-emerald-400" : "text-zinc-400"}
-                  />
-                  <span>{link.label}</span>
+                  {lit && (
+                    <motion.span
+                      layoutId="navIndicator"
+                      className="ed-chip absolute inset-0"
+                      animate={{ opacity: hovered && hovered !== activeHref ? 0.85 : 1 }}
+                      transition={SPRING}
+                    />
+                  )}
+                  <span className="relative">{link.label}</span>
                 </Link>
               );
             })}
           </nav>
 
-          {/* Right Action Icons & Hamburger */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <a
               href="https://github.com/ajinkya-cell/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-zinc-400 hover:text-white transition-colors duration-200 p-2 hover:bg-white/5 rounded-full flex items-center justify-center"
+              className="ed-press p-2 rounded-full text-[var(--ed-fg-55)] hover:text-white transition-colors duration-150"
               aria-label="GitHub"
             >
-              <GithubLogo size={18} weight="fill" />
+              <GithubLogo size={17} weight="fill" />
             </a>
             <a
               href="https://x.com/ajinkyacell"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-zinc-400 hover:text-white transition-colors duration-200 p-2 hover:bg-white/5 rounded-full flex items-center justify-center"
+              className="ed-press p-2 rounded-full text-[var(--ed-fg-55)] hover:text-white transition-colors duration-150"
               aria-label="X (formerly Twitter)"
             >
-              <XLogo size={17} weight="bold" />
+              <XLogo size={16} weight="bold" />
             </a>
-
-            {/* Mobile Hamburger Toggle Button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="lg:hidden p-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-colors cursor-pointer select-none"
-              aria-label="Toggle Navigation Menu"
+              className="lg:hidden ed-chip ed-press ml-1 p-2 text-white cursor-pointer"
+              aria-label="Toggle navigation menu"
+              aria-expanded={isOpen}
             >
-              {isOpen ? <X size={18} /> : <List size={18} />}
+              {isOpen ? <X size={16} /> : <List size={16} />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
+        {/* Mobile menu — glass panel that blurs in */}
         <AnimatePresence>
           {isOpen && (
             <motion.div
-              initial={{ opacity: 0, y: -6, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.98 }}
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="lg:hidden absolute top-full left-0 right-0 mt-2 p-2.5 rounded-2xl border border-white/10 bg-[#0C0C0E]/95 backdrop-blur-2xl shadow-[0_16px_40px_rgba(0,0,0,0.8)] z-50 flex flex-col gap-1"
+              initial={{ opacity: 0, y: -4, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -4, filter: "blur(4px)" }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="lg:hidden ed-glass rounded-[18px] absolute top-full left-0 right-0 mt-2 p-2 z-50 flex flex-col"
             >
               {NAV_LINKS.map((link) => {
-                const Icon = link.icon;
-                const isActive = pathname === link.href;
+                const isActive = activeHref === link.href;
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
                     onClick={() => setIsOpen(false)}
-                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-sans font-medium transition-all duration-150 ${
-                      isActive
-                        ? "bg-white/10 text-white font-semibold"
-                        : "text-zinc-400 hover:text-white hover:bg-white/5"
+                    className={`ed-press flex items-center justify-between px-3.5 py-2.5 rounded-[10px] text-[15px] font-medium transition-colors duration-150 ${
+                      isActive ? "bg-white/[0.08] text-white" : "text-[var(--ed-fg-70)] hover:bg-white/[0.06] hover:text-white"
                     }`}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <Icon
-                        size={16}
-                        weight={isActive ? "fill" : "regular"}
-                        className={isActive ? "text-emerald-400" : "text-zinc-400"}
-                      />
-                      <span>{link.label}</span>
-                    </div>
-                    {isActive && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                    )}
+                    {link.label}
+                    {isActive && <span className="ed-square bg-[var(--ed-blue-label)]" />}
                   </Link>
                 );
               })}
