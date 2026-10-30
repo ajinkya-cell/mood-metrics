@@ -91,9 +91,11 @@ export function calculateBlendedScore(input: BlendInput): BlendOutput {
 // NIM retires models without much notice (llama-3.1-8b and llama-3.3-70b went
 // 410 on 2026-08-26; llama-3.2-11b-vision stopped responding in Oct 2026).
 // Rate limits are per model: nemotron-3.5-lightning-30b 429'd after ~30 calls,
-// bolt-e4b handled 80 calls in 8s with no 429s.
+// bolt-e4b handled 80 calls in 8s with no 429s, but stopped responding on
+// 2026-10-30 (still listed, every call hangs) — back on lightning; the RPM
+// throttle + 429 backoff below keep it within its limit, just slower.
 // If analysis starts failing, run `npx tsx --env-file=.env scripts/check-ai-health.ts`.
-export const SENTIMENT_MODEL = "nvidia/nemotron-3.5-bolt-e4b";
+export const SENTIMENT_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b";
 export const EMBEDDING_MODEL = "nvidia/nemotron-3-embed-1b";
 
 // Thrown when the model fails on every post at the start of a run — the
@@ -261,10 +263,12 @@ export async function checkAIHealth(): Promise<{ ok: boolean; chat: string; embe
   let chat = "ok";
   let embedding = "ok";
   try {
+    // Retry: one slow NIM response (25s timeout) shouldn't page anyone. A
+    // retired model fails every attempt, so this still catches the real case
     const result = await analyzePost(
       { title: "Bitcoin ETF inflows hit a record high", content: "Analysts expect a rally." } as RawPost,
       "Bitcoin",
-      0
+      2
     );
     if (result.label !== "bullish" || result.score <= 0) {
       chat = `unexpected ${result.label} / ${result.score} for an obviously bullish post`;
